@@ -121,7 +121,7 @@ namespace Lumina::Reflection
             return WorkspacePath + "/Intermediates/CSharpBindings/" + Header.Project->Name + "/" + Header.FileName + ".generated.cs";
         }
 
-        // kUnityShardCount MUST match LuminaConfig.ReflectionUnityShardCount in BuildScripts/Dependencies.lua.
+        // Must match ReflectionStep.UnityShardCount in LuminaBuildTool.
         constexpr int kUnityShardCount = 8;
 
         // Runtime lands on the 8-shard cap, while a plugin with ten types stays at one and compiles as before.

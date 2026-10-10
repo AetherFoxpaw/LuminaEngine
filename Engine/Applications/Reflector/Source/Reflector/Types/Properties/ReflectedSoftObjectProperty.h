@@ -16,10 +16,8 @@ namespace Lumina
 
         const char* GetTypeName() override { return "SoftObject"; }
         const char* GetPropertyParamType() const override { return "FSoftObjectPropertyParams"; }
-        std::string_view GetLuaType() override;
 
         void AppendDefinition(Reflection::FCodeWriter& Writer) const override;
-        bool GenerateLuaBinding(Reflection::FCodeWriter& Writer) override { return true; }
 
         void DeclareCrossModuleReference(const std::string& API, Reflection::FCodeWriter& Writer) override
         {

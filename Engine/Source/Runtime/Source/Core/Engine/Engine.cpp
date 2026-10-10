@@ -265,7 +265,7 @@ namespace Lumina
             FObjectReferenceProviders::Register(GConfig);
         }
 
-        // Must run before renderer/Lua so Earliest/Core-phase plugins can wedge in ahead.
+        // Must run before the renderer so Earliest/Core-phase plugins can wedge in ahead.
         FPluginManager::Get().DiscoverEnginePlugins();
         BootMark("DiscoverEnginePlugins");
 

@@ -12,10 +12,8 @@ namespace Lumina
 
         const char* GetTypeName() override { return "Object"; }
         const char* GetPropertyParamType() const override { return "FObjectPropertyParams"; }
-        std::string_view GetLuaType() override;
 
         void AppendDefinition(Reflection::FCodeWriter& Writer) const override;
-        bool GenerateLuaBinding(Reflection::FCodeWriter& Writer) override { return true; }
 
         void DeclareCrossModuleReference(const std::string& API, Reflection::FCodeWriter& Writer) override
         {

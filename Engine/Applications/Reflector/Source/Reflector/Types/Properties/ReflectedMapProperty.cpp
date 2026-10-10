@@ -54,9 +54,4 @@ namespace Lumina
 
         return true;
     }
-
-    bool FReflectedMapProperty::GenerateLuaBinding(Reflection::FCodeWriter& Writer)
-    {
-        return true;
-    }
 }

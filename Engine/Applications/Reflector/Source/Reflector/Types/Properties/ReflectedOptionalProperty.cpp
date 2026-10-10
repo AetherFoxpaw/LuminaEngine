@@ -101,9 +101,4 @@ namespace Lumina
 
         return true;
     }
-
-    bool FReflectedOptionalProperty::GenerateLuaBinding(Reflection::FCodeWriter& Writer)
-    {
-        return true;
-    }
 }

@@ -14,7 +14,6 @@ namespace Lumina
 
         const char* GetTypeName() override { return "Class"; }
         const char* GetPropertyParamType() const override { return "FClassPropertyParams"; }
-        std::string_view GetLuaType() override;
 
         void AppendDefinition(Reflection::FCodeWriter& Writer) const override;
 

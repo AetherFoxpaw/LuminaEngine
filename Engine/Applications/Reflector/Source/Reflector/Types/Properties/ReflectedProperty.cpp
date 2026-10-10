@@ -138,12 +138,6 @@ namespace Lumina
         return false;
     }
 
-    bool FReflectedProperty::GenerateLuaBinding(Reflection::FCodeWriter& Writer)
-    {
-        Writer.Appendf("\t\t\"%s\", &%s::%s", GetDisplayName().c_str(), Outer.c_str(), GetDisplayName().c_str());
-        return true;
-    }
-
     bool FReflectedProperty::HasAccessors()
     {
         return !GetterFunc.empty() || !SetterFunc.empty();

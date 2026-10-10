@@ -6,7 +6,6 @@
 #include "Reflector/Types/StructReflectItem.h"
 #include "Reflector/Utils/MetadataUtils.h"
 
-
 namespace Lumina::Reflection
 {
     class FReflectedType;
@@ -26,7 +25,6 @@ namespace Lumina
 
         virtual const char* GetPropertyParamType() const { return "FPropertyParams"; }
         virtual const char* GetTypeName() = 0;
-        virtual std::string_view GetLuaType() = 0;
 
         virtual void AppendDefinition(Reflection::FCodeWriter& Writer) const = 0;
 
@@ -37,7 +35,6 @@ namespace Lumina
         virtual bool DeclareAccessors(Reflection::FCodeWriter& Writer, const std::string& FileID);
         virtual bool DefineAccessors(Reflection::FCodeWriter& Writer, Reflection::FReflectedType* ReflectedType);
 
-        bool GenerateLuaBinding(Reflection::FCodeWriter& Writer) override;
         void GenerateMetadata(const std::string& InMetadata) override;
 
         // True when two of this property's specifiers contradict each other, with a message naming both

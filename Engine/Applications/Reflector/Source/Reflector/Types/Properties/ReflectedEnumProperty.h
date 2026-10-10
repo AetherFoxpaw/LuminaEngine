@@ -5,7 +5,6 @@
 #include "Reflector/CodeGeneration/CodeWriter.h"
 #include "Reflector/CodeGeneration/ReflectionNames.h"
 
-
 namespace Lumina
 {
     class FReflectedEnumProperty : public FReflectedProperty
@@ -14,7 +13,6 @@ namespace Lumina
 
         const char* GetTypeName() override { return "Enum"; }
         const char* GetPropertyParamType() const override { return "FEnumPropertyParams"; }
-        std::string_view GetLuaType() override { return "number"; }
 
         void AppendDefinition(Reflection::FCodeWriter& Writer) const override
         {

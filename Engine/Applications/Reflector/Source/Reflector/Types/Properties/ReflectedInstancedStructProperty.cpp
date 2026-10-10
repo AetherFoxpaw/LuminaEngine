@@ -16,14 +16,4 @@ namespace Lumina
 
         AppendPropertyDef(Writer, PropertyFlagStr.c_str(), "Lumina::EPropertyTypeFlags::InstancedStruct", CustomData);
     }
-
-    std::string_view FReflectedInstancedStructProperty::GetLuaType()
-    {
-        const size_t Pos = TypeName.find_last_of(':');
-        if (Pos != std::string::npos)
-        {
-            return std::string_view(TypeName).substr(Pos + 1);
-        }
-        return TypeName;
-    }
 }
