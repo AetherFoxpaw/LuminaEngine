@@ -88,6 +88,9 @@ namespace Lumina::DotNet
     // to stage under DotNet/Scripts/ + scripts.manifest.json. Editor-side; no-op if scripting is disabled.
     RUNTIME_API void GatherScriptUnitsForPackaging(TVector<FPackagedScriptUnit>& Out);
 
+    // Disk paths of every .cs the script units compile, listed without reading them.
+    RUNTIME_API void GatherScriptSourceFiles(TVector<FString>& OutPaths);
+
     RUNTIME_API bool IsInitialized();
 
     // Resolves a native->managed export by name to its raw function pointer, or nullptr if unknown / scripting

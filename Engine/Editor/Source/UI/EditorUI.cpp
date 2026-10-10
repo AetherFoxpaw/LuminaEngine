@@ -3001,6 +3001,14 @@ namespace Lumina
 
     void FEditorUI::OpenAssetSearchModal()
     {
+        // A package has a thumbnail and its own editor, while a loose file opens by path.
+        enum class EOpenAs : uint8
+        {
+            Package,
+            FileEditor,
+            ScriptEditor,
+        };
+
         // The list cannot change while a modal is up, and re-walking the registry per keystroke is waste.
         struct FEntry
         {
@@ -3009,6 +3017,9 @@ namespace Lumina
             FFixedString Path;
             // Precomputed, since the alternative is interning the path on every visible row every frame.
             FName        PathName;
+            EOpenAs      OpenAs = EOpenAs::Package;
+            // A script opens in the external editor, which needs its disk path rather than the virtual one shown.
+            FString      DiskPath;
         };
 
         TVector<FEntry> Entries;
@@ -3016,6 +3027,24 @@ namespace Lumina
         {
             Entries.push_back(FEntry{ Asset->AssetGUID, FFixedString(Asset->AssetName.c_str()), Asset->Path,
                                       FName(Asset->Path.c_str()) });
+        }
+
+        for (const FTextAssetData* Text : FAssetRegistry::Get().GetTextAssetsOfKind(ETextAssetKind::None))
+        {
+            const FStringView FileName = VFS::FileName(FStringView(Text->Path.c_str(), Text->Path.size()));
+            Entries.push_back(FEntry{ Text->Guid, FFixedString(FileName.data(), FileName.size()), Text->Path, FName(), EOpenAs::FileEditor });
+        }
+
+        TVector<FString> ScriptFiles;
+        DotNet::GatherScriptSourceFiles(ScriptFiles);
+        for (FString& Script : ScriptFiles)
+        {
+            const FStringView   DiskPath(Script.c_str(), Script.size());
+            const FStringView   FileName    = VFS::FileName(DiskPath);
+            const FFixedString  VirtualPath = VFS::ResolveToVirtualPath(DiskPath);
+            Entries.push_back(FEntry{ FGuid(), FFixedString(FileName.data(), FileName.size()),
+                                      VirtualPath.empty() ? FFixedString(Script.c_str()) : VirtualPath, FName(),
+                                      EOpenAs::ScriptEditor, Move(Script) });
         }
 
         if (Entries.empty())
@@ -3133,7 +3162,9 @@ namespace Lumina
 
                         // A miss starts the async resolve and draws the generic icon, same as the content browser tiles.
                         ImTextureRef Thumbnail = ImGuiX::ToImTextureRef(GenericAssetIcon);
-                        if (FPackageThumbnail* Ready = CThumbnailManager::Get().GetThumbnailForPackage(Entry.PathName))
+                        FPackageThumbnail* Ready = Entry.OpenAs == EOpenAs::Package
+                            ? CThumbnailManager::Get().GetThumbnailForPackage(Entry.PathName) : nullptr;
+                        if (Ready != nullptr)
                         {
                             Thumbnail = ImGuiX::ToImTextureRef(Ready->LoadedImage);
                         }
@@ -3162,7 +3193,19 @@ namespace Lumina
 
             if (bChosen)
             {
-                OpenAssetEditor(Matches[Selected]->GUID);
+                const FEntry& Chosen = *Matches[Selected];
+                switch (Chosen.OpenAs)
+                {
+                case EOpenAs::Package:
+                    OpenAssetEditor(Chosen.GUID);
+                    break;
+                case EOpenAs::FileEditor:
+                    OpenFileEditor(FStringView(Chosen.Path.c_str(), Chosen.Path.size()));
+                    break;
+                case EOpenAs::ScriptEditor:
+                    OpenScriptEditor(FStringView(Chosen.DiskPath.c_str(), Chosen.DiskPath.size()));
+                    break;
+                }
                 return true;
             }
 

@@ -378,19 +378,15 @@ namespace Lumina::DotNet
         };
 
         // Scripts are source rather than VFS content, so a code-only plugin still gets its scripts compiled.
-        void GatherSourcesUnder(const FString& DiskDir, TVector<FGatheredSource>& Out)
+        template<typename TVisit>
+        void ForEachScriptSource(const FString& DiskDir, TVisit&& Visit)
         {
-            if (DiskDir.empty())
+            if (DiskDir.empty() || !Filesystem::IsDirectory(DiskDir))
             {
                 return;
             }
 
-            if (!Filesystem::IsDirectory(DiskDir))
-            {
-                return;
-            }
-
-            Filesystem::IterateDirectoryRecursive(DiskDir, [&Out](const Filesystem::FDirectoryEntry& Entry)
+            Filesystem::IterateDirectoryRecursive(DiskDir, [&Visit](const Filesystem::FDirectoryEntry& Entry)
             {
                 if (Entry.IsDirectory() || Entry.GetExtension() != FStringView(".cs"))
                 {
@@ -402,7 +398,14 @@ namespace Lumina::DotNet
                 {
                     return;
                 }
+                Visit(P);
+            });
+        }
 
+        void GatherSourcesUnder(const FString& DiskDir, TVector<FGatheredSource>& Out)
+        {
+            ForEachScriptSource(DiskDir, [&Out](FStringView P)
+            {
                 FGatheredSource Src;
                 if (!Filesystem::ReadFile(Src.Text, P))
                 {
@@ -1666,6 +1669,32 @@ namespace Lumina::DotNet
             return;
         }
         LoadScriptUnitsCore(Units, /*bEditorFollowups*/false);
+    }
+
+    void GatherScriptSourceFiles(TVector<FString>& OutPaths)
+    {
+        OutPaths.clear();
+
+        // The same roots BuildScriptUnits compiles, minus the reference resolution that can restore packages.
+        TVector<FString> Roots;
+        for (const FPlugin* Plugin : FPluginManager::Get().GetAllPlugins())
+        {
+            if (Plugin != nullptr && Plugin->IsEnabled())
+            {
+                Roots.push_back(FString(Plugin->GetDirectory().data(), Plugin->GetDirectory().size()) + "/Scripts");
+            }
+        }
+        if (GEngine != nullptr)
+        {
+            const FFixedString ScriptsDir = GEngine->GetProjectScriptsDirectory();
+            Roots.emplace_back(ScriptsDir.data(), ScriptsDir.size());
+        }
+        Roots.push_back(Paths::GetEngineResourceDirectory() + "/Scripts");
+
+        for (const FString& Root : Roots)
+        {
+            ForEachScriptSource(Root, [&OutPaths](FStringView P) { OutPaths.emplace_back(P.data(), P.size()); });
+        }
     }
 
     void GatherScriptUnitsForPackaging(TVector<FPackagedScriptUnit>& Out)
