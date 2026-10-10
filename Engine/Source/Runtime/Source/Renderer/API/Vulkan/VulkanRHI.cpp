@@ -5959,7 +5959,9 @@ namespace Lumina::RHI
             .imageColorSpace  = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
             .imageExtent      = ActualExtent,
             .imageArrayLayers = 1,
-            .imageUsage       = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            // Transfer source lets a window capture copy the presented image back, where the surface allows it.
+            .imageUsage       = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                              | (Caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT),
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .preTransform     = Caps.currentTransform,
             .compositeAlpha   = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,

@@ -117,6 +117,20 @@ namespace Lumina
         // Rebuild the primary swapchain (vsync / present-mode change).
         RUNTIME_API void RecreatePrimarySwapchain();
 
+        // The whole composited main window, editor UI included, as tightly packed BGRA8 with the top row first.
+        struct FWindowCapture
+        {
+            TVector<uint8> Pixels;
+            uint32         Width  = 0;
+            uint32         Height = 0;
+        };
+
+        // Arms a copy of the next frame the main window presents, and returns the ticket that collects it.
+        RUNTIME_API uint64 RequestWindowCapture();
+
+        // True once the frame the ticket armed has finished on the GPU, moving its pixels into Out.
+        RUNTIME_API bool TakeWindowCapture(uint64 Ticket, FWindowCapture& Out);
+
         #if WITH_EDITOR
         IImGuiRenderer* GetImGuiRenderer() const { return ImGuiRenderer; }
         #endif
@@ -139,6 +153,11 @@ namespace Lumina
         void OnWindowResized(FWindow* Window, const FUIntVector2& Extent);
 
         void ApplyPendingResize();
+
+        void RecordWindowCapture(RHI::FCmdListH CL, RHI::FTextureH SwapImage, const FUIntVector2& Extent, uint8 FrameIndex);
+
+        // Runs once the slot's fence has been waited, which is when its copy is complete.
+        void ResolveWindowCapture(uint8 FrameIndex);
 
         #if WITH_EDITOR
         IImGuiRenderer*                     ImGuiRenderer = nullptr;
@@ -170,6 +189,22 @@ namespace Lumina
 
         // Set by WaitForFrameSlot, cleared by the FrameEnd that consumes it.
         bool                                bFrameSlotWaited = false;
+
+        struct FInFlightWindowCapture
+        {
+            uint64              Ticket     = 0;
+            RHI::FGPUAllocation Readback   = {};
+            FUIntVector2        Extent     = FUIntVector2(0, 0);
+            uint8               FrameIndex = 0;
+        };
+
+        FMutex                              WindowCaptureMutex;
+        uint64                              NextWindowCaptureTicket = 1;
+        // Armed but not yet recorded into a frame.
+        uint64                              RequestedWindowCapture  = 0;
+        FInFlightWindowCapture              InFlightWindowCapture;
+        uint64                              CompletedWindowCaptureTicket = 0;
+        FWindowCapture                      CompletedWindowCapture;
     };
     
     NODISCARD RUNTIME_API FRenderManager& Render();
