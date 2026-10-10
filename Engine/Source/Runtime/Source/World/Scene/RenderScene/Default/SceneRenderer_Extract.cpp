@@ -2128,6 +2128,15 @@ namespace Lumina
         return Math::Sqrt(Math::Max(Math::Dot(AxisX, AxisX), Math::Max(Math::Dot(AxisY, AxisY), Math::Dot(AxisZ, AxisZ))));
     }
 
+    // Distance to the nearest point of the bounds, so a large mesh is never coarser than its closest part allows.
+    static float LODReach(const FCullView& View, const FVector4& Sphere)
+    {
+        const bool bOrthographic = (GetCullViewFlags(View) & ECullViewFlags::OrthographicLOD) != 0u;
+        return bOrthographic
+             ? 1.0f
+             : Math::Max(Math::Length(FVector3(Sphere) - FVector3(View.ViewOriginAndFlags)) - Sphere.w, 0.0f);
+    }
+
     // Mirrors SelectLODForView in Culling.slang.
     static uint32 SelectLODForView(const FSurfaceDescGPU& Desc, const FCullView& View, const FVector4& Sphere, float MaxScale)
     {
@@ -2137,10 +2146,7 @@ namespace Lumina
             return 0u;
         }
 
-        const bool  bOrthographic = (GetCullViewFlags(View) & ECullViewFlags::OrthographicLOD) != 0u;
-        const float Reach         = bOrthographic
-                                  ? 1.0f
-                                  : Math::Max(Math::Length(FVector3(Sphere) - FVector3(View.ViewOriginAndFlags)) - Sphere.w, 0.0f);
+        const float Reach         = LODReach(View, Sphere);
         const float ErrorScale    = View.LODErrorScale * MaxScale;
 
         uint32 Picked = 0;
@@ -2172,6 +2178,39 @@ namespace Lumina
             return SelectLODForView(Desc, *CameraView, Sphere, MaxScale);
         }
         return 0u;
+    }
+
+    // The mesh-local error the camera tolerates here, which is what picks a skinned LOD and how much of the skeleton may hold still.
+    static float ResolveBoneLODTolerance(const FScenePrimitive& Prim, const FSurfaceBinding* Bindings,
+                                         const FSurfaceDescGPU* SurfaceDescs, uint32 NumSurfaceDescs,
+                                         const FSceneRenderSettings& Settings, const FCullView* CameraView,
+                                         const FVector4& Sphere, float MaxScale)
+    {
+        // A forced LOD previews the cut that LOD's own error allows.
+        if (Prim.ForcedLODIndex >= 0)
+        {
+            float Tolerance = 0.0f;
+            for (uint32 s = 0; s < Prim.SurfaceCount; ++s)
+            {
+                if (Bindings[s].SurfaceDescIndex >= NumSurfaceDescs)
+                {
+                    continue;
+                }
+                const FSurfaceDescGPU& Desc = SurfaceDescs[Bindings[s].SurfaceDescIndex];
+                const uint32 NumLODs = Math::Min(Desc.NumLODs, (uint32)MAX_MESH_LODS);
+                if (NumLODs > 1u)
+                {
+                    Tolerance = Math::Max(Tolerance, Desc.LODError[Math::Min((uint32)Prim.ForcedLODIndex, NumLODs - 1u)]);
+                }
+            }
+            return Tolerance;
+        }
+
+        if (!Settings.bUseLODs || CameraView == nullptr || CameraView->LODErrorScale <= 0.0f || MaxScale <= 0.0f)
+        {
+            return 0.0f;
+        }
+        return LODReach(*CameraView, Sphere) / (CameraView->LODErrorScale * MaxScale);
     }
 
     // Leaves FrameTag and SkinnedBoundsBase alone, since UploadSkinnedFrameData stamps both on the render thread.
@@ -2540,9 +2579,13 @@ namespace Lumina
 
             MeshComponent.LastDistanceOverRadius = (Radius > 0.0f) ? (Math::Sqrt(DistSq) / Radius) : 0.0f;
 
+            const float MaxScale = TransformMaxScale(Prim.Transform);
+            MeshComponent.LastBoneLODTolerance = ResolveBoneLODTolerance(Prim, Bindings + Prim.BindingBase, SurfaceDescs, NumSurfaceDescs,
+                                                                         FrameSettings, CameraView, Sphere, MaxScale);
+
             EmitPrimitiveSurfaces(Local, Prim, Bindings + Prim.BindingBase,
                                   SurfaceDescs, NumSurfaceDescs,
-                                  BoneArenaBase, Target, FrameSettings, CameraView, Sphere, TransformMaxScale(Prim.Transform));
+                                  BoneArenaBase, Target, FrameSettings, CameraView, Sphere, MaxScale);
         }
     }
 

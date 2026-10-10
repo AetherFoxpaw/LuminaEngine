@@ -57,6 +57,9 @@ namespace Lumina
         // the update-rate interval. 0 (never rendered) evaluates at full rate. Transient.
         float LastDistanceOverRadius = 0.0f;
 
+        // Mesh-local error the camera tolerates at this mesh, stamped by the render gather; 0 animates every bone. Transient.
+        float LastBoneLODTolerance = 0.0f;
+
         // Animation time accrued while update-rate optimization skipped evaluation; consumed as one
         // larger step on the next evaluated frame. Transient.
         float PendingAnimTime = 0.0f;

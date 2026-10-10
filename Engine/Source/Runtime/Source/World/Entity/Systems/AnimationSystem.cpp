@@ -5,6 +5,8 @@
 #include "Core/Console/ConsoleVariable.h"
 
 #include "Animation/AnimationGraphVM.h"
+#include "Animation/BoneLOD.h"
+#include "Platform/Time/PlatformTime.h"
 #include "Animation/RootMotion.h"
 #include "Animation/SkeletalMeshUtils.h"
 #include "Animation/TaskSystem/AnimTaskExecutor.h"
@@ -136,6 +138,16 @@ namespace Lumina
         true,
         "Throttle animation by distance and visibility: update-rate skipping, low-detail bone LOD, and the "
         "off-screen pose freeze. Off evaluates every skeleton at full rate with every bone, every frame.");
+
+    static TConsoleVar<bool> CVarBoneLOD(
+        "anim.BoneLOD",
+        true,
+        "Animate only the bones whose motion would show at the size the mesh renders, holding the rest at their bind pose.");
+
+    static TConsoleVar<bool> CVarBoneLODLog(
+        "anim.BoneLOD.Log",
+        false,
+        "Log about once a second how many bones the evaluated skeletons animated out of how many they have.");
 
     // Diagnostic dump of the task recipe each graph-driven mesh records.
     static TConsoleVar<bool> CVarDumpGraphTasks(
@@ -292,22 +304,83 @@ namespace Lumina
             return true;
         }
 
-        // Distance over bounding radius past which the skeleton's low-detail bone prefix is used.
-        constexpr float kBoneLODDistanceOverRadius = 60.0f;
-
-        // Authored-only, because bone order past parents-first is importer-dependent.
-        int32 ComputeActiveBoneCount(const SSkeletalMeshComponent& Mesh, const FSkeletonResource* Skeleton)
+        // Zero means every bone.
+        int32 ResolveActiveBoneCount(const SSkeletalMeshComponent& Mesh, const BoneLOD::FBoneLODLayout& Layout, int32 NumBones)
         {
-            const int32 NumBones = Skeleton->GetNumBones();
-            if (!Mesh.bUpdateRateOptimization || Mesh.LastDistanceOverRadius <= kBoneLODDistanceOverRadius
-                || !CVarAnimBudget.GetValue())
+            if (!CVarAnimBudget.GetValue() || Mesh.LastBoneLODTolerance <= 0.0f)
             {
-                return 0; // all bones
+                return 0;
+            }
+            const int32 Active = BoneLOD::CountActiveBones(Layout.Errors, NumBones, Mesh.LastBoneLODTolerance, 1);
+            return Active < NumBones ? Active : 0;
+        }
+
+        struct FBoneLODTally
+        {
+            std::atomic<int64>  ExecuteCycles{ 0 };
+            std::atomic<int64>  Executions{ 0 };
+            std::atomic<int64>  Meshes{ 0 };
+            std::atomic<int64>  Cut{ 0 };
+            std::atomic<int64>  ActiveBones{ 0 };
+            std::atomic<int64>  TotalBones{ 0 };
+            std::atomic<double> LastReport{ 0.0 };
+        };
+
+        FBoneLODTally GBoneLODTally;
+
+        void ReportBoneLOD(int32 Active, int32 NumBones)
+        {
+            GBoneLODTally.Meshes.fetch_add(1, std::memory_order_relaxed);
+            GBoneLODTally.Cut.fetch_add(Active > 0 ? 1 : 0, std::memory_order_relaxed);
+            GBoneLODTally.ActiveBones.fetch_add(Active > 0 ? Active : NumBones, std::memory_order_relaxed);
+            GBoneLODTally.TotalBones.fetch_add(NumBones, std::memory_order_relaxed);
+
+            constexpr double kReportSeconds = 1.0;
+            const double Now = PlatformTime::Seconds();
+            double Last = GBoneLODTally.LastReport.load(std::memory_order_relaxed);
+            if (Now - Last < kReportSeconds || !GBoneLODTally.LastReport.compare_exchange_strong(Last, Now, std::memory_order_relaxed))
+            {
+                return;
             }
 
-            const CSkeleton* Asset = Mesh.SkeletalMesh.IsValid() ? Mesh.SkeletalMesh->Skeleton.Get() : nullptr;
-            const int32 Count = Asset ? Asset->LowDetailBoneCount : 0;
-            return (Count > 0 && Count < NumBones) ? Count : 0;
+            const int64 Meshes = GBoneLODTally.Meshes.exchange(0, std::memory_order_relaxed);
+            const int64 Cut    = GBoneLODTally.Cut.exchange(0, std::memory_order_relaxed);
+            const int64 Bones  = GBoneLODTally.ActiveBones.exchange(0, std::memory_order_relaxed);
+            const int64 Total  = GBoneLODTally.TotalBones.exchange(0, std::memory_order_relaxed);
+            const int64 Cycles = GBoneLODTally.ExecuteCycles.exchange(0, std::memory_order_relaxed);
+            const int64 Runs   = GBoneLODTally.Executions.exchange(0, std::memory_order_relaxed);
+            const double ExecuteUs = Runs > 0 ? PlatformTime::ToSeconds((uint64)Cycles) * 1e6 / (double)Runs : 0.0;
+            LOG_INFO("[BoneLOD] {} skeleton evaluations, {} cut, {} of {} bones animated ({:.1f}%), {:.2f} us to execute each",
+                     Meshes, Cut, Bones, Total, Total > 0 ? 100.0 * (double)Bones / (double)Total : 100.0, ExecuteUs);
+        }
+
+        // Evaluates the recipe in the mesh's bone LOD order, kept whatever the distance so pose history never changes layout mid-blend.
+        void ApplyBoneLOD(const SSkeletalMeshComponent& Mesh, FSkeletonResource* Skeleton, FAnimTaskList& Tasks)
+        {
+            const CSkeletalMesh* Asset = Mesh.SkeletalMesh.IsValid() ? Mesh.SkeletalMesh.Get() : nullptr;
+            const BoneLOD::FBoneLODLayout* Layout = (CVarBoneLOD.GetValue() && Asset != nullptr) ? Asset->GetBoneLODLayout(Skeleton) : nullptr;
+            const int32 NumBones = Skeleton->GetNumBones();
+            if (Layout == nullptr)
+            {
+                if (CVarBoneLODLog.GetValue())
+                {
+                    ReportBoneLOD(0, NumBones);
+                }
+                return;
+            }
+
+            if (Layout->PoseSkeleton)
+            {
+                Tasks.Skeleton    = Layout->PoseSkeleton.get();
+                Tasks.PoseToAsset = Layout->PoseToAsset.data();
+                Tasks.AssetToPose = Layout->AssetToPose.data();
+            }
+            Tasks.ActiveBoneCount = ResolveActiveBoneCount(Mesh, *Layout, NumBones);
+
+            if (CVarBoneLODLog.GetValue())
+            {
+                ReportBoneLOD(Tasks.ActiveBoneCount, NumBones);
+            }
         }
 
         FSkeletonResource* ResolveSkeleton(SSkeletalMeshComponent& Mesh)
@@ -464,7 +537,7 @@ namespace Lumina
             FAnimTaskList& Tasks = Mesh.AnimTasks;
             Tasks.Reset();
             Tasks.Skeleton        = Skeleton;
-            Tasks.ActiveBoneCount = ComputeActiveBoneCount(Mesh, Skeleton);
+            ApplyBoneLOD(Mesh, Skeleton, Tasks);
 
             FAnimTask Sample;
             Sample.Type = EAnimTaskType::SampleClip;
@@ -620,7 +693,7 @@ namespace Lumina
             FAnimationGraphVM::BuildTasks(Graph, Skeleton, StepTime, AnimGraph.VMState, Mesh.AnimTasks,
                                           GraphRootMotion, &AnimGraph.NotifyEvents, &AnimGraph.Montages,
                                           &SceneContext);
-            Mesh.AnimTasks.ActiveBoneCount = ComputeActiveBoneCount(Mesh, Skeleton);
+            ApplyBoneLOD(Mesh, Skeleton, Mesh.AnimTasks);
 
             if (CVarDumpGraphTasks.GetValue())
             {
@@ -685,7 +758,8 @@ namespace Lumina
             float  ValidateTime = 0.0f;
             bool   bValidateLock = false;
             int32  ValidateRoot = Constants::kIndexNone;
-            FSkeletonResource* ValidateSkeleton = Mesh.AnimTasks.Skeleton;
+            // The executor hands back asset order, so the reference samples the asset skeleton.
+            FSkeletonResource* ValidateSkeleton = ResolveSkeleton(Mesh);
             if (CVarValidateAnimTasks.GetValue() &&
                 Mesh.AnimTasks.Tasks.size() == 1 &&
                 Mesh.AnimTasks.Tasks[0].Type == EAnimTaskType::SampleClip &&
@@ -712,7 +786,13 @@ namespace Lumina
 
             // Into scratch, so a pose identical to the one already there can leave the serial alone.
             thread_local TVector<FMatrix4> PoseScratch;
+            const uint64 ExecuteStart = CVarBoneLODLog.GetValue() ? PlatformTime::Cycles() : 0;
             const bool bProduced = Anim::ExecuteTaskList(Mesh.AnimTasks, PoseScratch, Snapshot);
+            if (ExecuteStart != 0)
+            {
+                GBoneLODTally.ExecuteCycles.fetch_add((int64)(PlatformTime::Cycles() - ExecuteStart), std::memory_order_relaxed);
+                GBoneLODTally.Executions.fetch_add(1, std::memory_order_relaxed);
+            }
 
             if (Snapshot != nullptr)
             {
