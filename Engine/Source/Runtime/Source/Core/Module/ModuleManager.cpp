@@ -8,12 +8,49 @@
 #include "Paths/Paths.h"
 #include "Platform/Platform.h"
 #include "Platform/Process/PlatformProcess.h"
+#include "Platform/Filesystem/FileHelper.h"
 #include <cstring>
 #include "Log/Log.h"
+#include "nlohmann/json.hpp"
 
 
 namespace Lumina
 {
+    namespace
+    {
+        // LuminaBuildTool writes one per binaries directory and suffix, naming the engine BuildId each module was linked against.
+        FString ReadModuleBuildId(FStringView BinaryPath, FStringView ModuleName)
+        {
+            const FString ManifestPath = Paths::Parent(BinaryPath) + "/Lumina" LUMINA_BINARY_SUFFIX ".modules";
+            FString Json;
+            if (!FileHelper::LoadFileIntoString(Json, ManifestPath))
+            {
+                return {};
+            }
+
+            const nlohmann::json Manifest = nlohmann::json::parse(Json.data(), Json.data() + Json.size(), nullptr, false);
+            if (!Manifest.is_object() || !Manifest.contains("Modules") || !Manifest["Modules"].is_object())
+            {
+                return {};
+            }
+
+            const nlohmann::json& Modules = Manifest["Modules"];
+            const auto Entry = Modules.find(std::string(ModuleName.data(), ModuleName.size()));
+            if (Entry == Modules.end() || !Entry->is_string())
+            {
+                return {};
+            }
+            const std::string& BuildId = Entry->get_ref<const std::string&>();
+            return FString(BuildId.data(), BuildId.size());
+        }
+
+        const FString& GetEngineBuildId()
+        {
+            static const FString BuildId = ReadModuleBuildId(Platform::GetRuntimeModulePath(), "Runtime");
+            return BuildId;
+        }
+    }
+
     FModuleManager& FModuleManager::Get()
     {
         static FModuleManager Instance;
@@ -119,6 +156,21 @@ namespace Lumina
                       "(matching Configuration and Editor/Game platform).", ModulePath, LastLoadError);
             RejectModule();
             return nullptr;
+        }
+
+        // An engine without a manifest was not linked by LuminaBuildTool, so it has nothing to compare against.
+        if (const FString& EngineBuildId = GetEngineBuildId(); !EngineBuildId.empty())
+        {
+            const FString ModuleBuildId = ReadModuleBuildId(ModulePath, BareName);
+            if (ModuleBuildId != EngineBuildId)
+            {
+                LastLoadError = FString("built against engine BuildId '")
+                    + (ModuleBuildId.empty() ? FString("<none>") : ModuleBuildId)
+                    + "', but the engine is '" + EngineBuildId + "'";
+                LOG_ERROR("[Module Manager] - Refusing to load '{}': {}. Rebuild the project against this engine.", ModulePath, LastLoadError);
+                RejectModule();
+                return nullptr;
+            }
         }
 
         auto InitFunctionPtr = Platform::LumGetProcAddress<ModuleInitFunc>(ModuleHandle, "InitializeModule");
