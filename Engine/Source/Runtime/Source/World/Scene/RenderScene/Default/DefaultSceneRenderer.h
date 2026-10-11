@@ -1125,7 +1125,7 @@ namespace Lumina
 
         /** Culls every view's meshlets into the draw list and publishes the slice each pass draws.
             The sole authority: nothing rasterizes a meshlet this did not keep. */
-        void MeshletCullPass(RHI::FCmdListH CL, EMeshletSlice Slice);
+        void MeshletCullPass(RHI::FCmdListH CL, EMeshletSlice Slice, bool bCascadePhase = false);
 
         void DrawMeshletBatch(RHI::FCmdListH CL, const FMeshDrawCommand& Batch, const FMeshletPassContext& Ctx);
 
@@ -1241,7 +1241,7 @@ namespace Lumina
         void LaunchInstanceBlockBounds();
         void JoinInstanceBlockBounds();
         void FinishInstanceBlockBounds(RHI::FCmdListH CL);
-        void DispatchMeshletBlockBuild(RHI::FCmdListH CL, bool bLatePass);
+        void DispatchMeshletBlockBuild(RHI::FCmdListH CL, bool bLatePass, bool bCascadePhase = false);
         bool bSplitMeshletPhasesThisFrame = false;
         void FlushStagedWrites(RHI::FCmdListH CL);
 
@@ -1505,9 +1505,14 @@ namespace Lumina
         FSceneBuffer RetainedTransformBuffer { "Retained.Transforms", 1.5f, EBufferInit::Zeroed };
         FSceneBuffer RetainedStaticBuffer { "Retained.Static", 1.5f, EBufferInit::Zeroed };
         FSceneBuffer SurfaceDescBuffer { "Retained.SurfaceDescs", 1.5f, EBufferInit::Zeroed };
-        FSceneBuffer BoneArenaBuffer { "Skinning.BoneArena", 1.5f };
+        // One arena per frame slot, since the next frame's upload can run on compute while this frame's passes still read poses.
+        TArray<FSceneBuffer, RHI::kFramesInFlight> BoneArenaRing = MakeSceneRing<RHI::kFramesInFlight>("Skinning.BoneArena", 1.5f);
+        // The upload serial each slot's arena last matched the mirror at, so it knows which dirty ranges it missed.
+        TArray<uint64, RHI::kFramesInFlight>       BoneArenaSyncedSerial = {};
+        uint64                                     BoneUploadSerial = 0;
+        TVector<FUIntVector2>                      LastBoneUploadRanges;
+        RHI::FGPUAllocation GetBoneArena() const { return BoneArenaRing[CurrentFrameSlot]; }
         // Snapshots taken before each frame's incremental uploads land, so motion vectors have a past.
-        RHI::FGPUAllocation                                        PrevBoneArenaBuffer;
         RHI::FGPUAllocation                                        PrevRetainedTransformBuffer;
         bool                                                bPrevMotionStateValid = false;
         void SnapshotMotionState(RHI::FCmdListH CL);
@@ -1554,6 +1559,21 @@ namespace Lumina
         std::atomic<bool>                                   bDepthPyramidValid{false};
 
         std::atomic<bool>                                   bCascadePyramidValid{false};
+
+        static constexpr uint32                             kReceiverMaskDim = 128;
+        FSceneBuffer                                        ReceiverMaskBuffer { "Shadow.ReceiverMask", 1.0f };
+        bool                                                bShadowReceiverCullThisFrame = false;
+        bool                                                bReceiverMaskValid = false;
+        RHI::TGPUSpan<uint32>                               ReceiverMaskFinal;
+        bool WantsShadowReceiverCull(const FFrameData& Frame) const;
+        void ShadowReceiverMaskPass(RHI::FCmdListH CL);
+
+        // The graphics value the next frame's compute cull waits on, the last submission that reads what the cull rewrites.
+        uint64                                              FrameCullGateValue = 0;
+        // Set when the cascade pyramid was released to compute for the next frame's cull, and names the image released.
+        RHI::FTextureH                                      CascadePyramidOnCompute = {};
+        bool ShouldCullOnCompute(const FFrameData& Frame) const;
+        static bool HasGrassScatter(const FFrameData& Frame);
 
         FMatrix4                                            CascadeHZBViewProjection[NumCascades] = {};
         FVector4                                            CascadeHZBNdcScale[NumCascades] = {};

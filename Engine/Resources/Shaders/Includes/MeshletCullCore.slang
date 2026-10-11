@@ -202,6 +202,12 @@ bool TestMeshletAgainstView(FMeshletCullContext Ctx, FCullView View,
                     bKeep = FrustumContainsSphere(Scene().CullData.CascadeFrustum[View.CascadeIndex],
                                                  CullCenter, CullRadius);
                 }
+
+                // The instance test against last frame's cascade depth, repeated per meshlet for the parts a canopy hides.
+                if (bKeep && Ctx.bPosedBounds && Scene().CullData.bShadowOcclusionCull != 0u)
+                {
+                    bKeep = !IsCascadeHZBOccluded(View.CascadeIndex, Cache.WorldCenter, Cache.WorldRadius);
+                }
             }
 
             // Sun views test against the sun direction, everything else against the meshlet's own sphere.

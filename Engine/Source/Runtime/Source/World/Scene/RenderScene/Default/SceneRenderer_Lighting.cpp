@@ -368,14 +368,11 @@ namespace Lumina
         // A tile holds at most one slot per pixel, so this bound is exact and never overflows, however many shaders are visible.
         constexpr uint64 MaxSlotsPerTile = (uint64)MATERIAL_CLASSIFY_TILE * MATERIAL_CLASSIFY_TILE;
         const uint64 PairBound = NumTiles * Math::Min<uint64>(NumSlots, MaxSlotsPerTile);
-        if (NumTiles > (1ull << (32u - MATERIAL_PAIR_SLOT_BITS)))
-        {
-            return false;
-        }
         // Sorted runs, each tile's inline records, the pixels of thin pairs, then the pairs past a tile's inline records.
         const uint64 TileSlotEntries = NumTiles * MATERIAL_TILE_RECORD;
         const uint64 PixelBound      = NumTiles * Math::Min<uint64>(MaxSlotsPerTile, Math::Min<uint64>(NumSlots, MATERIAL_TILE_SLOTS) * (MATERIAL_SPARSE_PIXELS - 1u));
-        const uint64 OverflowBound   = NumTiles * (Math::Min<uint64>(NumSlots, MaxSlotsPerTile) - Math::Min<uint64>(NumSlots, MATERIAL_TILE_SLOTS));
+        const uint64 OverflowBound   = NumTiles * (Math::Min<uint64>(NumSlots, MaxSlotsPerTile) - Math::Min<uint64>(NumSlots, MATERIAL_TILE_SLOTS))
+                                     * MATERIAL_OVERFLOW_PAIR_WORDS;
         const uint64 PairListSize    = (PairBound + TileSlotEntries + PixelBound + Math::Max<uint64>(OverflowBound, 1u)) * sizeof(uint32);
 
         // Built into a local so a bail-out below leaves the member zeroed rather than half-filled.
@@ -422,8 +419,8 @@ namespace Lumina
         Layout.PixelListOffset = (PairBound + TileSlotEntries) * sizeof(uint32);
         Layout.PixelCapacity   = (uint32)PixelBound;
         Layout.OverflowOffset  = (PairBound + TileSlotEntries + PixelBound) * sizeof(uint32);
-        // From the allocation, not from what was asked for, since the classify bounds overflow writes on this.
-        Layout.OverflowCapacity = (uint32)Math::Min<uint64>((GetMaterialPairList().Size - Layout.OverflowOffset) / sizeof(uint32), 0xFFFFFFFFull);
+        // In pairs, from the allocation rather than the request, since the classify bounds overflow writes on this.
+        Layout.OverflowCapacity = (uint32)Math::Min<uint64>((GetMaterialPairList().Size - Layout.OverflowOffset) / (sizeof(uint32) * MATERIAL_OVERFLOW_PAIR_WORDS), 0xFFFFFFFFull);
 
         MaterialClassifyLayout = Layout;
         return true;
@@ -487,7 +484,7 @@ namespace Lumina
         const RHI::TGPUSpan<uint32> SortedSpan    = RHI::TGPUSpan<uint32>::FromAddress(PairAlloc.Gpu, Layout.PairCapacity);
         const RHI::TGPUSpan<uint32> TileSlotsSpan = RHI::TGPUSpan<uint32>::FromAddress(PairAlloc.Gpu + Layout.TileSlotsOffset, Layout.NumTiles * MATERIAL_TILE_RECORD);
         const RHI::TGPUSpan<uint32> PixelListSpan = RHI::TGPUSpan<uint32>::FromAddress(PairAlloc.Gpu + Layout.PixelListOffset, Layout.PixelCapacity);
-        const RHI::TGPUSpan<uint32> OverflowSpan  = RHI::TGPUSpan<uint32>::FromAddress(PairAlloc.Gpu + Layout.OverflowOffset, Layout.OverflowCapacity);
+        const RHI::TGPUSpan<uint32> OverflowSpan  = RHI::TGPUSpan<uint32>::FromAddress(PairAlloc.Gpu + Layout.OverflowOffset, Layout.OverflowCapacity * MATERIAL_OVERFLOW_PAIR_WORDS);
 
         struct FMaterialClassifyPC
         {
@@ -550,7 +547,7 @@ namespace Lumina
         ArgsPC.Cursors = CursorsSpan;
         ArgsPC.Args    = RHI::TGPUSpan<uint32>::FromAddress(Base + Layout.MaterialArgsOffset, Layout.NumSlots * 6u + 3u);
 
-        // One group scans every slot, which MATERIAL_MAX_SLOTS keeps within two slots per thread.
+        // One group scans every slot, each thread taking a contiguous run sized to the slots binned this frame.
         DispatchCompute(CL, ArgsCS, ArgsPC, 1u, 1u, 1u);
 
         RHI::CmdBarrier(CL,
@@ -1044,7 +1041,15 @@ namespace Lumina
             PC.FinalValuePower          = FinalValuePower;
             PC.DepthMIPSamplingOffset   = DepthMipSamplingOffset;
 
-            DispatchCompute(CL, MainCS, PC, 
+            const RHI::FSpecializationConstant MainConsts[] =
+            {
+                RHI::FSpecializationConstant{ .ConstantID = 20u, .AsInt = PC.SliceCount,    .Type = RHI::ESpecializationConstantType::UInt32 },
+                RHI::FSpecializationConstant{ .ConstantID = 21u, .AsInt = PC.StepsPerSlice, .Type = RHI::ESpecializationConstantType::UInt32 },
+                RHI::FSpecializationConstant{ .ConstantID = 22u, .AsInt = SampleDistributionPower == 2.0f ? 1u : 0u, .Type = RHI::ESpecializationConstantType::UInt32 },
+                RHI::FSpecializationConstant{ .ConstantID = 23u, .AsInt = ThinOccluderCompensation == 0.0f ? 1u : 0u, .Type = RHI::ESpecializationConstantType::UInt32 },
+            };
+            RHI::CmdSetPipeline(CL, GetOrCreateComputePipeline(MainCS, TSpan<const RHI::FSpecializationConstant>(MainConsts, std::size(MainConsts))));
+            RHI::CmdDispatch(CL, MakeArgs(PC),
                 RenderUtils::GetGroupCount(Width, 8u),
                 RenderUtils::GetGroupCount(Height, 8u), 1);
 

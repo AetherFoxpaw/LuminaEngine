@@ -106,7 +106,7 @@ namespace Lumina
 
         struct FDeferredMaterialSlot
         {
-            uint16              MaterialIndex;
+            uint32              MaterialIndex;
             FShaderH DeferredShader;
         };
 
@@ -173,7 +173,7 @@ namespace Lumina
         uint32          BatchIndex;
         uint32          InstanceSlot;
         uint32          SurfaceDescIndex;   // interned LOD table
-        uint16          MaterialIndex;
+        uint32          MaterialIndex;
         EInstanceFlags  MaterialFlags;
         bool            bMaterialCastsShadows;
         // Held so the release decrements the same counter the bind incremented, whatever the primitive
