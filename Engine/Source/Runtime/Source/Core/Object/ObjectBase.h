@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <Containers/Name.h>
 #include <Containers/String.h>
@@ -11,7 +11,6 @@
 
 namespace Lumina
 {
-    struct FMetaDataPairParam;
 
     /** Publishes what is being constructed, so an object's own constructor can read its class, name and package. */
     class RUNTIME_API FScopedObjectConstruction
@@ -31,6 +30,8 @@ namespace Lumina
     };
     class CObjectBase;
     class CClass;
+    class CEnum;
+    class CStruct;
     
     /** Low-level CObject implementation. */
     class CObjectBase
@@ -182,88 +183,40 @@ namespace Lumina
     };
 
 
-    /** Static-registration helper for generated reflection code. */
-    struct FRegisterCompiledInInfo
+    using FEnumConstructor   = CEnum* (*)();
+    using FStructConstructor = CStruct* (*)();
+    using FClassConstructor  = CClass* (*)();
+
+    // Every reflected type one module compiled in, constructed together once the module is registered.
+    struct FCompiledInTypes
     {
-        template<typename ... TArgs>
-        FRegisterCompiledInInfo(TArgs&& ... Args) noexcept
-        {
-            RegisterCompiledInInfo(std::forward<TArgs>(Args)...);
-        }
+        const FEnumConstructor*   Enums = nullptr;
+        uint32                    NumEnums = 0;
+        const FStructConstructor* Structs = nullptr;
+        uint32                    NumStructs = 0;
+        const FClassConstructor*  Classes = nullptr;
+        uint32                    NumClasses = 0;
     };
 
-    struct FClassRegisterCompiledInInfo
+    // Queues a module's types from its static initializer, so they are built once the reflection system is up.
+    struct FTypeRegistrar
     {
-        class CClass* (*RegisterFn)();
-        const TCHAR* Package;
-        const TCHAR* Name;
-        
-        uint16 NumMetaData;
-        const FMetaDataPairParam* MetaDataArray;
+        RUNTIME_API explicit FTypeRegistrar(const FCompiledInTypes& Types);
     };
-
-    struct FStructRegisterCompiledInInfo
-    {
-        class CStruct* (*RegisterFn)();
-        const TCHAR* Name;
-        
-        uint16 NumMetaData;
-        const FMetaDataPairParam* MetaDataArray;
-    };
-
-    struct FEnumRegisterCompiledInInfo
-    {
-        class CEnum* (*RegisterFn)();
-        const TCHAR* Name;
-        
-        uint16 NumMetaData;
-        const FMetaDataPairParam* MetaDataArray;
-    };
-
 
     RUNTIME_API void InitializeCObjectSystem();
     RUNTIME_API void ShutdownCObjectSystem();
 
-    /** Called from generated-code static ctors. */
-    RUNTIME_API void RegisterCompiledInInfo(CClass* (*RegisterFn)(), const TCHAR* Package, const TCHAR* Name);
+    RUNTIME_API void FinishRegistration(CObjectBase* Object);
 
-    RUNTIME_API void RegisterCompiledInInfo(CEnum* (*RegisterFn)(), const FEnumRegisterCompiledInInfo& Info);
+    // Builds every queued type and its default object, bases before the classes that derive from them.
+    RUNTIME_API void RegisterPendingTypes();
 
-    RUNTIME_API void RegisterCompiledInInfo(CStruct* (*RegisterFn)(), const FStructRegisterCompiledInInfo& Info);
-    
-    RUNTIME_API void RegisterCompiledInInfo(const FClassRegisterCompiledInInfo* Info, size_t NumClassInfo);
+    // Runs RegisterPendingTypes unless it is already running, for a caller that may be inside that pass.
+    RUNTIME_API void SettlePendingTypes();
 
-    RUNTIME_API void RegisterCompiledInInfo(const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo);
+    RUNTIME_API size_t SnapshotPendingTypes();
 
-    RUNTIME_API void RegisterCompiledInInfo(const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo, const FStructRegisterCompiledInInfo* StructInfo, size_t NumStructInfo);
-
-    RUNTIME_API CEnum* GetStaticEnum(CEnum* (*RegisterFn)(), const TCHAR* Name);
-    
-    RUNTIME_API void CObjectForceRegistration(CObjectBase* Object);
-
-    
-    RUNTIME_API void ProcessNewlyLoadedCObjects();
-
-    // Runs the deferred pass unless one is already running, so a caller that needs a settled class set can
-    // ask for one without knowing whether it is inside that pass.
-    RUNTIME_API void SettleDeferredRegistrations();
-
-    /** How many compiled-in registrations are queued, per registry. */
-    struct FDeferredRegistrationSnapshot
-    {
-        size_t NumClasses = 0;
-        size_t NumEnums   = 0;
-        size_t NumStructs = 0;
-    };
-
-    RUNTIME_API FDeferredRegistrationSnapshot SnapshotDeferredRegistrations();
-
-    /** Discards every registration queued since the snapshot.
-     *
-     *  Loading a DLL runs its static registrars, so by the time a module can be inspected -- and possibly
-     *  refused -- its reflected types are already queued, as function pointers INTO that DLL. Unloading it
-     *  without this leaves ProcessNewlyLoadedCObjects() calling into unmapped memory. Call before freeing
-     *  the handle, and only for a module whose registrations have not been processed yet.
-     */
-    RUNTIME_API void RollbackDeferredRegistrations(const FDeferredRegistrationSnapshot& Snapshot);
+    // Drops modules queued since the snapshot, whose constructors point into a DLL that is about to be freed.
+    RUNTIME_API void RollbackPendingTypes(size_t Snapshot);
 }

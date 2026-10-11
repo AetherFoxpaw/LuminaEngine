@@ -93,7 +93,7 @@ namespace
         {
             return nullptr;
         }
-        ProcessNewlyLoadedCObjects();
+        RegisterPendingTypes();
         Minted->GetDefaultObject();
 
         return static_cast<CEntityScriptTest*>(EntityScripts::Attach(Registry, Entity, Minted));
@@ -193,7 +193,7 @@ TEST(EntityScriptUnification, CopyingTheComponentClonesItsScripts)
 TEST(EntityScriptUnification, CloningAScriptCopiesContainerPropertiesWithoutSmashingTheObject)
 {
     // The property chain is built when the class is finalized; the editor does this at startup.
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     CEntityScriptTest::StaticClass()->GetDefaultObject();
 
     ECS::FRegistry Registry{};
@@ -231,7 +231,7 @@ TEST(EntityScriptUnification, CloningAScriptCopiesContainerPropertiesWithoutSmas
 // A component whose state lives in a custom serializer is tracked as ONE atomic leaf.
 TEST(EntityScriptUnification, PrefabOverridesTrackAScriptComponentAsOneAtomicValue)
 {
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     CEntityScriptTest::StaticClass()->GetDefaultObject();
 
     auto MakeScript = []
@@ -366,7 +366,7 @@ TEST(EntityScriptUnification, MintedScriptClassTicksThroughTheSameDriver)
 {
     CScriptClass* Minted = FScriptableRegistry::Mint("EntityScript_GTestMinted", "CEntityScript");
     ASSERT_NE(Minted, nullptr) << "minting failed (is the CEntityScript shim registered?)";
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     EXPECT_TRUE(Minted->IsChildOf(CEntityScript::StaticClass()))
@@ -587,7 +587,7 @@ TEST(EntityScriptUnification, ScriptPropertyValuesSurviveTheComponentRoundTrip)
     CScriptClass* Minted = FScriptableRegistry::Mint("EntityScript_GTestValues", "CEntityScript");
     ASSERT_NE(Minted, nullptr);
     ASSERT_GT(Scripting::AppendScriptPropertiesToClass(Minted, Schema), 0u);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     FProperty* Speed = Minted->GetProperty(FName("Speed"));
@@ -683,7 +683,7 @@ TEST(EntityScriptUnification, ScriptsSurviveAClassLayoutRebuild)
     CScriptClass* Minted = FScriptableRegistry::Mint("EvacTest_Script", "CEntityScript");
     ASSERT_NE(Minted, nullptr);
     Scripting::AppendScriptPropertiesToClass(Minted, Before);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     ECS::FEntity Entity = Registry.Create();
@@ -772,7 +772,7 @@ TEST(EntityScriptUnification, RenamingAPropertyKeepsItsValueViaAlias)
     CScriptClass* Minted = FScriptableRegistry::Mint("RenameProp_Script", "CEntityScript");
     ASSERT_NE(Minted, nullptr);
     Scripting::AppendScriptPropertiesToClass(Minted, Before);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     const ECS::FEntity Entity = Registry.Create();
@@ -818,7 +818,7 @@ TEST(EntityScriptUnification, RenamingWithoutAnAliasResetsToDefault)
     CScriptClass* Minted = FScriptableRegistry::Mint("RenameNoAlias_Script", "CEntityScript");
     ASSERT_NE(Minted, nullptr);
     Scripting::AppendScriptPropertiesToClass(Minted, Before);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     const ECS::FEntity Entity = Registry.Create();
@@ -853,7 +853,7 @@ TEST(EntityScriptUnification, RenamingAScriptClassMovesItsInstances)
     CScriptClass* Old = FScriptableRegistry::Mint("RenameClass_Before", "CEntityScript");
     ASSERT_NE(Old, nullptr);
     Scripting::AppendScriptPropertiesToClass(Old, Schema);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Old->GetDefaultObject();
 
     const ECS::FEntity Entity = Registry.Create();
@@ -875,7 +875,7 @@ TEST(EntityScriptUnification, RenamingAScriptClassMovesItsInstances)
     CScriptClass* New = FScriptableRegistry::Mint("RenameClass_After", "CEntityScript");
     ASSERT_NE(New, nullptr);
     Scripting::AppendScriptPropertiesToClass(New, Schema);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     New->GetDefaultObject();
     FScriptableRegistry::RegisterClassRedirect(FName("RenameClass_Before"), FName("RenameClass_After"));
 
@@ -926,7 +926,7 @@ TEST(EntityScriptUnification, SkipHotReloadFieldsResetOnRestore)
     CScriptClass* Minted = FScriptableRegistry::Mint("SkipHotReload_Script", "CEntityScript");
     ASSERT_NE(Minted, nullptr);
     Scripting::AppendScriptPropertiesToClass(Minted, Schema);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Minted->GetDefaultObject();
 
     const ECS::FEntity Entity = Registry.Create();
@@ -1028,7 +1028,7 @@ TEST(EntityScriptUnification, DetachAllInRegistrySurvivesAnOnDetachThatAttachesS
 TEST(EntityScriptUnification, AnUnresolvableScriptClassSkipsOnlyItself)
 {
     // ResolveClass goes through FindObject, so the class has to be registered before the read path runs.
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     CEntityScriptTest::StaticClass()->GetDefaultObject();
 
     ECS::FRegistry Registry{};
@@ -1127,7 +1127,7 @@ TEST(ScriptClassInheritance, ASubclassExtendsItsScriptParentsLayout)
     CScriptClass* Child = FScriptableRegistry::Mint("Inherit_GTestChild", "Inherit_GTestParent");
     ASSERT_NE(Child, nullptr);
     ASSERT_GT(Scripting::AppendScriptPropertiesToClass(Child, IntSchema("ChildValue")), 0u);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     Parent->GetDefaultObject();
     Child->GetDefaultObject();
 
@@ -1156,7 +1156,7 @@ TEST(ScriptClassInheritance, AnAbstractClassIsNeverInstantiated)
     CScriptClass* Abstract = FScriptableRegistry::Mint("Inherit_GTestAbstract", "CEntityScript");
     ASSERT_NE(Abstract, nullptr);
     Abstract->bAbstract = true;
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
 
     EXPECT_TRUE(Abstract->IsAbstract());
     EXPECT_FALSE(CEntityScript::StaticClass()->IsAbstract()) << "a native class is never abstract by this flag";
@@ -1164,7 +1164,7 @@ TEST(ScriptClassInheritance, AnAbstractClassIsNeverInstantiated)
 
     CScriptClass* Concrete = FScriptableRegistry::Mint("Inherit_GTestConcrete", "Inherit_GTestAbstract");
     ASSERT_NE(Concrete, nullptr);
-    ProcessNewlyLoadedCObjects();
+    RegisterPendingTypes();
     EXPECT_NE(NewObject(Concrete, nullptr, NAME_None, FGuid::New(), OF_Transient), nullptr);
 }
 

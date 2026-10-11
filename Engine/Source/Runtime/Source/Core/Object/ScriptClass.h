@@ -7,7 +7,6 @@
 #include "Containers/Vector.h"
 #include "ObjectHandleTyped.h"
 
-RUNTIME_API Lumina::CClass* Construct_CClass_Lumina_CClass();
 #include "Memory/SmartPtr.h"
 
 namespace Lumina
@@ -48,7 +47,7 @@ namespace Lumina
     {
     public:
 
-        DECLARE_CLASS(Lumina, CScriptClass, CClass, "/Script/Engine", RUNTIME_API)
+        DECLARE_CLASS(Lumina, CScriptClass, CClass, "/Types/Engine", RUNTIME_API)
         DEFINE_CLASS_FACTORY(CScriptClass)
 
         CScriptClass() = default;

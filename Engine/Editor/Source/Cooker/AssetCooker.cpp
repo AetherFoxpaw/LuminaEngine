@@ -114,21 +114,20 @@ namespace Lumina
             return true;
         }
 
-        // One bad asset falls back to a verbatim copy with a WARN rather than killing the whole cook.
-        // Script packages of modules the shipped game never loads, whose objects in an asset are editor state such as a node graph.
-        const THashSet<FName>& EditorScriptPackages()
+        // Type packages of modules the shipped game never loads, whose objects in an asset are editor state such as a node graph.
+        const THashSet<FName>& EditorTypePackages()
         {
             static const THashSet<FName> Packages = []
             {
                 THashSet<FName> Out;
-                Out.insert(FName("/Script/Editor"));
+                Out.insert(FName("/Types/Editor"));
                 for (const FPlugin* Plugin : FPluginManager::Get().GetAllPlugins())
                 {
                     for (const FPluginModuleDescriptor& Module : Plugin->GetDescriptor().Modules)
                     {
                         if (Module.Type != EPluginModuleType::Runtime)
                         {
-                            Out.insert(FName((FString("/Script/") + Module.Name).c_str()));
+                            Out.insert(FName((FString("/Types/") + Module.Name).c_str()));
                         }
                     }
                 }
@@ -141,7 +140,7 @@ namespace Lumina
         bool IsEditorOnlyObject(const CObject* Object)
         {
             const CClass* Class = Object->GetClass();
-            return Class != nullptr && Class->GetPackage() != nullptr && EditorScriptPackages().contains(Class->GetPackage()->GetName());
+            return Class != nullptr && Class->GetPackage() != nullptr && EditorTypePackages().contains(Class->GetPackage()->GetName());
         }
 
         // Every instance under a master, through instances of instances, since each may select its own permutation.
@@ -159,6 +158,7 @@ namespace Lumina
             }
         }
 
+        // One bad asset falls back to a verbatim copy with a WARN rather than killing the whole cook.
         bool BundleAssetCooked(FPakWriter& Writer, FStringView VirtualPath, const TFunction<void(FStringView)>& LogFunc)
         {
             FAssetData* Data = FAssetRegistry::Get().GetAssetByPath(VirtualPath);
@@ -323,7 +323,7 @@ namespace Lumina
             const bool bEligible = Class != nullptr
                 && !Class->IsChildOf(CMaterialInterface::StaticClass())
                 && !Class->IsChildOf(CTexture::StaticClass())
-                && !(Class->GetPackage() != nullptr && EditorScriptPackages().contains(Class->GetPackage()->GetName()))
+                && !(Class->GetPackage() != nullptr && EditorTypePackages().contains(Class->GetPackage()->GetName()))
                 && !HasEditorOnlyData(Class, StructMemo);
 
             ClassMemo[Data->AssetClass] = bEligible;

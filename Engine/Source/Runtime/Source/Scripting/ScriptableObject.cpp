@@ -522,7 +522,7 @@ namespace Lumina
         // Finalize registration + create CDOs so FindObject<CClass>(name) / NewObject(class) work.
         if (bMintedAny)
         {
-            ProcessNewlyLoadedCObjects();
+            RegisterPendingTypes();
         }
 
         // It runs on the managed side because an initializer is an arbitrary C# expression.

@@ -573,8 +573,7 @@ namespace Lumina
 
     void CEntityScript::QuantizeSync(const FProperty* Field)
     {
-        const FCStringView Text = Field->GetMetadata("Quantize");
-        const double Step = Text.empty() ? 0.0 : std::strtod(Text.data(), nullptr);
+        const double Step = Field->GetMetadataNumber("Quantize").value_or(0.0);
         if (Step <= 0.0)
         {
             return;
@@ -750,7 +749,7 @@ namespace Lumina
                 Ar << ScriptSize;
 
                 const int64 DataStart = Ar.Tell();
-                Script->GetClass()->SerializeTaggedProperties(Ar, Script);
+                Script->GetClass()->SerializeProperties(Ar, Script);
                 const int64 DataEnd = Ar.Tell();
 
                 ScriptSize = DataEnd - DataStart;
@@ -821,7 +820,7 @@ namespace Lumina
                     continue;
                 }
 
-                ScriptClass->SerializeTaggedProperties(Ar, Script);
+                ScriptClass->SerializeProperties(Ar, Script);
 
                 // Trusted over wherever the property reader stopped, so drift cannot shift the next script.
                 if (bLengthPrefixed)
@@ -2064,13 +2063,13 @@ namespace Lumina
                     if (!Held.Bytes.empty() && Held.MakeReader)
                     {
                         TUniquePtr<FArchive> Reader = Held.MakeReader(Held.Bytes);
-                        ScriptClass->SerializeTaggedProperties(*Reader, Script);
+                        ScriptClass->SerializeProperties(*Reader, Script);
                     }
                     else if (!Held.Bytes.empty())
                     {
                         FMemoryReader Reader(Held.Bytes);
                         Reader.SetFileVersion(Held.FileVersion);
-                        ScriptClass->SerializeTaggedProperties(Reader, Script);
+                        ScriptClass->SerializeProperties(Reader, Script);
                     }
 
                     Component->Scripts.push_back(Script);

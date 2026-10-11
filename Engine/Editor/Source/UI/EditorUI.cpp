@@ -548,19 +548,19 @@ namespace Lumina
         NamePicker::RegisterBuiltInSources();
 
         PropertyCustomizationRegistry = Memory::New<FPropertyCustomizationRegistry>();
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(TBaseStructure<FVector2>::Get()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FVector2>()->GetName(), []
         {
             return FVec2PropertyCustomization::MakeInstance();
         });
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(TBaseStructure<FVector3>::Get()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FVector3>()->GetName(), []
         {
             return FVec3PropertyCustomization::MakeInstance();
         });
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(TBaseStructure<FVector4>::Get()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FVector4>()->GetName(), []
         {
             return FVec4PropertyCustomization::MakeInstance();
         });
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(TBaseStructure<FQuat>::Get()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FQuat>()->GetName(), []
         {
             return FVec3PropertyCustomization::MakeInstance();
         });
@@ -568,7 +568,7 @@ namespace Lumina
         {
             return FEntityScriptComponentCustomization::MakeInstance();
         });
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(TBaseStructure<FTransform>::Get()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FTransform>()->GetName(), []
         {
             return FTransformPropertyCustomization::MakeInstance();
         });

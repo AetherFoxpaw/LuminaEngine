@@ -16,8 +16,7 @@ namespace Lumina
         // After core (memory/log/task/physics) but before render and world.
         Core,
 
-        // After reflection (ProcessNewlyLoadedCObjects) but before any
-        // world or editor UI exists. Most gameplay extensions go here.
+        // After reflected types are registered, before any world or editor UI exists, where most gameplay extensions go.
         PreEngineInit,
 
         // After world manager exists, before the project DLL loads.

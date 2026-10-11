@@ -7,23 +7,18 @@
 
 namespace Lumina
 {
-    class FProperty;
-}
-
-namespace Lumina
-{
-    /** Reflected-property serialization tag. */
-    struct FPropertyTag
+    // Written ahead of each serialized property, so a reader can match it by name and skip what it does not know.
+    struct FPropertyHeader
     {
         // the kind on the wire, spelled out as a name only in files older than PACKAGE_NAME_TABLE
         EPropertyTypeFlags Type = EPropertyTypeFlags::None;
         FName Name;
-        // bytes of value data following the tag, which is what lets an unknown property be skipped
+        // bytes of value data following the header, which is what lets an unknown property be skipped
         int32 Size = 0;
 
-        static_assert((uint32)EPropertyTypeFlags::Count <= 255, "the tag spells the kind in one byte");
+        static_assert((uint32)EPropertyTypeFlags::Count <= 255, "the header spells the kind in one byte");
 
-        friend FArchive& operator << (FArchive& Ar, FPropertyTag& Data)
+        friend FArchive& operator << (FArchive& Ar, FPropertyHeader& Data)
         {
             if (Ar.GetFileVersion() >= (int32)ELuminaEngineVersion::PACKAGE_NAME_TABLE)
             {

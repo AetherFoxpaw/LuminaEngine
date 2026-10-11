@@ -1,4 +1,4 @@
-﻿#include "RuntimePCH.h"
+#include "RuntimePCH.h"
 #include "ModuleManager.h"
 #include "ModuleInterface.h"
 #include "Core/Delegates/CoreDelegates.h"
@@ -122,8 +122,8 @@ namespace Lumina
             return ModuleInterface;
         }
 
-        // Static initializers queue reflected types here; a later refusal must discard them before freeing.
-        const FDeferredRegistrationSnapshot RegistrationSnapshot = SnapshotDeferredRegistrations();
+        // Loading queues the module's type table, which a refusal must drop before the code it points into is freed.
+        const size_t PendingTypesSnapshot = SnapshotPendingTypes();
 
         const FString ModulePathStr(ModulePath.data(), ModulePath.size());
         void* ModuleHandle = Platform::GetDLLHandle(UTF8_TO_TCHAR(ModulePathStr.c_str()));
@@ -140,7 +140,7 @@ namespace Lumina
 
         auto RejectModule = [&]
         {
-            RollbackDeferredRegistrations(RegistrationSnapshot);
+            RollbackPendingTypes(PendingTypesSnapshot);
             Platform::FreeDLLHandle(ModuleHandle);
         };
 

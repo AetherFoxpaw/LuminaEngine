@@ -1,4 +1,4 @@
-﻿#include "PropertyTable.h"
+#include "PropertyTable.h"
 
 #include <cstdlib>
 
@@ -326,7 +326,7 @@ namespace Lumina
             Terms.push_back(std::move(Term));
         }
 
-        bHides = Source->HasMetadata("EditConditionHides");
+        bHides = Source->HasEditorFlag(EPropertyEditorFlags::EditConditionHides);
     }
 
     bool FPropertyEditCondition::Evaluate(void* ContainerPtr) const
@@ -1205,12 +1205,12 @@ namespace Lumina
     bool FArrayPropertyRow::AllowResize() const
     {
         // Disabling only the value widgets left the add and trash buttons live, a bigger edit than refused.
-        return !bDrawReadOnly && (ArrayProperty == nullptr || !ArrayProperty->HasMetadata("NoResize"));
+        return !bDrawReadOnly && (ArrayProperty == nullptr || !ArrayProperty->HasEditorFlag(EPropertyEditorFlags::NoResize));
     }
 
     bool FArrayPropertyRow::AllowReorder() const
     {
-        return !bDrawReadOnly && (ArrayProperty == nullptr || !ArrayProperty->HasMetadata("NoReorder"));
+        return !bDrawReadOnly && (ArrayProperty == nullptr || !ArrayProperty->HasEditorFlag(EPropertyEditorFlags::NoReorder));
     }
 
     bool FArrayPropertyRow::HasExtraControls() const
@@ -1340,7 +1340,7 @@ namespace Lumina
 
     bool FMapPropertyRow::AllowResize() const
     {
-        return !bDrawReadOnly && (MapProperty == nullptr || !MapProperty->HasMetadata("NoResize"));
+        return !bDrawReadOnly && (MapProperty == nullptr || !MapProperty->HasEditorFlag(EPropertyEditorFlags::NoResize));
     }
 
     bool FMapPropertyRow::HasExtraControls() const
@@ -1614,7 +1614,7 @@ namespace Lumina
         FPropertyCustomizationRegistry* Registry = GEngine->GetDevelopmentToolsUI()->GetPropertyCustomizationRegistry();
         Customization = Registry->GetPropertyCustomizationForType(StructProperty->GetStruct()->GetName());
         
-        if (StructProperty->HasMetadata("DefaultCollapsed"))
+        if (StructProperty->HasEditorFlag(EPropertyEditorFlags::DefaultCollapsed))
         {
             bExpanded = false;
         }
@@ -1767,7 +1767,7 @@ namespace Lumina
         : FPropertyRow(InPropHandle, InParentRow, InCallbacks)
         , InstancedStructProperty(static_cast<FInstancedStructProperty*>(InPropHandle->Property))
     {
-        if (InstancedStructProperty->HasMetadata("DefaultCollapsed"))
+        if (InstancedStructProperty->HasEditorFlag(EPropertyEditorFlags::DefaultCollapsed))
         {
             bExpanded = false;
         }
