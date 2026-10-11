@@ -13,6 +13,7 @@
 
 #include "implot.h"
 #include "Paths/Paths.h"
+#include "Platform/Filesystem/PlatformFilesystem.h"
 #include "Tools/UI/ImGui/ImGuiAllocator.h"
 #include "Config/Config.h"
 #include "Config/EngineSettings.h"
@@ -337,6 +338,19 @@ namespace Lumina
     	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
     	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
     	io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;
+
+#if USING(WITH_EDITOR)
+    	// One layout for the whole editor, rather than an imgui.ini in whatever directory the editor was launched from.
+    	LayoutFilePath = Paths::GetEngineDirectory() + "/Editor/Config/EditorLayout.ini";
+    	Filesystem::MakeParentDirectoryTree(LayoutFilePath);
+    	if (!Filesystem::Exists(LayoutFilePath) && Filesystem::Exists("imgui.ini"))
+    	{
+    		Filesystem::Copy("imgui.ini", LayoutFilePath, false);
+    	}
+    	io.IniFilename = LayoutFilePath.c_str();
+#else
+    	io.IniFilename = nullptr;
+#endif
 
         ImGui::StyleColorsDark();
         ImGuiStyle& Style = ImGui::GetStyle();
