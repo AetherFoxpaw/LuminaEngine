@@ -669,9 +669,10 @@ namespace Lumina
             }
         }
 
-        // One allocation written in place, since the blocks differ only in SlotIndex.
+        // One allocation written in place, since the blocks differ only in SlotIndex, each on a root-data boundary.
+        constexpr uint64 ArgsStride = Math::AlignUp<uint64>(sizeof(FDeferredMaterialPC), RHI::kRootDataAlign);
         const RHI::FTransientAlloc ArgsAlloc =
-            RHI::AllocTransient(sizeof(FDeferredMaterialPC) * Layout.NumSlots);
+            RHI::AllocTransient(ArgsStride * Layout.NumSlots);
         if (ArgsAlloc.Cpu == nullptr)
         {
             LOG_ERROR("Deferred material pass: could not stage {} argument blocks; skipping the pass.",
@@ -679,11 +680,11 @@ namespace Lumina
             return;
         }
 
-        FDeferredMaterialPC* ArgsCpu = (FDeferredMaterialPC*)ArgsAlloc.Cpu;
         for (uint32 Slot = 0; Slot < Layout.NumSlots; ++Slot)
         {
-            ArgsCpu[Slot]           = PC;
-            ArgsCpu[Slot].SlotIndex = Slot;
+            FDeferredMaterialPC* Block = (FDeferredMaterialPC*)((uint8*)ArgsAlloc.Cpu + Slot * ArgsStride);
+            *Block           = PC;
+            Block->SlotIndex = Slot;
         }
 
         const uint64 bVelocity = PC.VelocityUAV != RHI::kInvalidHeapSlot ? 1u : 0u;
@@ -708,7 +709,7 @@ namespace Lumina
                 SlotPipeline = GetOrCreateComputePipeline(DefaultDeferred != nullptr ? DefaultDeferred : BinnedDeferredSlotShaders[Slot], DeferredSpec);
             }
             RHI::CmdSetPipeline(CL, SlotPipeline);
-            RHI::CmdDispatchIndirect(CL, ArgsAlloc.Gpu + Slot * sizeof(FDeferredMaterialPC), Classify.Skip(Layout.MaterialArgsOffset + Slot * (uint32)sizeof(RHI::FDispatchIndirectArguments)));
+            RHI::CmdDispatchIndirect(CL, ArgsAlloc.Gpu + Slot * ArgsStride, Classify.Skip(Layout.MaterialArgsOffset + Slot * (uint32)sizeof(RHI::FDispatchIndirectArguments)));
         }
 
         RHI::CmdBarrier(CL,

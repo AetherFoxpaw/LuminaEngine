@@ -11,6 +11,7 @@
 #include "Core/Threading/Thread.h"
 #include "Renderer/ShaderHandle.h"
 #include "Core/Threading/Sync.h"
+#include "Assets/AssetTypes/Material/MaterialCompileQueue.h"
 #include <atomic>
 
 namespace Lumina
@@ -133,6 +134,7 @@ namespace Lumina
 
         #if WITH_EDITOR
         IImGuiRenderer* GetImGuiRenderer() const { return ImGuiRenderer; }
+        NODISCARD FMaterialCompileQueue& GetMaterialCompileQueue() { return MaterialCompileQueue; }
         #endif
 
         uint32 GetCurrentFrameIndex() const { return CurrentFrameIndex; }
@@ -161,6 +163,7 @@ namespace Lumina
 
         #if WITH_EDITOR
         IImGuiRenderer*                     ImGuiRenderer = nullptr;
+        FMaterialCompileQueue               MaterialCompileQueue;
         #endif
 
         TUniquePtr<RHI::FMaterialManager>   MaterialManager;

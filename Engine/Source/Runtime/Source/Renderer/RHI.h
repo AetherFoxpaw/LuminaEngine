@@ -49,6 +49,12 @@ namespace Lumina::RHI
     struct FQueryPool;
 
     using GPUPtr            = uint64;
+
+    // Every pointer handed to a shader as root data starts here, so shaders may read it in whole 16-byte loads.
+    constexpr uint64 kRootDataAlign             = 16;
+    static_assert(kDefaultAlign >= kRootDataAlign, "Transient blocks are root data, so their default alignment must cover it.");
+
+    NODISCARD constexpr bool IsRootAligned(GPUPtr Address) { return (Address & (kRootDataAlign - 1)) == 0; }
     using FPipelineH        = THandle<FPipeline>;
     using FTextureH         = THandle<FTexture>;
     using FTextureHeapH     = THandle<FTextureHeap>;

@@ -934,6 +934,7 @@ namespace Lumina::RHI
 
     static void PushDrawArgs(VkCommandBuffer Cmd, GPUPtr Args)
     {
+        DEBUG_ASSERT(IsRootAligned(Args), "Pass args must sit on a 16-byte boundary; stage them with CopyTransient or AllocTransient.");
         if (Args != 0)
         {
             vkCmdPushConstants(Cmd, GDevice->PipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(VkDeviceAddress), &Args);
@@ -7721,6 +7722,8 @@ namespace Lumina::RHI
 
     void CmdSetSceneRoot(FCmdListH CL, const FSceneBindings& Bindings)
     {
+        DEBUG_ASSERT(IsRootAligned(Bindings.Root) && IsRootAligned(Bindings.SceneData) && IsRootAligned(Bindings.Instances) && IsRootAligned(Bindings.Lights),
+                     "Scene root pointers must sit on a 16-byte boundary.");
         const VkDeviceAddress Addresses[4]
         {
             (VkDeviceAddress)Bindings.Root,      (VkDeviceAddress)Bindings.SceneData,

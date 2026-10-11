@@ -22,6 +22,8 @@
 #include "Cooker/Graph/CookGraph.h"
 #include "Assets/AssetTypes/Material/Material.h"
 #include "Assets/AssetTypes/Material/MaterialInterface.h"
+#include "Assets/AssetTypes/Material/MaterialInstance.h"
+#include "Core/Math/Hash/Hash.h"
 #include "Assets/AssetTypes/Textures/Texture.h"
 #include "Core/Object/Class.h"
 #include "Core/Console/ConsoleVariable.h"
@@ -142,13 +144,40 @@ namespace Lumina
             return Class != nullptr && Class->GetPackage() != nullptr && EditorScriptPackages().contains(Class->GetPackage()->GetName());
         }
 
+        // Every instance under a master, through instances of instances, since each may select its own permutation.
+        void CollectMaterialInstances(const FGuid& Parent, TVector<FAssetData*>& OutInstances, THashSet<FGuid>& Visited)
+        {
+            for (FAssetData* Referencer : FAssetRegistry::Get().GetReferencersOf(Parent))
+            {
+                if (Referencer == nullptr || Referencer->AssetClass != CMaterialInstance::StaticClass()->GetName()
+                    || !Visited.insert(Referencer->AssetGUID).second)
+                {
+                    continue;
+                }
+                OutInstances.push_back(Referencer);
+                CollectMaterialInstances(Referencer->AssetGUID, OutInstances, Visited);
+            }
+        }
+
         bool BundleAssetCooked(FPakWriter& Writer, FStringView VirtualPath, const TFunction<void(FStringView)>& LogFunc)
         {
             FAssetData* Data = FAssetRegistry::Get().GetAssetByPath(VirtualPath);
             const bool bMaterial = Data != nullptr && Data->AssetClass == CMaterial::StaticClass()->GetName();
 
+            // Permutations are baked into the master at cook time, so its instances are inputs to its cooked bytes.
+            TVector<FAssetData*> Instances;
+            if (bMaterial)
+            {
+                THashSet<FGuid> Visited;
+                CollectMaterialInstances(Data->AssetGUID, Instances, Visited);
+            }
+
             // A material's cooked bytes carry shaders built from the templates, so a template edit must miss the cache too.
-            const uint64 SourceHash = Data ? Data->ContentHash ^ (bMaterial ? CMaterial::GetShaderTemplateHash() : 0) : 0;
+            uint64 SourceHash = Data ? Data->ContentHash ^ (bMaterial ? CMaterial::GetShaderTemplateHash() : 0) : 0;
+            for (const FAssetData* Instance : Instances)
+            {
+                SourceHash = Hash::GetHash64(&Instance->ContentHash, sizeof(Instance->ContentHash), SourceHash);
+            }
             const FCookInputHash Key = FCookDDC::ComputeKey(SourceHash);
 
             TVector<uint8> CookedBytes;
@@ -182,6 +211,28 @@ namespace Lumina
                 else if (bStale)
                 {
                     LogCooker(LogFunc, Format("  recompiled {} against the current shader templates", VirtualPath).c_str());
+                }
+
+                // Editor assets carry no permutations, so each one an instance selects is pulled from the cache or compiled now.
+                if (Material != nullptr && !Material->StaticSwitches.empty())
+                {
+                    TVector<uint64> Keys;
+                    for (const FAssetData* InstanceData : Instances)
+                    {
+                        CPackage* InstancePackage = CPackage::LoadPackage(FStringView(InstanceData->Path.c_str(), InstanceData->Path.size()));
+                        const CMaterialInstance* Instance = InstancePackage != nullptr
+                            ? Cast<CMaterialInstance>(InstancePackage->LoadObjectByName(InstanceData->AssetName)) : nullptr;
+                        if (Instance != nullptr && Instance->GetMaterial() == Material && !Algo::Contains(Keys, Instance->GetStaticSwitchKey()))
+                        {
+                            Keys.push_back(Instance->GetStaticSwitchKey());
+                        }
+                    }
+
+                    if (const uint32 Failed = EnsureMaterialPermutations(Material, Keys); Failed != 0)
+                    {
+                        LogCooker(LogFunc, Format("  [warn] {} of {}'s static switch permutations could not be built; those instances draw with default switches",
+                            Failed, VirtualPath).c_str());
+                    }
                 }
             }
 

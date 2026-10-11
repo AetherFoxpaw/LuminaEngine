@@ -158,17 +158,6 @@ namespace Lumina
         // Where a cook writes the template hash, so the shipped game compares against what its materials were built with.
         static constexpr const char* CookedShaderTemplateHashPath = "/Engine/ShaderTemplateHash.txt";
 
-#if USING(WITH_EDITOR)
-        // Next loaded material whose bytecode predates the current shader templates.
-        static TStrongObjectPtr<CMaterial> PopStaleTemplateMaterial();
-
-        // Asks the editor to compile permutation Key. Idempotent, so every instance may call it freely.
-        static void RequestPermutation(CMaterial* Material, uint64 Key);
-
-        // Next queued permutation request, false when none remain.
-        static bool PopPermutationRequest(TStrongObjectPtr<CMaterial>& OutMaterial, uint64& OutKey);
-#endif
-
         PROPERTY(Editable, Category = "Material")
         EMaterialType MaterialType = EMaterialType::PBR;
 
@@ -231,9 +220,20 @@ namespace Lumina
         PROPERTY()
         TVector<FMaterialShaderPermutation> Permutations;
 
-        // GetShaderTemplateHash at the last compile. 0 marks an asset older than the hash, which recompiles once in the editor.
+        // GetShaderTemplateHash for the bytecode in memory, saved only by a cook or a legacy asset that still embeds its bytecode.
         PROPERTY()
         uint64 CompiledTemplateHash = 0;
+
+        // The graph's generated code and settings, which change only when the material is edited, so a template edit never dirties the asset.
+        PROPERTY()
+        uint64 SourceHash = 0;
+
+        // Publishes the default set, or one permutation, under this material's source and the current templates.
+        void StoreShadersInArtifactCache();
+        void StorePermutationInArtifactCache(uint64 Key);
+
+        // Fills permutation Key from the artifact cache, false when it was never compiled against these templates.
+        bool LoadPermutationFromArtifactCache(uint64 Key);
 
         // Strong refs for the texture slots that have been demanded, written by the graph compile and the async loads.
         TVector<TStrongObjectPtr<CTexture>> ResolvedTextures;
@@ -257,6 +257,9 @@ namespace Lumina
 
         bool HasCompiledStage() const;
         void CommitSerializedShaders();
+
+        uint64 MakeArtifactKey(uint64 PermutationKey) const;
+        bool LoadShadersFromArtifactCache();
         void ApplyParameterDefaults();
         void BindTextureSlots();
         void StampRenderFlags();

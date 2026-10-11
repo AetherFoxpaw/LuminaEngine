@@ -41,7 +41,6 @@
 #include <Tools/Screenshot/ScreenshotCapture.h>
 #include <World/World.h>
 #include <World/Entity/Systems/CameraSystem.h>
-#include "UI/Tools/NodeGraph/Material/MaterialGraphCompile.h"
 #include "Config/EngineSettings.h"
 #include "Input/Key.h"
 #include "implot.h"
@@ -1074,9 +1073,7 @@ namespace Lumina
         // A small budget avoids a hitch while cold thumbnails fill in a few per frame.
         CThumbnailManager::Get().ProcessRenderQueue();
 
-        // Queued in CMaterial::PostLoad when an asset's baked shaders predate the current templates.
-        ProcessMaterialRecompiles();
-        ProcessMaterialPermutationRequests();
+        MaterialCompiles.Tick();
     }
 
     void FEditorUI::OnUpdate(const FUpdateContext& UpdateContext)

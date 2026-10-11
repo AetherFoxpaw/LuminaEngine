@@ -9,6 +9,7 @@
 #include "Tools/EditorToolModal.h"
 #include "Tools/UI/DevelopmentToolUI.h"
 #include "Tools/UI/ImGui/ImGuiX.h"
+#include "UI/Tools/NodeGraph/Material/MaterialCompileScheduler.h"
 
 
 
@@ -345,6 +346,7 @@ namespace Lumina
         FConsoleLogEditorTool*                          ConsoleLogTool = nullptr;
         FContentBrowserEditorTool*                      ContentBrowser = nullptr;
         TVector<FEditorTool*>                           EditorTools;
+        FMaterialCompileScheduler                       MaterialCompiles;
 
         TVector<FFooterDrawer>                          FooterDrawers;
         FEditorTool*                                    OpenDrawer = nullptr;   // tool whose drawer is open (nullptr = none)
