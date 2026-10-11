@@ -1036,6 +1036,13 @@ namespace Lumina
         TVector<uint32>                        SkinnedCandidates;
         TVector<uint32>                        SkinnedCandidateBones;
         TVector<uint32>                        PendingSliceAllocs;
+        // Candidates that may skin from their leader's slice, settled once every own slice is laid out.
+        TVector<uint32>                        SharedPoseCandidates;
+        TAtomic<uint32>                        SharedPoseCursor{0};
+        // Per primitive, set when this frame's slice is the leader's, so the emit leaves it to the leader.
+        TVector<uint8>                         BoneSliceBorrowed;
+        // Ranges the layout packed for ungathered leaders, kept apart because other gather tasks own the thread locals then.
+        TVector<FUIntVector2>                  LeaderPoseUploadRanges;
         TAtomic<uint32>                        SkinnedCandidateCursor{0};
         TAtomic<uint32>                        PendingSliceCursor{0};
         uint32                                 SkinnedCandidateCount = 0;

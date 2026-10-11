@@ -1408,6 +1408,7 @@ namespace Lumina
                 SkinnedCandidates.resize(NumSkeletal);
                 SkinnedCandidateBones.resize(NumSkeletal);
                 PendingSliceAllocs.resize(NumSkeletal);
+                SharedPoseCandidates.resize(NumSkeletal);
             }
             SkinnedCandidateCursor.store(0, std::memory_order_relaxed);
 
@@ -2412,6 +2413,50 @@ namespace Lumina
         Flush();
     }
 
+    // Writes the pose into its slice unless the arena already holds it, and reports the range to upload.
+    static void PackPoseIntoSlice(FScenePrimitive& Tracked, SSkeletalMeshComponent& MeshComponent, uint32 BoneSlice,
+                                  TVector<FBoneTransform>& Arena, TVector<FUIntVector2>& UploadRanges)
+    {
+        const uint32 BoneCount = Tracked.BoneCount;
+        if (BoneCount == 0u || BoneSlice == kNoBoneSlice || (SIZE_T)BoneSlice + BoneCount > Arena.size())
+        {
+            return;
+        }
+
+        // Folded in here so the residency test below is the one gate, even for a writer that never bumped the serial.
+        if (MeshComponent.bRenderBonesDirty)
+        {
+            MeshComponent.bRenderBonesDirty = false;
+            ++MeshComponent.PoseSerial;
+        }
+
+        if (Tracked.UploadedSliceBase == BoneSlice && Tracked.UploadedPoseSerial == MeshComponent.PoseSerial)
+        {
+            return;
+        }
+
+        FBoneTransform* Dst = Arena.data() + BoneSlice;
+
+        // A partial pose cannot be packed against this slice, so it falls through to identity.
+        if ((uint32)MeshComponent.BoneTransforms.size() == BoneCount)
+        {
+            SkeletalUtils::PackRenderBones(MeshComponent.BoneTransforms.data(), BoneCount, Dst);
+        }
+        else
+        {
+            // With no pose, BoneWorld * InvBindMatrix collapses to identity for every bone.
+            const FBoneTransform IdentityBone = IdentityBoneTransform();
+            for (uint32 b = 0; b < BoneCount; ++b)
+            {
+                Dst[b] = IdentityBone;
+            }
+        }
+
+        Tracked.UploadedSliceBase  = BoneSlice;
+        Tracked.UploadedPoseSerial = MeshComponent.PoseSerial;
+        UploadRanges.push_back(FUIntVector2{ BoneSlice, BoneCount });
+    }
+
     void FDefaultSceneRenderer::LayoutSkinnedBoneSlices(TVector<FThreadLocalDrawData>& ThreadLocal)
     {
         LUMINA_PROFILE_SECTION("Layout Skinned Bone Slices");
@@ -2423,12 +2468,22 @@ namespace Lumina
         {
             BoneSliceByPrimitive.resize(NumPrimitives, kNoBoneSlice);
         }
+        if ((uint32)BoneSliceBorrowed.size() < NumPrimitives)
+        {
+            BoneSliceBorrowed.resize(NumPrimitives, 0u);
+        }
+
+        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        auto FollowerStorage = Registry.GetStorage<SFollowerPoseComponent>();
 
         SkinnedCandidateCount = Math::Min(SkinnedCandidateCursor.load(std::memory_order_relaxed),
                                           (uint32)SkinnedCandidates.size());
         PendingSliceCursor.store(0, std::memory_order_relaxed);
+        SharedPoseCursor.store(0, std::memory_order_relaxed);
 
         ++BoneSliceFrameNumber;
+
+        const FScenePrimitive* LayoutPrims = ScenePrimitives.GetPrimitives();
 
         // Reuse needs nothing shared; only the misses fall through to the serial allocator below.
         Task::ParallelFor(SkinnedCandidateCount,
@@ -2439,6 +2494,21 @@ namespace Lumina
                     const uint32 Index = SkinnedCandidates[c];
                     if (Index >= NumPrimitives)
                     {
+                        continue;
+                    }
+
+                    BoneSliceBorrowed[Index] = 0u;
+
+                    // Its own slice is left untouched, so it ages out while the leader's serves both.
+                    const ECS::FEntity Entity = LayoutPrims[Index].Entity;
+                    if (FollowerStorage && FollowerStorage.Contains(Entity) && FollowerStorage.Get(Entity).bSharesLeaderPose)
+                    {
+                        BoneSliceByPrimitive[Index] = kNoBoneSlice;
+                        const uint32 Slot = SharedPoseCursor.fetch_add(1, std::memory_order_relaxed);
+                        if (Slot < (uint32)SharedPoseCandidates.size())
+                        {
+                            SharedPoseCandidates[Slot] = c;
+                        }
                         continue;
                     }
 
@@ -2468,10 +2538,68 @@ namespace Lumina
                 ScenePrimitives.AcquireBoneSlice(Index, SkinnedCandidateBones[c], BoneSliceFrameNumber);
         }
 
+        // A leader nothing else gathered this frame still owes its followers a pose, which is packed here once.
+        TVector<uint32> UngatheredLeaders;
+        const uint32 NumShared = Math::Min(SharedPoseCursor.load(std::memory_order_relaxed), (uint32)SharedPoseCandidates.size());
+        for (uint32 n = 0; n < NumShared; ++n)
+        {
+            const uint32 c     = SharedPoseCandidates[n];
+            const uint32 Index = SkinnedCandidates[c];
+            const FScenePrimitive& Prim = LayoutPrims[Index];
+
+            const SFollowerPoseComponent* Link = FollowerStorage ? FollowerStorage.TryGet(Prim.Entity) : nullptr;
+            const uint32 Leader = Link != nullptr ? ScenePrimitives.FindSkeletalPrimitive(Link->CopiedLeader) : Constants::kIndexNoneU32;
+
+            uint32 Base = kNoBoneSlice;
+            if (Leader < NumPrimitives && Leader != Index && LayoutPrims[Leader].Entity == Link->CopiedLeader &&
+                LayoutPrims[Leader].BoneCount == Prim.BoneCount)
+            {
+                if (LayoutPrims[Leader].BoneSliceFrame == BoneSliceFrameNumber)
+                {
+                    Base = BoneSliceByPrimitive[Leader];
+                }
+                else
+                {
+                    Base = ScenePrimitives.AcquireBoneSlice(Leader, Prim.BoneCount, BoneSliceFrameNumber);
+                    BoneSliceByPrimitive[Leader] = Base;
+                    if (Base != kNoBoneSlice)
+                    {
+                        UngatheredLeaders.push_back(Leader);
+                    }
+                }
+            }
+
+            if (Base != kNoBoneSlice)
+            {
+                BoneSliceByPrimitive[Index] = Base;
+                BoneSliceBorrowed[Index] = 1u;
+            }
+            else
+            {
+                // The leader cannot lend a slice this frame, so the follower packs its own copy of the pose.
+                BoneSliceByPrimitive[Index] = ScenePrimitives.AcquireBoneSlice(Index, Prim.BoneCount, BoneSliceFrameNumber);
+            }
+        }
+
         ScenePrimitives.ReleaseStaleBoneSlices(BoneSliceFrameNumber, kBoneSliceGraceFrames);
 
         ExtractFrame->Geometry.BoneCount = ScenePrimitives.GetBoneSliceExtent();
         ExtractFrame->Geometry.BonesData.resize_uninitialized(ExtractFrame->Geometry.BoneCount);
+
+        if (!UngatheredLeaders.empty())
+        {
+            auto SkeletalStorage = Registry.GetStorage<SSkeletalMeshComponent>();
+            FScenePrimitive* MutablePrims = ScenePrimitives.GetMutablePrimitives();
+            for (const uint32 Leader : UngatheredLeaders)
+            {
+                FScenePrimitive& Tracked = MutablePrims[Leader];
+                if (SkeletalStorage.Contains(Tracked.Entity))
+                {
+                    PackPoseIntoSlice(Tracked, SkeletalStorage.Get(Tracked.Entity), BoneSliceByPrimitive[Leader],
+                                      ExtractFrame->Geometry.BonesData, LeaderPoseUploadRanges);
+                }
+            }
+        }
     }
 
     void FDefaultSceneRenderer::EmitSkinnedPrimitives(const Task::FParallelRange& Range, FThreadLocalDrawData& Local)
@@ -2541,43 +2669,10 @@ namespace Lumina
             {
                 BoneArenaBase = BoneSlice;
 
-                // A partial pose cannot be packed against this slice, so it falls through to identity.
-                const bool bHasFullPose = (uint32)MeshComponent.BoneTransforms.size() == SkeletonBoneCount;
-
-                // A writer that moved the pose without bumping the serial gets folded in here, so the
-                // residency test below is the single gate on whether this slice is already correct.
-                if (MeshComponent.bRenderBonesDirty)
+                // A borrowed slice belongs to the leader, whose own gather or the layout pass packs it.
+                if (!BoneSliceBorrowed[i])
                 {
-                    MeshComponent.bRenderBonesDirty = false;
-                    ++MeshComponent.PoseSerial;
-                }
-
-                // Disjoint per primitive, so workers stamp this without synchronizing.
-                FScenePrimitive& Tracked = MutablePrims[i];
-                const bool bResident = Tracked.UploadedSliceBase == BoneSlice
-                                    && Tracked.UploadedPoseSerial == MeshComponent.PoseSerial;
-
-                if (!bResident)
-                {
-                    FBoneTransform* Dst = ArenaMirror.data() + BoneSlice;
-
-                    if (bHasFullPose)
-                    {
-                        SkeletalUtils::PackRenderBones(MeshComponent.BoneTransforms.data(), SkeletonBoneCount, Dst);
-                    }
-                    else
-                    {
-                        // With no pose, BoneWorld * InvBindMatrix collapses to identity for every bone.
-                        const FBoneTransform IdentityBone = IdentityBoneTransform();
-                        for (uint32 b = 0; b < SkeletonBoneCount; ++b)
-                        {
-                            Dst[b] = IdentityBone;
-                        }
-                    }
-
-                    Tracked.UploadedSliceBase  = BoneSlice;
-                    Tracked.UploadedPoseSerial = MeshComponent.PoseSerial;
-                    Local.BoneUploadRanges.push_back(FUIntVector2{ BoneSlice, SkeletonBoneCount });
+                    PackPoseIntoSlice(MutablePrims[i], MeshComponent, BoneSlice, ArenaMirror, Local.BoneUploadRanges);
                 }
             }
 
@@ -2611,6 +2706,8 @@ namespace Lumina
 
         TVector<FUIntVector2>& BoneUploadRanges = Frame.Geometry.BoneUploadRanges;
         BoneUploadRanges.clear();
+        BoneUploadRanges.insert(BoneUploadRanges.end(), LeaderPoseUploadRanges.begin(), LeaderPoseUploadRanges.end());
+        LeaderPoseUploadRanges.clear();
 
         uint64 TotalInstancesCulled = 0;
         for (uint32 t = 0; t < NumThreads; ++t)

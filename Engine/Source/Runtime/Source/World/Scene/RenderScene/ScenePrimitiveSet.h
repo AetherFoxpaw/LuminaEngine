@@ -333,6 +333,9 @@ namespace Lumina
         void                        ReleaseStaleBoneSlices(uint32 FrameNumber, uint32 GraceFrames);
         uint32                      GetBoneSliceExtent() const { return BoneSliceExtent; }
 
+        // The skeletal primitive Entity renders through, ~0u when it has none.
+        uint32                      FindSkeletalPrimitive(ECS::FEntity Entity) const { return FindLinked(Entity, EPrimitiveSource::SkeletalMesh); }
+
         const FSurfaceDescGPU*      GetSurfaceDescs() const     { return SurfaceDescs.data(); }
         uint32                      GetSurfaceDescCount() const { return (uint32)SurfaceDescs.size(); }
         bool                        AreSurfaceDescsDirty() const { return bSurfaceDescsDirty; }

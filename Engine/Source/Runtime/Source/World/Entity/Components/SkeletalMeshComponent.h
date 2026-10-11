@@ -72,6 +72,9 @@ namespace Lumina
         // World time the render gather last kept this mesh through culling; animation systems read it
         // to gate off-screen pose evaluation. -1 until first rendered. Transient, never serialized.
         double LastRenderedTime = -1.0;
+
+        // Latest LastRenderedTime among the meshes following this one, so a hidden leader still animates them. Transient.
+        double FollowerRenderedTime = -1.0;
         
         /** Mirrors SStaticMeshComponent::SetStaticMesh. Assigning the field directly skips
          *  InvalidateRenderResolve, and the retained render scene only re-reads primitives that report a

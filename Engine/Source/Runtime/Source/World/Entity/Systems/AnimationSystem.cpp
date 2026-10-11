@@ -34,39 +34,11 @@
 
 namespace Lumina
 {
+    // Slack so brief occlusion or culling flicker does not stutter the pose.
+    static constexpr double kAnimVisibilityGrace = 0.25;
+
     namespace
     {
-        // A follower of a follower reads the root of the chain, so the copy pass needs no ordering
-        // between followers. A cycle stops at the hop limit and simply drives nothing.
-        ECS::FEntity ResolveLeaderRoot(ECS::FRegistry& Registry, ECS::FEntity Start)
-        {
-            constexpr int32 MaxHops = 8;
-
-            ECS::FEntity Cursor = Start;
-            for (int32 Hop = 0; Hop < MaxHops; ++Hop)
-            {
-                if (Cursor == ECS::NullEntity || !Registry.IsValid(Cursor))
-                {
-                    return ECS::NullEntity;
-                }
-
-                const SFollowerPoseComponent* Follower = Registry.TryGet<SFollowerPoseComponent>(Cursor);
-                if (Follower == nullptr || Follower->Leader == ECS::NullEntity)
-                {
-                    return Cursor;
-                }
-
-                const ECS::FEntity Next = Follower->Leader;
-                if (Next == Cursor)
-                {
-                    return ECS::NullEntity;
-                }
-                Cursor = Next;
-            }
-
-            return ECS::NullEntity;
-        }
-
         // Names are the only thing two skeletons reliably share, so the map is built from them once.
         void BuildFollowerBoneMap(SFollowerPoseComponent& Follower, const FSkeletonResource& LeaderSkeleton,
                                   const FSkeletonResource& FollowerSkeleton)
@@ -107,6 +79,48 @@ namespace Lumina
                 Follower.bWarnedNoMatch = false;
             }
         }
+
+        // A leader that is hidden or culled still animates while a follower is drawn, at the closest follower's detail.
+        template<typename TFollowerView>
+        void RaiseLeaderDemand(ECS::FRegistry& Registry, TFollowerView& FollowerView, double Now)
+        {
+            THashSet<ECS::FEntity> TakenFromFollowers;
+            FollowerView.ForEachInRange(0, (uint32)FollowerView.NumDenseSlots(),
+                [&](ECS::FEntity Entity, SFollowerPoseComponent&, SSkeletalMeshComponent& Mesh)
+            {
+                if (Now - Mesh.LastRenderedTime > kAnimVisibilityGrace)
+                {
+                    return;
+                }
+
+                const ECS::FEntity LeaderEntity = SkeletalUtils::ResolvePoseLeader(Registry, Entity);
+                SSkeletalMeshComponent* Leader = LeaderEntity != ECS::NullEntity ? Registry.TryGet<SSkeletalMeshComponent>(LeaderEntity) : nullptr;
+                if (Leader == nullptr)
+                {
+                    return;
+                }
+
+                Leader->FollowerRenderedTime = Math::Max(Leader->FollowerRenderedTime, Mesh.LastRenderedTime);
+
+                // A drawn leader's own stamps are current, and the followers sit on it anyway.
+                if (Now - Leader->LastRenderedTime <= kAnimVisibilityGrace)
+                {
+                    return;
+                }
+
+                // Zero means full rate and every bone, so the smaller value is always the more detailed one.
+                if (TakenFromFollowers.insert(LeaderEntity).second)
+                {
+                    Leader->LastDistanceOverRadius = Mesh.LastDistanceOverRadius;
+                    Leader->LastBoneLODTolerance   = Mesh.LastBoneLODTolerance;
+                }
+                else
+                {
+                    Leader->LastDistanceOverRadius = Math::Min(Leader->LastDistanceOverRadius, Mesh.LastDistanceOverRadius);
+                    Leader->LastBoneLODTolerance   = Math::Min(Leader->LastBoneLODTolerance, Mesh.LastBoneLODTolerance);
+                }
+            });
+        }
     }
 
     // Time advance, VM state and lazy init all mutate these, so they are declared Write, not Read.
@@ -117,9 +131,6 @@ namespace Lumina
         Writes<SSkeletalMeshComponent, STransformComponent, SSimpleAnimationComponent, SAnimationGraphComponent, SFollowerPoseComponent>();
         Reads<SCharacterMovementComponent, SystemResource::Hierarchy, SystemResource::PhysicsQuery, SystemResource::Kinematics>();
     }
-
-    // Slack so brief occlusion or culling flicker does not stutter the pose.
-    static constexpr double kAnimVisibilityGrace = 0.25;
 
     // Diagnostic cross-check of the deferred executor against direct single-clip sampling.
     static TConsoleVar<bool> CVarValidateAnimTasks(
@@ -287,7 +298,7 @@ namespace Lumina
             OutStepTime = 0.0f;
 
             if (Mesh.VisibilityBasedAnimTick == EAnimUpdateMode::TickWhenRendered &&
-                (Now - Mesh.LastRenderedTime) > kAnimVisibilityGrace &&
+                (Now - Math::Max(Mesh.LastRenderedTime, Mesh.FollowerRenderedTime)) > kAnimVisibilityGrace &&
                 CVarAnimBudget.GetValue())
             {
                 return false;
@@ -894,6 +905,11 @@ namespace Lumina
         // Relaxed throughout, since the TaskGraph::Wait() before the read is the ordering edge.
         std::atomic<bool> bAnyRootMotion{ false };
 
+        if (bHasFollower)
+        {
+            RaiseLeaderDemand(SystemContext.GetRegistry(), FollowerView, Now);
+        }
+
         NotifyQueue.Prepare();
 
         const bool bFuseExecute = CVarFuseAnimExecute.GetValue();
@@ -997,25 +1013,16 @@ namespace Lumina
                 {
 
 
-                    if (Follower.Leader == ECS::NullEntity)
-                    {
-                        return;
-                    }
+                    Follower.bSharesLeaderPose = false;
 
-                    const ECS::FEntity LeaderEntity = ResolveLeaderRoot(Registry, Follower.Leader);
-                    if (LeaderEntity == ECS::NullEntity || LeaderEntity == Entity)
+                    const ECS::FEntity LeaderEntity = SkeletalUtils::ResolvePoseLeader(Registry, Entity);
+                    if (LeaderEntity == ECS::NullEntity)
                     {
                         return;
                     }
 
                     const SSkeletalMeshComponent* LeaderMesh = Registry.TryGet<SSkeletalMeshComponent>(LeaderEntity);
                     if (LeaderMesh == nullptr || LeaderMesh->BoneTransforms.empty())
-                    {
-                        return;
-                    }
-
-                    // The leader's pose has not moved, so the copy already on this mesh still stands.
-                    if (Follower.LastLeaderPoseSerial == LeaderMesh->PoseSerial && !Mesh.BoneTransforms.empty())
                     {
                         return;
                     }
@@ -1034,10 +1041,22 @@ namespace Lumina
                         return;
                     }
 
+                    // Same leader, same skeletons and an unmoved pose, so the copy already on this mesh still stands.
+                    if (Follower.CopiedLeader == LeaderEntity && Follower.LastLeaderPoseSerial == LeaderMesh->PoseSerial &&
+                        Follower.MappedLeaderSkeleton == LeaderSkeleton && Follower.MappedFollowerSkeleton == FollowerSkeleton &&
+                        !Mesh.BoneTransforms.empty())
+                    {
+                        Follower.bSharesLeaderPose = LeaderSkeleton == FollowerSkeleton;
+                        return;
+                    }
+
                     // One skeleton behind both meshes is the common case, and it is a straight copy.
                     if (LeaderSkeleton == FollowerSkeleton)
                     {
                         Mesh.BoneTransforms = LeaderMesh->BoneTransforms;
+                        Follower.MappedLeaderSkeleton   = LeaderSkeleton;
+                        Follower.MappedFollowerSkeleton = FollowerSkeleton;
+                        Follower.bSharesLeaderPose      = true;
                     }
                     else
                     {
@@ -1063,6 +1082,7 @@ namespace Lumina
                         }
                     }
 
+                    Follower.CopiedLeader = LeaderEntity;
                     Mesh.bRenderBonesDirty = false;
                     Follower.LastLeaderPoseSerial = LeaderMesh->PoseSerial;
                     ++Mesh.PoseSerial;
