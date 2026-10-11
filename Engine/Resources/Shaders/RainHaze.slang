@@ -63,12 +63,7 @@ void ComputeMain(uint3 DTid : SV_DispatchThreadID)
     }
     Open /= float(kHazeSamples);
 
-    // Elongated noise sliding down the screen reads as sheets of rain blowing through the distance.
-    const float Tilt  = -W.Motion.x * 0.02;
-    const float2 Sheet = float2((float(Pixel.x) + float(Pixel.y) * Tilt) * 0.035, float(Pixel.y) * 0.0025 - W.Surface2.z * 1.7);
-    const float Gusts = 0.7 + 0.6 * WeatherValueNoise(Sheet);
-
-    const float Amount = min(1.0 - exp(-Path * Open * Density * kHazePerMeter), bSky ? kSkyHazeMaxOpacity : kHazeMaxOpacity) * Gusts;
+    const float Amount = min(1.0 - exp(-Path * Open * Density * kHazePerMeter), bSky ? kSkyHazeMaxOpacity : kHazeMaxOpacity);
     const float3 HazeColor = GetVolumetricAmbientRadiance() * kHazeLightGain * W.RainTint.rgb;
 
     const float4 Current = Pass().HDR[Pixel];

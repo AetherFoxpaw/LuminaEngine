@@ -2203,7 +2203,7 @@ namespace Lumina
                 float  Intensity;
                 float  CosYaw;
                 float  SinYaw;
-                uint32 _Pad0;
+                uint32 bRemoveSun;
             };
             static_assert(sizeof(FEquirectPC) == 24, "FEquirectPC must match EquirectToCubemap.slang::FPushConstants.");
 
@@ -2215,6 +2215,7 @@ namespace Lumina
             PC.Intensity   = HDRIParams.x;
             PC.CosYaw      = HDRIParams.y;
             PC.SinYaw      = HDRIParams.z;
+            PC.bRemoveSun  = Frame.Lighting.LightData.bHasSun ? 1u : 0u;
 
             constexpr uint32 EquirectTile = 8u;
             const uint32 FaceSize = SkyCube.GetSizeX();

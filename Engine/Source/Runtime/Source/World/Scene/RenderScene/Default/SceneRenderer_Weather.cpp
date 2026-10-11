@@ -173,7 +173,10 @@ namespace Lumina
             return;
         }
 
-        const FVector3 FallVelocity(State->Wind.x * Rain.WindInfluence, -Math::Max(Rain.FallSpeed, 0.5f), State->Wind.y * Rain.WindInfluence);
+        // The preset's steady wind rather than the gusting one, or every gust would swing the rain shadows and the wetness under them.
+        const FWindParams& Wind = State->Params.Wind;
+        const FVector2 SteadyWind = Wind.Direction * Wind.Speed;
+        const FVector3 FallVelocity(SteadyWind.x * Rain.WindInfluence, -Math::Max(Rain.FallSpeed, 0.5f), SteadyWind.y * Rain.WindInfluence);
         const FVector3 Fall = Math::Normalize(FallVelocity);
         Weather.FallDirection = Fall;
 

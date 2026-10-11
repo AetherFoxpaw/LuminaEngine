@@ -46,8 +46,26 @@ float PuddleHeight(float2 P)
     return (WeatherValueNoise(P) + 0.5 * WeatherValueNoise(P * 2.03 + 17.1) + 0.25 * WeatherValueNoise(P * 4.11 + 41.7)) / 1.75;
 }
 
-// Fraction of the bilinear footprint around WorldPos that rain reaches, 0 under a roof and 1 in the open.
-float RainExposure(FWeatherData W, float3 WorldPos)
+float RainExposureAt(FWeatherData W, float2 UV, float Depth, uint Width, uint Height)
+{
+    const float2 Texel = UV * float2(Width, Height) - 0.5;
+    const float2 Frac  = frac(Texel);
+    const float2 GatherUV = (floor(Texel) + 1.0) / float2(Width, Height);
+
+    // A surface records itself in the map, so it must clear its own depth by a few centimeters to count as open.
+    constexpr float kSelfBiasMeters = 0.2;
+    const float Bias = kSelfBiasMeters / max(W.OcclusionDepthRange, 1.0);
+    const float4 Occluder = W.RainOcclusion.GatherRed(Samplers::PointClamp, GatherUV);
+    const float4 Open = select(Depth <= Occluder + Bias, float4(1.0), float4(0.0));
+
+    // Gather order is (0,1), (1,1), (1,0), (0,0).
+    const float Top    = lerp(Open.w, Open.z, Frac.x);
+    const float Bottom = lerp(Open.x, Open.y, Frac.x);
+    return lerp(Top, Bottom, Frac.y);
+}
+
+// Fraction of the footprint around WorldPos that rain reaches, 0 under a roof and 1 in the open; soft widens it so a roof's drip line does not stair-step.
+float RainExposure(FWeatherData W, float3 WorldPos, bool bSoft = false)
 {
     if (!W.RainOcclusion.IsValid())
     {
@@ -64,20 +82,16 @@ float RainExposure(FWeatherData W, float3 WorldPos)
 
     uint Width, Height;
     W.RainOcclusion.GetDimensions(Width, Height);
-    const float2 Texel = UV * float2(Width, Height) - 0.5;
-    const float2 Frac  = frac(Texel);
-    const float2 GatherUV = (floor(Texel) + 1.0) / float2(Width, Height);
+    if (!bSoft)
+    {
+        return RainExposureAt(W, UV, NDC.z, Width, Height);
+    }
 
-    // A surface records itself in the map, so it must clear its own depth by a few centimeters to count as open.
-    constexpr float kSelfBiasMeters = 0.2;
-    const float Bias = kSelfBiasMeters / max(W.OcclusionDepthRange, 1.0);
-    const float4 Occluder = W.RainOcclusion.GatherRed(Samplers::PointClamp, GatherUV);
-    const float4 Open = select(NDC.z <= Occluder + Bias, float4(1.0), float4(0.0));
-
-    // Gather order is (0,1), (1,1), (1,0), (0,0).
-    const float Top    = lerp(Open.w, Open.z, Frac.x);
-    const float Bottom = lerp(Open.x, Open.y, Frac.x);
-    return lerp(Top, Bottom, Frac.y);
+    const float2 Spread = 1.25 / float2(Width, Height);
+    return 0.25 * (RainExposureAt(W, UV + float2(-Spread.x, -Spread.y), NDC.z, Width, Height)
+                 + RainExposureAt(W, UV + float2( Spread.x, -Spread.y), NDC.z, Width, Height)
+                 + RainExposureAt(W, UV + float2(-Spread.x,  Spread.y), NDC.z, Width, Height)
+                 + RainExposureAt(W, UV + float2( Spread.x,  Spread.y), NDC.z, Width, Height));
 }
 
 // The large-scale shape of the ground around a point, read from the topmost surfaces the rain map recorded.
@@ -247,7 +261,7 @@ void ApplyRainWetness(inout FGBufferData G, float3 WorldPos, float3 GeoNormal)
         return;
     }
 
-    const float Exposure = RainExposure(W, WorldPos);
+    const float Exposure = RainExposure(W, WorldPos, true);
     if (Exposure <= 0.0 && W.DebugMode == 0u)
     {
         return;
@@ -277,8 +291,8 @@ void ApplyRainWetness(inout FGBufferData G, float3 WorldPos, float3 GeoNormal)
     const float  SoakedLuma = dot(Soaked, float3(0.2126, 0.7152, 0.0722));
     const float3 Saturated  = max(lerp(SoakedLuma.xxx, Soaked, 1.0 + 0.35 * Porosity), 0.0);
     G.BaseColor = lerp(G.BaseColor, Saturated, Wet);
-    // The film only fills the pores, so a rough stone stays fairly rough until water stands on it.
-    G.Roughness  = lerp(G.Roughness, lerp(0.1, max(G.Roughness * 0.6, 0.1), Porosity), Wet);
+    // Porous stone drinks the water rather than wearing a film, so it darkens and only smooth surfaces turn glossy.
+    G.Roughness  = lerp(G.Roughness, lerp(0.1, max(G.Roughness * 0.85, 0.1), Porosity), Wet);
 
     float  Puddle     = 0.0;
     float  Flat       = saturate((Up - 0.9) / 0.08);
