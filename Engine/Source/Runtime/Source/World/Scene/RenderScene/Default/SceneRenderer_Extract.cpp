@@ -1156,7 +1156,7 @@ namespace Lumina
 
                 const FResolvedMesh& Entry = Cache.GetEntry(Handle);
                 Type.CachedMeshletHeaderSlot = Entry.MeshletHeaderSlot;
-                Type.CachedBaseFlags = Type.bReceiveShadow ? EInstanceFlags::ReceiveShadow : EInstanceFlags::None;
+                Type.CachedBaseFlags = EInstanceFlags::Foliage | (Type.bReceiveShadow ? EInstanceFlags::ReceiveShadow : EInstanceFlags::None);
                 Type.CachedEntryState = Cache.GetEntryState(Handle);
             }
         }
@@ -1319,6 +1319,9 @@ namespace Lumina
         // Serial fit/allocate after parallel light pass; shrinks when sum(area) exceeds atlas budget.
         AllocateShadowTiles();
         ResolveLightFunctions();
+
+        // Takes a shadow slot for the rain occlusion view, so it runs before the counter is read back.
+        ExtractWeather(Registry, Frame);
 
         // Same overshoot as LightCount, and this is the last writer of the shadow counter.
         NumLiveShadows = Math::Min(Frame.Lighting.ShadowDataCount.load(std::memory_order_acquire),
@@ -1871,6 +1874,7 @@ namespace Lumina
             Frame.Volumetrics.bClouds = true;
             Frame.Volumetrics.Clouds  = Cloud;
         });
+        ApplyWeatherToClouds(Frame);
 
         Frame.Volumetrics.bVolumetricFog = false;
         Frame.Volumetrics.FogParams      = FExponentialHeightFogParams{};
@@ -3600,7 +3604,8 @@ namespace Lumina
             NumPointFaceViews +
             (uint32)PackedShadows[(uint32)ELightType::Spot].size() +
             (uint32)Frame.Views.CaptureViews.size() +                         // Capture cameras (frustum-only)
-            (Frame.ReflectionProbes.BakingProbe >= 0 ? 6u : 0u);              // Reflection-probe cube faces
+            (Frame.ReflectionProbes.BakingProbe >= 0 ? 6u : 0u) +             // Reflection-probe cube faces
+            (Frame.Weather.OcclusionShadowDataIndex != Constants::kIndexNone ? 1u : 0u);
 
         ASSERT(NumViews <= (uint32)GMaxCullViews);
         LUMINA_PROFILE_VALUE("Shadows/PointFaceViews", (int64)NumPointFaceViews);
@@ -3741,6 +3746,15 @@ namespace Lumina
             const float  CaptureHeight = (float)Capture.SceneGlobalData.ScreenSize.w;
             Capture.CameraViewIndex = PushView(CaptureVP, Capture.ViewVolume.GetViewPosition(), CaptureFlags,
                                                MakeLODErrorScale(CaptureVP, CaptureHeight, CameraTolerance));
+        }
+
+        if (Frame.Weather.OcclusionShadowDataIndex != Constants::kIndexNone)
+        {
+            // No cone test, since its sphere form assumes a perspective view origin.
+            const uint32 RainFlags = ECullViewFlags::Frustum | ECullViewFlags::CastShadowOnly | ECullViewFlags::OrthographicLOD | ECullViewFlags::NoFoliage;
+            const FMatrix4& RainVP = Frame.Weather.OcclusionViewProjection;
+            Frame.Weather.OcclusionCullView = PushView(RainVP, ViewVolume.GetViewPosition(), RainFlags,
+                MakeLODErrorScale(RainVP, (float)Frame.Weather.OcclusionResolution, ShadowTolerance));
         }
 
         if (Frame.ReflectionProbes.BakingProbe >= 0)

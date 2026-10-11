@@ -896,6 +896,7 @@ namespace Lumina
             SceneGlobalData.DBufferDIndex = bDecals ? (uint32)CurrentView->Images[(int)ENamedImage::DBufferD].GetResourceID() : Constants::kIndexNoneU32;
 
             PublishFogGlobals(SceneGlobalData);
+            PublishWeatherGlobals(SceneGlobalData);
 
             SetSceneRoot(CL, *CurrentView, RHI::CopyTransient(SceneGlobalData));
 

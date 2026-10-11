@@ -29,6 +29,7 @@
 #include "TaskSystem/FiberSync.h"
 #include "World/Entity/Components/PostProcessSettings.h"
 #include "World/Entity/Components/CloudComponent.h"
+#include "World/Entity/Systems/WeatherState.h"
 
 namespace Lumina
 {
@@ -442,6 +443,8 @@ namespace Lumina
 
                 bool                             bClouds              = false;
                 SCloudComponent                  Clouds               = {};
+                // Weather wind drift added on top of the cloud component's own.
+                FVector2                         CloudWindOffset      = FVector2(0.0f);
 
                 TVector<FGPUFogVolume>           FogVolumes;
                 uint32                           FarShaftSteps        = 0;
@@ -449,6 +452,23 @@ namespace Lumina
                 bool                             bLocalVolumetricLights = false;
                 float                            FarShaftDistance     = 4000.0f;
             } Volumetrics;
+
+            // Inactive unless a weather component is playing, which leaves every weather pass and allocation idle.
+            struct FWeather
+            {
+                bool                             bActive                  = false;
+                bool                             bDrops                   = false;
+                FWeatherState                    State                    = {};
+                int32                            OcclusionShadowDataIndex = Constants::kIndexNone;
+                uint32                           OcclusionCullView        = Constants::kIndexNoneU32;
+                uint32                           OcclusionResolution      = 0;
+                FMatrix4                         OcclusionViewProjection  = FMatrix4(1.0f);
+                float                            OcclusionDepthRange      = 1.0f;
+                float                            OcclusionTexelWorld      = 0.1f;
+                FVector3                         FallDirection            = FVector3(0.0f, -1.0f, 0.0f);
+                uint32                           NumDrops                 = 0;
+                uint32                           NumSplashes              = 0;
+            } Weather;
 
             // Splines uploaded this frame. Headers index into the two shared arrays; everything is world
             // space (SSplineComponent authors in entity-local space and the extract bakes the transform in).
@@ -977,6 +997,8 @@ namespace Lumina
         const SEnvironmentComponent* ExtractEnvironment(ECS::FRegistry& Registry, FFrameData& Frame);
         void ExtractSkyLight(ECS::FRegistry& Registry, FFrameData& Frame, const SEnvironmentComponent* ActiveEnv);
         void ExtractFog(ECS::FRegistry& Registry, FFrameData& Frame);
+        void ExtractWeather(ECS::FRegistry& Registry, FFrameData& Frame);
+        void ApplyWeatherToClouds(FFrameData& Frame);
 
         // Render-phase half: buffer resize + upload commands; reads extract-phase state.
         void CompileDrawCommands_Render(RHI::FCmdListH CL);
@@ -1574,6 +1596,18 @@ namespace Lumina
         RHI::FTextureH                                      CascadePyramidOnCompute = {};
         bool ShouldCullOnCompute(const FFrameData& Frame) const;
         static bool HasGrassScatter(const FFrameData& Frame);
+
+        FSceneImage                                         RainOcclusionImage;
+        FSceneBuffer                                        RainVisibleBuffer  { "Weather.RainVisible", 1.25f };
+        FSceneBuffer                                        RainArgsBuffer     { "Weather.RainArgs", 1.0f };
+        FSceneBuffer                                        RainSplashBuffer   { "Weather.Splashes", 1.0f, EBufferInit::Zeroed };
+        uint32                                              RainSplashCursor   = 0;
+        uint32                                              WeatherIdleFrames  = 0;
+
+        void PublishWeatherGlobals(FSceneGlobalData& Globals);
+        void WeatherOcclusionPass(RHI::FCmdListH CL);
+        void RainPass(RHI::FCmdListH CL);
+        void ReleaseIdleWeatherResources();
 
         FMatrix4                                            CascadeHZBViewProjection[NumCascades] = {};
         FVector4                                            CascadeHZBNdcScale[NumCascades] = {};

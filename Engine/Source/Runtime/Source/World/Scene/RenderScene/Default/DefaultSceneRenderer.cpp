@@ -772,6 +772,8 @@ namespace Lumina
                     CascadedShowPass(CL, Frame.Views.CascadeViewBase);
                 }
 
+                WeatherOcclusionPass(CL);
+
                 {
                     SCENE_GPU_SCOPE(CL, "Light Functions");
                     LightFunctionPass(CL);
@@ -985,6 +987,9 @@ namespace Lumina
                     ParticleRenderPass(CL);
                 }
 
+                RainPass(CL);
+                ReleaseIdleWeatherResources();
+
                 {
                     SCENE_GPU_SCOPE(CL, "Billboards");
                     BillboardPass(CL);
@@ -1188,6 +1193,7 @@ namespace Lumina
         Globals.GTAOSettings.SunShadowMaskIndex = Constants::kIndexNoneU32;
 
         PublishFogGlobals(Globals);
+        PublishWeatherGlobals(Globals);
 
         return Globals;
     }

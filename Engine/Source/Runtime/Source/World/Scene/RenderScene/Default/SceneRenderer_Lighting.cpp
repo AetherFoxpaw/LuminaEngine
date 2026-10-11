@@ -1041,15 +1041,7 @@ namespace Lumina
             PC.FinalValuePower          = FinalValuePower;
             PC.DepthMIPSamplingOffset   = DepthMipSamplingOffset;
 
-            const RHI::FSpecializationConstant MainConsts[] =
-            {
-                RHI::FSpecializationConstant{ .ConstantID = 20u, .AsInt = PC.SliceCount,    .Type = RHI::ESpecializationConstantType::UInt32 },
-                RHI::FSpecializationConstant{ .ConstantID = 21u, .AsInt = PC.StepsPerSlice, .Type = RHI::ESpecializationConstantType::UInt32 },
-                RHI::FSpecializationConstant{ .ConstantID = 22u, .AsInt = SampleDistributionPower == 2.0f ? 1u : 0u, .Type = RHI::ESpecializationConstantType::UInt32 },
-                RHI::FSpecializationConstant{ .ConstantID = 23u, .AsInt = ThinOccluderCompensation == 0.0f ? 1u : 0u, .Type = RHI::ESpecializationConstantType::UInt32 },
-            };
-            RHI::CmdSetPipeline(CL, GetOrCreateComputePipeline(MainCS, TSpan<const RHI::FSpecializationConstant>(MainConsts, std::size(MainConsts))));
-            RHI::CmdDispatch(CL, MakeArgs(PC),
+            DispatchCompute(CL, MainCS, PC,
                 RenderUtils::GetGroupCount(Width, 8u),
                 RenderUtils::GetGroupCount(Height, 8u), 1);
 
@@ -1696,10 +1688,11 @@ namespace Lumina
         PC.Density             = Math::Max(C.Density, 0.0f);
         PC.LayerBottom         = Math::Max(C.LayerBottom, 100.0f);
         PC.LayerTop            = Math::Max(C.LayerTop, C.LayerBottom + 1.0f);
-        PC.WindOffset[0]       = Wind.x * Drift;
-        PC.WindOffset[1]       = Wind.y * Drift;
-        PC.DetailWindOffset[0] = Wind.x * Drift * 2.0f;
-        PC.DetailWindOffset[1] = Wind.y * Drift * 2.0f;
+        const FVector2 WeatherDrift = Frame.Volumetrics.CloudWindOffset;
+        PC.WindOffset[0]       = Wind.x * Drift + WeatherDrift.x;
+        PC.WindOffset[1]       = Wind.y * Drift + WeatherDrift.y;
+        PC.DetailWindOffset[0] = Wind.x * Drift * 2.0f + WeatherDrift.x * 2.0f;
+        PC.DetailWindOffset[1] = Wind.y * Drift * 2.0f + WeatherDrift.y * 2.0f;
 
         PC.ShadowUAV       = (uint32)ShadowUAV;
         PC.Resolution      = Shadow.GetSizeX();
@@ -2671,7 +2664,7 @@ namespace Lumina
         PC.ForwardScattering = Math::Clamp(C.ForwardScattering, 0.0f, 0.95f);
         PC.BackScattering    = Math::Clamp(C.BackScattering, -0.95f, 0.0f);
         PC.PowderStrength    = Math::Clamp(C.PowderStrength, 0.0f, 1.0f);
-        PC.WindOffset        = FVector2(Wind.x * Drift, Wind.y * Drift);
+        PC.WindOffset        = FVector2(Wind.x * Drift, Wind.y * Drift) + Frame.Volumetrics.CloudWindOffset;
         PC.DetailWindOffset  = FVector2(PC.WindOffset.x * C.DetailWindFactor,
                                         PC.WindOffset.y * C.DetailWindFactor);
         PC.CloudDepthUAV     = (uint32)CloudDepthUAV;
