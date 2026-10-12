@@ -95,6 +95,8 @@ namespace Lumina
             const size_t MaxEntries = (Meta != nullptr ? Meta->Entries.size() : 0) + (Extra.Key != nullptr ? 1 : 0);
             if (MaxEntries == 0)
             {
+                // A script property never passes through ConstructProperty, so its label is derived here or not at all.
+                Property->OnMetadataFinalized(Arena);
                 return;
             }
 
