@@ -34,6 +34,7 @@ namespace Lumina
     static constexpr float      ChildIndentStep = 14.0f;
     static constexpr uint32     ArrayControlSeed = 428768833;
     static constexpr float      ResetColumnWidth = 22.0f;
+    static constexpr float      MaxHeaderColumnShare = 0.45f;
     static ImU32 ModifiedMarkerColor() { return EditorColors::U32(EditorColors::Warning()); }
 
     // Inside a session only Finished commits, since a lifecycle-free widget sends a lone Updated.
@@ -109,6 +110,28 @@ namespace Lumina
         default:
             return MakeUnique<FPropertyPropertyRow>(InPropHandle, InParentRow, InCallbacks);
         }
+    }
+
+    // "Outer|Inner" as one name per nesting level, skipping empty segments.
+    static TVector<FName> SplitCategoryPath(FStringView Path)
+    {
+        TVector<FName> Segments;
+        size_t Start = 0;
+        while (Start <= Path.size())
+        {
+            size_t Sep = Path.find('|', Start);
+            if (Sep == FStringView::npos)
+            {
+                Sep = Path.size();
+            }
+            if (Sep > Start)
+            {
+                // Through FStringView, since FName(const char*, uint32) is a base plus a number, not a length.
+                Segments.push_back(FName(Path.substr(Start, Sep - Start)));
+            }
+            Start = Sep + 1;
+        }
+        return Segments;
     }
 
     static FStringView TrimWhitespace(FStringView In)
@@ -374,6 +397,73 @@ namespace Lumina
             return nullptr;
         }
         return PropertyHandle->ContainerPtr;
+    }
+
+    bool FPropertyRow::IsTopLevel() const
+    {
+        if (ParentRow == nullptr || !ParentRow->IsCategory())
+        {
+            return false;
+        }
+        for (const FPropertyRow* Row = ParentRow; Row != nullptr; Row = Row->ParentRow)
+        {
+            if (!Row->IsCategory())
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    FCategoryPropertyRow* FPropertyRow::FindOrCreateCategoryChild(const FName& InCategory, void* OwnerObject)
+    {
+        for (const TUniquePtr<FPropertyRow>& Child : Children)
+        {
+            if (Child->IsCategory())
+            {
+                FCategoryPropertyRow* AsCategory = static_cast<FCategoryPropertyRow*>(Child.get());
+                if (AsCategory->GetCategoryName() == InCategory)
+                {
+                    return AsCategory;
+                }
+            }
+        }
+
+        TUniquePtr<FCategoryPropertyRow> NewRow = MakeUnique<FCategoryPropertyRow>(OwnerObject, InCategory, Callbacks);
+        NewRow->ParentRow = this;
+        FCategoryPropertyRow* RawPtr = NewRow.get();
+        Children.emplace_back(Move(NewRow));
+        return RawPtr;
+    }
+
+    void FPropertyRow::BuildMemberRows(CStruct* Type, void* Instance, void* DefaultInstance)
+    {
+        DestroyChildren();
+        if (Type == nullptr || Instance == nullptr)
+        {
+            return;
+        }
+
+        for (FProperty* Member : Type->GetProperties())
+        {
+            if (!Member->IsVisible())
+            {
+                continue;
+            }
+
+            FPropertyRow* Target = this;
+            if (Member->HasMetadata("Category"))
+            {
+                const FCStringView Path = Member->GetMetadata("Category");
+                for (const FName& Segment : SplitCategoryPath(FStringView(Path.c_str(), Path.size())))
+                {
+                    Target = Target->FindOrCreateCategoryChild(Segment, Instance);
+                }
+            }
+
+            TSharedPtr<FPropertyHandle> Handle = MakeShared<FPropertyHandle>(Instance, DefaultInstance, Member);
+            Target->Children.push_back(CreatePropertyRow(Handle, Target, Target->Callbacks));
+        }
     }
 
     bool FPropertyRow::IsVisible() const
@@ -644,7 +734,7 @@ namespace Lumina
         ImGui::TableNextRow();
 
         const bool bIsCategory = IsCategory();
-        const bool bTopLevel = ParentRow && ParentRow->IsCategory();
+        const bool bTopLevel = IsTopLevel();
         const bool bMultipleValues = bTopLevel && PropertyHandle && PropertyHandle->Property
             && Callbacks.IsMultiValueFn && Callbacks.IsMultiValueFn(PropertyHandle->Property);
 
@@ -710,8 +800,7 @@ namespace Lumina
 
             // Gated to top-level rows so nested members do not inherit it from shared callbacks.
             const bool bHasTrailing = Callbacks.RowTrailingControlFn
-                && PropertyHandle && PropertyHandle->Property
-                && ParentRow != nullptr && ParentRow->IsCategory();
+                && PropertyHandle && PropertyHandle->Property && bTopLevel;
             const float TrailingWidth = Callbacks.RowTrailingControlWidth > 0.0f ? Callbacks.RowTrailingControlWidth : 24.0f;
 
             const int ColumnCount = 2 + (bHasExtras ? 1 : 0) + (bHasTrailing ? 1 : 0);
@@ -1674,10 +1763,6 @@ namespace Lumina
         {
             ChangeOp = Customization->UpdateAndDraw(PropertyHandle, Args);
         }
-        else if (PropertyTable)
-        {
-            PropertyTable->DrawTree(Args);
-        }
 
         ImGui::EndDisabled();
     }
@@ -1690,14 +1775,7 @@ namespace Lumina
 
     void FStructPropertyRow::RebuildChildren()
     {
-        void* InstancePtr = PropertyHandle->GetValuePtr();
-        void* DefaultInstancePtr = PropertyHandle->GetDefaultValuePtr();
-        PropertyTable = MakeUnique<FPropertyTable>(InstancePtr, StructProperty->GetStruct(), DefaultInstancePtr);
-        // A nested table, since the owning table's search box already covers these properties.
-        PropertyTable->SetShowSearchBar(false);
-        // Forwarded so a nested-struct member edit notifies save and undo like a top-level one.
-        PropertyTable->ChangeEventCallbacks = Callbacks;
-        PropertyTable->RebuildTree();
+        BuildMemberRows(StructProperty->GetStruct(), PropertyHandle->GetValuePtr(), PropertyHandle->GetDefaultValuePtr());
     }
 
     // The C# type name from ScriptTypeName when present, otherwise the struct's own name.
@@ -1829,14 +1907,6 @@ namespace Lumina
         }
 
         ImGui::EndDisabled();
-
-        // Inline editor for the chosen instance's own properties.
-        if (bExpanded && PropertyTable && Instance->IsValid())
-        {
-            ImGui::BeginDisabled(IsReadOnly());
-            PropertyTable->DrawTree(Args);
-            ImGui::EndDisabled();
-        }
     }
 
     float FInstancedStructPropertyRow::GetMeasuredHeaderTextWidth() const
@@ -1852,16 +1922,12 @@ namespace Lumina
 
         if (Instance == nullptr || Type == nullptr)
         {
-            PropertyTable.reset();
+            DestroyChildren();
             return;
         }
 
         // Diff/reset of the instance's own fields compares against that struct's default instance.
-        PropertyTable = MakeUnique<FPropertyTable>(Instance->GetMutableMemory(), Type, Type->GetDefaultInstance());
-        // A nested table, since the owning table's search box already covers these properties.
-        PropertyTable->SetShowSearchBar(false);
-        PropertyTable->ChangeEventCallbacks = Callbacks;
-        PropertyTable->RebuildTree();
+        BuildMemberRows(Type, Instance->GetMutableMemory(), Type->GetDefaultInstance());
     }
 
     FOptionalPropertyRow::FOptionalPropertyRow(const TSharedPtr<FPropertyHandle>& InPropHandle, FPropertyRow* InParentRow, const FPropertyChangedEventCallbacks& InCallbacks)
@@ -1982,22 +2048,7 @@ namespace Lumina
 
     FCategoryPropertyRow* FCategoryPropertyRow::FindOrCreateChildCategory(const FName& InCategory)
     {
-        for (const TUniquePtr<FPropertyRow>& Child : Children)
-        {
-            if (Child->IsCategory())
-            {
-                FCategoryPropertyRow* AsCategory = static_cast<FCategoryPropertyRow*>(Child.get());
-                if (AsCategory->GetCategoryName() == InCategory)
-                {
-                    return AsCategory;
-                }
-            }
-        }
-
-        TUniquePtr<FCategoryPropertyRow> NewRow = MakeUnique<FCategoryPropertyRow>(OwnerObject, InCategory, Callbacks);
-        FCategoryPropertyRow* RawPtr = NewRow.get();
-        Children.emplace_back(Move(NewRow));
-        return RawPtr;
+        return FindOrCreateCategoryChild(InCategory, OwnerObject);
     }
 
     FStringView FCategoryPropertyRow::GetFilterLabel() const
@@ -2094,29 +2145,11 @@ namespace Lumina
                 }
                 
                 FCategoryPropertyRow* TargetRow = nullptr;
-                size_t SegmentStart = 0;
-                while (SegmentStart <= CategoryPath.length())
+                for (const FName& SegmentName : SplitCategoryPath(FStringView(CategoryPath.data(), CategoryPath.size())))
                 {
-                    size_t Sep = CategoryPath.find('|', SegmentStart);
-                    if (Sep == FString::npos)
-                    {
-                        Sep = CategoryPath.length();
-                    }
-
-                    if (Sep > SegmentStart)
-                    {
-                        // Through FStringView, since FName(const char*, uint32) is base plus NUMBER, not a length.
-                        FName SegmentName(FStringView(CategoryPath.data() + SegmentStart, Sep - SegmentStart));
-                        TargetRow = (TargetRow == nullptr)
-                            ? FindOrCreateCategoryRow(SegmentName)
-                            : TargetRow->FindOrCreateChildCategory(SegmentName);
-                    }
-
-                    if (Sep == CategoryPath.length())
-                    {
-                        break;
-                    }
-                    SegmentStart = Sep + 1;
+                    TargetRow = (TargetRow == nullptr)
+                        ? FindOrCreateCategoryRow(SegmentName)
+                        : TargetRow->FindOrCreateChildCategory(SegmentName);
                 }
                 
                 if (TargetRow == nullptr)
@@ -2244,6 +2277,9 @@ namespace Lumina
             HeaderColumnWidth = Math::Max(HeaderColumnWidth, Row->ComputeRequiredHeaderWidth(0.0f));
         }
         HeaderColumnWidth += 18.0f;
+
+        // Long or deeply nested labels clip and keep their hover tooltip, rather than squeezing the values out.
+        HeaderColumnWidth = Math::Min(HeaderColumnWidth, Math::Max(ImGui::GetContentRegionAvail().x * MaxHeaderColumnShare, 80.0f));
 
         if (ImGui::BeginTable("GridTable", 2, Flags))
         {
