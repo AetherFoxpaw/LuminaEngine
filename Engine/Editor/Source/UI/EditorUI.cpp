@@ -513,6 +513,9 @@ namespace Lumina
         // Editor links its own ImGui copy; install allocator here because StartupModule never runs (editor links directly, not LoadModule'd).
         ImGuiX::InstallImGuiAllocator();
 
+        // Only the ImGui copy that builds the font atlas fills its word-wrap tables, so this one breaks text mid-word until told to.
+        ImTextInitClassifiers();
+
         // Plugin DLLs link their own ImGui, so the module manager syncs every plugin that opted in.
         FModuleManager::Get().NotifyImGuiReady(Context, PlotContext);
 

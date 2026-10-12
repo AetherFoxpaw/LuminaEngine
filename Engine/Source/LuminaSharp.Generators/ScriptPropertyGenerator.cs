@@ -54,10 +54,19 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor StoredPropertyShape = new(
+        id: "LUM0104",
+        title: "Stored property must be an auto-property",
+        messageFormat: "'{0}' {1}",
+        category: "LuminaSharp",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     // Every attribute ScriptMemberRules stores a field for, so a bad [SaveGame] type is flagged as early as a bad [Property].
     private static readonly string[] StorageAttributes =
     {
         PropertyAttribute, "LuminaSharp.SerializeAttribute", "LuminaSharp.SyncAttribute", "LuminaSharp.SaveGameAttribute",
+        "LuminaSharp.BindAttribute",
     };
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -83,21 +92,21 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
     private static Diagnostic? Validate(ISymbol Symbol, SyntaxNode Node)
     {
         Location Location = Node.GetLocation();
+        bool bNativeOwner = DerivesFromNativeObject(Symbol.ContainingType);
 
         // A partial property is the pre-rewriter shape. It still compiles in the IDE (nothing implements it
         // there either), so without this it would fail only at script reload, with CS9248 and no explanation.
         if (Symbol is IPropertySymbol Property)
         {
-            // The rewriter re-emits [Property] onto the property it generates, and this runs over that.
-            if (!IsPartial(Property))
+            if (IsPartial(Property))
             {
-                return null;
+                return Diagnostic.Create(PartialProperty, Symbol.Locations.FirstOrDefault() ?? Location,
+                    Property.Name, Property.Type.ToDisplayString());
             }
-            return Diagnostic.Create(PartialProperty, Symbol.Locations.FirstOrDefault() ?? Location,
-                Property.Name, Property.Type.ToDisplayString());
+            return ValidateProperty(Property, bNativeOwner, Location);
         }
 
-        if (Symbol is not IFieldSymbol Field)
+        if (Symbol is not IFieldSymbol Field || !ScriptPropertyClassifier.RuleFor(Field, EScriptMemberKind.Field, bNativeOwner).bStored)
         {
             return null;
         }
@@ -117,6 +126,84 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
         }
 
         return null;
+    }
+
+    // The rewriter backs a script's stored auto-property with native storage, so any other shape would edit a copy native never sees.
+    private static Diagnostic? ValidateProperty(IPropertySymbol Property, bool bNativeOwner, Location Location)
+    {
+        if (!bNativeOwner || Property.IsStatic || IsNativeBackedAlready(Property))
+        {
+            return null;
+        }
+
+        FScriptPropertyClassification Classification = ScriptPropertyClassifier.Classify(Property.Type);
+        EScriptMemberKind Kind = Property.SetMethod != null || Classification.IsView ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
+        if (!ScriptPropertyClassifier.RuleFor(Property, Kind, bOwnerIsNativeObject: true).bStored)
+        {
+            return null;
+        }
+
+        PropertyDeclarationSyntax? Declaration = Property.DeclaringSyntaxReferences
+            .Select(Reference => Reference.GetSyntax())
+            .OfType<PropertyDeclarationSyntax>()
+            .FirstOrDefault();
+        if (Declaration == null)
+        {
+            return null;
+        }
+
+        string? Shape = null;
+        if (Property.IsAbstract)
+        {
+            Shape = "is abstract, and a stored property needs storage of its own. Declare it on the class that holds the value.";
+        }
+        else if (Declaration.AccessorList == null
+                 || Declaration.AccessorList.Accessors.Any(Accessor => Accessor.Body != null || Accessor.ExpressionBody != null))
+        {
+            Shape = "has accessor bodies, but the engine keeps a stored property's value in native memory, so a body would read and "
+                  + "write a copy the inspector, saves and prefabs never see. Declare it as '{ get; set; }' or as a field.";
+        }
+        else if (Declaration.AccessorList.Accessors.Any(Accessor => Accessor.IsKind(SyntaxKind.InitAccessorDeclaration)))
+        {
+            Shape = "has an init accessor, but the engine assigns a stored value after construction. Use 'private set' to keep it read-only to callers.";
+        }
+        if (Shape != null)
+        {
+            return Diagnostic.Create(StoredPropertyShape, Property.Locations.FirstOrDefault() ?? Location, Property.Name, Shape);
+        }
+
+        if (!Classification.IsSupported)
+        {
+            return Diagnostic.Create(UnsupportedType, Location, Property.Name, Property.Type.ToDisplayString(), Classification.Rejection);
+        }
+        if (Classification.IsView && Declaration.Initializer != null)
+        {
+            return Diagnostic.Create(ContainerInitialized, Location, Property.Name);
+        }
+        return null;
+    }
+
+    // LuminaSharp writes its own native accessors by hand, and the rewriter's output keeps its lazy offset or token beside the property.
+    private static bool IsNativeBackedAlready(IPropertySymbol Property)
+    {
+        if (Property.ContainingAssembly?.Name == "LuminaSharp")
+        {
+            return true;
+        }
+        INamedTypeSymbol Owner = Property.ContainingType;
+        return !Owner.GetMembers("__lazyoff_" + Property.Name).IsEmpty || !Owner.GetMembers("__lazyprop_" + Property.Name).IsEmpty;
+    }
+
+    private static bool DerivesFromNativeObject(INamedTypeSymbol? Type)
+    {
+        for (INamedTypeSymbol? Current = Type; Current != null; Current = Current.BaseType)
+        {
+            if (Current.Name == "NativeObject" && Current.ContainingNamespace?.ToDisplayString() == "LuminaSharp")
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // One member carrying two storage attributes is reported once, by whichever comes first in the list.

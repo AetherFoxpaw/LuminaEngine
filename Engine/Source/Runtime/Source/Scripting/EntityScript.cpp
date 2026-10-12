@@ -1247,6 +1247,11 @@ namespace Lumina
 
     namespace EntityScripts
     {
+        CEntityScript* Clone(CEntityScript* Source)
+        {
+            return CloneScript(Source);
+        }
+
         CEntityScript* Attach(ECS::FRegistry& Registry, ECS::FEntity Entity, CClass* ScriptClass)
         {
             if (ScriptClass == nullptr || !ScriptClass->IsChildOf(CEntityScript::StaticClass()))
