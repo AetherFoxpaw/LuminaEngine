@@ -122,6 +122,8 @@
 #define COL_A_SHIFT                     24
 #define COL_A_MASK                      0xFF000000
 
+#define PARTICLE_SIM_GROUP_SIZE         64u
+
 // Emitter slots one workgroup can sort in groupshared; larger emitters take the multi-pass sort.
 #define PARTICLE_SORT_CAPACITY          2048u
 #define PARTICLE_SORT_INDEX_BITS        11u

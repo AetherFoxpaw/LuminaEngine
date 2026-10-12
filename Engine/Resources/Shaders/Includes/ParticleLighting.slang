@@ -34,6 +34,7 @@ struct FParticleVertexOutput
     float3                  Normal       : PARTICLE_NORMAL;
     float3                  Ambient      : PARTICLE_AMBIENT;
     float3                  SunLight     : PARTICLE_SUN;
+    nointerpolation uint    DrawIndex    : PARTICLE_DRAW;
     float4                  Position     : SV_Position;
 };
 
@@ -48,6 +49,7 @@ FParticleVertexOutput CulledParticleVertex()
     Out.Normal       = float3(0.0, 1.0, 0.0);
     Out.Ambient      = float3(0.0, 0.0, 0.0);
     Out.SunLight     = float3(0.0, 0.0, 0.0);
+    Out.DrawIndex    = 0u;
     return Out;
 }
 

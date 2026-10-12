@@ -1074,6 +1074,7 @@ namespace Lumina
         CThumbnailManager::Get().ProcessRenderQueue();
 
         MaterialCompiles.Tick();
+        ParticleCompiles.Tick();
     }
 
     void FEditorUI::OnUpdate(const FUpdateContext& UpdateContext)

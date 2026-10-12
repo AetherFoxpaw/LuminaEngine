@@ -382,6 +382,10 @@ namespace Lumina
         }
         ParticleBufferPool.clear();
         ParticlePoolBytes = 0;
+        FreeBuffer(ParticleCounterArena);
+        ParticleCounterArenaSlots = 0;
+        FreeBuffer(ParticleDrawArgsArena);
+        ParticleDrawArgsArenaSlots = 0;
 
         FreeBuffer(StreamingFeedbackBuffer);
         for (RHI::FGPUAllocation& Readback : StreamingFeedbackReadback)

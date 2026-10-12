@@ -18,6 +18,7 @@
 #include "Renderer/ShaderCache.h"
 #include "Renderer/ShaderCompiler.h"
 #include "Renderer/ShaderLibrary.h"
+#include "Renderer/ShaderPaths.h"
 #include "World/Scene/RenderScene/MeshResolveCache.h"
 #include "Types/Byte.h"
 #include "Log/Log.h"
@@ -1312,47 +1313,9 @@ namespace Lumina
             }
 #endif
 
-            struct FEntry
-            {
-                FString Path;
-                uint64  ContentHash;
-            };
-            TVector<FEntry> Files;
-
-            auto Gather = [&Files](FStringView Directory)
-            {
-                VFS::RecursiveDirectoryIterator(Directory, [&Files](const VFS::FFileInfo& Info)
-                {
-                    if (Info.IsDirectory() || Info.GetExt() != ".slang")
-                    {
-                        return;
-                    }
-                    FString Source;
-                    if (VFS::ReadFile(Source, Info.VirtualPath.c_str()))
-                    {
-                        // Checkout line endings differ per machine and must not change the hash.
-                        Source.erase(Algo::Remove(Source, '\r'), Source.end());
-                        Files.push_back({ FString(Info.VirtualPath.c_str()), Hash::XXHash::GetHash64(Source) });
-                    }
-                });
-            };
-
             // Everything a material template can reach, the templates themselves plus the shared includes.
-            Gather("/Engine/Resources/Shaders/MaterialShader");
-            Gather("/Engine/Resources/Shaders/Includes");
-
-            Algo::Sort(Files, [](const FEntry& A, const FEntry& B) { return A.Path < B.Path; });
-
-            size_t Result = Files.size();
-            Hash::HashCombine(Result, (size_t)FShaderCache::kShaderCacheVersion);
-            for (const FEntry& File : Files)
-            {
-                Hash::HashCombine(Result, (size_t)Hash::GetHash64(File.Path));
-                Hash::HashCombine(Result, (size_t)File.ContentHash);
-            }
-
-            // 0 is the serialized never-compiled sentinel, so a real hash must never collide with it.
-            return Result != 0 ? (uint64)Result : 1ull;
+            constexpr FStringView Directories[] = { "/Engine/Resources/Shaders/MaterialShader", "/Engine/Resources/Shaders/Includes" };
+            return Shaders::HashSourceDirectories(Directories);
         }();
         return CachedHash;
     }

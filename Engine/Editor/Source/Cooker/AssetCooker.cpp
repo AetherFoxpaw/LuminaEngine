@@ -23,6 +23,8 @@
 #include "Assets/AssetTypes/Material/Material.h"
 #include "Assets/AssetTypes/Material/MaterialInterface.h"
 #include "Assets/AssetTypes/Material/MaterialInstance.h"
+#include "Assets/AssetTypes/ParticleSystem/ParticleSystem.h"
+#include "Particles/ParticleOps.h"
 #include "Core/Math/Hash/Hash.h"
 #include "Assets/AssetTypes/Textures/Texture.h"
 #include "Core/Object/Class.h"
@@ -163,6 +165,7 @@ namespace Lumina
         {
             FAssetData* Data = FAssetRegistry::Get().GetAssetByPath(VirtualPath);
             const bool bMaterial = Data != nullptr && Data->AssetClass == CMaterial::StaticClass()->GetName();
+            const bool bParticleSystem = Data != nullptr && Data->AssetClass == CParticleSystem::StaticClass()->GetName();
 
             // Permutations are baked into the master at cook time, so its instances are inputs to its cooked bytes.
             TVector<FAssetData*> Instances;
@@ -174,6 +177,10 @@ namespace Lumina
 
             // A material's cooked bytes carry shaders built from the templates, so a template edit must miss the cache too.
             uint64 SourceHash = Data ? Data->ContentHash ^ (bMaterial ? CMaterial::GetShaderTemplateHash() : 0) : 0;
+            if (bParticleSystem)
+            {
+                SourceHash ^= CParticleEmitter::GetSimulationTemplateHash();
+            }
             for (const FAssetData* Instance : Instances)
             {
                 SourceHash = Hash::GetHash64(&Instance->ContentHash, sizeof(Instance->ContentHash), SourceHash);
@@ -232,6 +239,28 @@ namespace Lumina
                     {
                         LogCooker(LogFunc, Format("  [warn] {} of {}'s static switch permutations could not be built; those instances draw with default switches",
                             Failed, VirtualPath).c_str());
+                    }
+                }
+            }
+
+            if (bParticleSystem)
+            {
+                CParticleSystem* System = Cast<CParticleSystem>(Package->LoadObjectByName(Data->AssetName));
+                const int32 NumEmitters = System != nullptr ? (int32)System->Emitters.size() : 0;
+                for (int32 Index = 0; Index < NumEmitters; ++Index)
+                {
+                    const CParticleEmitter* Emitter = System->Emitters[Index].Get();
+                    if (Emitter == nullptr || !Emitter->NeedsShaderCompile())
+                    {
+                        continue;
+                    }
+
+                    // The cache had nothing for the current templates, and a game cannot compile, so the cook builds it now.
+                    FParticleEmitterCompileOutput Output;
+                    if (ParticleOps::FindStack(System, Index) == nullptr || !ParticleOps::CompileEmitter(System, Index, Output))
+                    {
+                        LogCooker(LogFunc, Format("  [warn] {} emitter {} has no simulation shader and could not be recompiled, so it will not simulate",
+                            VirtualPath, Index).c_str());
                     }
                 }
             }

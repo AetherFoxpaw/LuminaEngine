@@ -1746,6 +1746,48 @@ namespace Lumina
         uint64                                            ParticlePoolBytes = 0;
         // Set once a pooled buffer is handed out this frame, since its previous frame's reads need a barrier before the clear.
         bool                                              bParticlePoolReuseBarrierIssued = false;
+        // Emitters given buffers this frame, held under a cap so a mass spawn ramps in over a few frames.
+        uint32                                            ParticleSetupsThisFrame = 0;
+
+        // One simulation dispatch, planned before any is recorded so independent emitters can share a barrier.
+        struct FParticleSimStep
+        {
+            RHI::FPipelineH Pipeline;
+            // Where this step's FParticleSimArgs sit in ParticleSimArgsScratch.
+            uint32          ArgsOffset = 0;
+            // Zero for a batched step, whose counters sit in ParticleCounterArena and are cleared together.
+            RHI::GPUPtr     SpawnCounter = 0;
+            RHI::GPUPtr     EventCounts = 0;
+            uint32          Groups = 0;
+            bool            bBarrierAfter = false;
+        };
+        // Spawn counters for every batched emitter, so one fill clears them all.
+        RHI::FGPUAllocation                               ParticleCounterArena = {};
+        uint32                                            ParticleCounterArenaSlots = 0;
+        uint32                                            ParticleCounterSlotsUsed = 0;
+        // Per-emitter sort arguments gathered for the single compact sort dispatch. Reused each frame.
+        TVector<uint8>                                    ParticleSortScratch;
+        // Planned simulation arguments, and the emitter and group tables of the dispatch being built. Reused each frame.
+        TVector<uint8>                                    ParticleSimArgsScratch;
+        TVector<uint8>                                    ParticleSimBatchEmitters;
+        TVector<FUIntVector2>                             ParticleSimBatchGroups;
+        // One planned particle draw, so consecutive ones on a pipeline go out as a single multi-draw.
+        struct FParticleDraw
+        {
+            RHI::FPipelineH Pipeline;
+            bool            bWriteDepth = false;
+        };
+        // Planned draws with their FParticlePushConstants and FParticleDrawArgsSource bytes. Reused each frame.
+        TVector<FParticleDraw>                            ParticleDraws;
+        TVector<uint8>                                    ParticleDrawConstants;
+        TVector<uint8>                                    ParticleDrawArgSources;
+        // Every particle draw's indirect arguments back to back, gathered on the GPU each frame.
+        RHI::FGPUAllocation                               ParticleDrawArgsArena = {};
+        uint32                                            ParticleDrawArgsArenaSlots = 0;
+        // Single-step emitters with no parent run back to back; the rest keep a barrier around every step. Reused each frame.
+        TVector<FParticleSimStep>                         ParticleBatchedSteps;
+        TVector<FParticleSimStep>                         ParticleSerialSteps;
+        void RecordParticleSimSteps(RHI::FCmdListH CL);
 
         FScenePrimitiveSet                      ScenePrimitives;
         TVector<ECS::FEntity>                   MovedTransformScratch;
