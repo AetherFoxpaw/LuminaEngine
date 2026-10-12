@@ -252,7 +252,7 @@ namespace Lumina
         constexpr float kCommentMinHeight    = 60.0f;
         constexpr float kCommentWrapMargin   = 32.0f;
 
-        ImU32 ScaleAlpha(ImU32 Color, float Scale)
+        ImU32 ScaleCommentAlpha(ImU32 Color, float Scale)
         {
             const uint32 Alpha = (uint32)Math::Clamp((float)((Color >> IM_COL32_A_SHIFT) & 0xFF) * Scale, 0.0f, 255.0f);
             return (Color & ~IM_COL32_A_MASK) | (Alpha << IM_COL32_A_SHIFT);
@@ -2234,7 +2234,7 @@ namespace Lumina
             const float  FontSize = ImGui::GetFontSize();
             const float  TextY    = Min.y + (kCommentHeaderHeight - FontSize) * 0.5f;
             const ImVec2 IconPos(Min.x + kCommentPadding, TextY);
-            DrawList->AddText(ImGui::GetFont(), FontSize, IconPos, ScaleAlpha(TitleColor, 0.85f), LE_ICON_COMMENT_TEXT_OUTLINE);
+            DrawList->AddText(ImGui::GetFont(), FontSize, IconPos, ScaleCommentAlpha(TitleColor, 0.85f), LE_ICON_COMMENT_TEXT_OUTLINE);
             const float TitleX = IconPos.x + ImGui::CalcTextSize(LE_ICON_COMMENT_TEXT_OUTLINE).x + 8.0f;
             AddTextEllipsized(DrawList, ImGui::GetFont(), FontSize, ImVec2(TitleX, TextY), TitleColor, Comment->Title, Max.x - kCommentPadding - TitleX);
             PopFont();
@@ -2242,7 +2242,7 @@ namespace Lumina
             if (!DescriptionLines.empty())
             {
                 PushFont(EFont::Small);
-                const ImU32 DescriptionColor = ScaleAlpha(TitleColor, 0.78f);
+                const ImU32 DescriptionColor = ScaleCommentAlpha(TitleColor, 0.78f);
                 ImVec2 LinePos(Min.x + kCommentPadding, Min.y + kCommentHeaderHeight - 6.0f);
                 for (const FString& Line : DescriptionLines)
                 {
@@ -2295,7 +2295,7 @@ namespace Lumina
                 const ImVec2 BarMax(Max.x, Min.y + TextSize.y + 12.0f);
                 Background->AddRectFilled(Min, BarMax, Comment->GetTint(Fade), 4.0f, ImDrawFlags_RoundCornersTop);
                 Foreground->PushClipRect(Min, BarMax, true);
-                Foreground->AddText(ImVec2(Min.x + 12.0f, Min.y + 6.0f), ScaleAlpha(Comment->GetTitleTextColor(), Fade),
+                Foreground->AddText(ImVec2(Min.x + 12.0f, Min.y + 6.0f), ScaleCommentAlpha(Comment->GetTitleTextColor(), Fade),
                     Title.c_str(), Title.c_str() + Title.size());
                 Foreground->PopClipRect();
                 PopFont();
