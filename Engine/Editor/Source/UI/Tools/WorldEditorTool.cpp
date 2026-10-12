@@ -72,6 +72,7 @@
 #include "Log/Log.h"
 #include "Renderer/MeshQuantization.h"
 #include "Containers/StringFormat.h"
+#include "UI/Widgets/EntityScriptPicker.h"
 
 
 namespace Lumina
@@ -2872,21 +2873,17 @@ namespace Lumina
         const bool bHasScript = Registry.HasAll<SEntityScriptComponent>(Entity);
 
         // Always offered, since it either assigns a script or swaps the one already on the entity.
-        TVector<FString> Types;
-        DotNet::GatherEntityScriptTypes(Types);
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(bHasScript ? LE_ICON_LANGUAGE_CSHARP " Change Script" : LE_ICON_LANGUAGE_CSHARP " Attach Script");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(260.0f);
-        const int32 Picked = ImGuiX::SearchableCombo("##AssignScript", bHasScript ? "Swap to..." : "Select a script...",
-            (int32)Types.size(), Constants::kIndexNone,
-            [&Types](int32 Index) { return FFixedString(Types[Index].c_str(), Types[Index].size()); }, LE_ICON_LANGUAGE_CSHARP);
-
-        if (Picked != Constants::kIndexNone)
+        ScriptAttachPicker.SearchHint = "Search scripts...";
+        ScriptAttachPicker.ItemNoun   = "scripts";
+        ScriptAttachPicker.TrailingCategory = EntityScriptPicker::NativeCategory;
+        if (ImGui::BeginMenu(bHasScript ? LE_ICON_LANGUAGE_CSHARP " Change Script" : LE_ICON_LANGUAGE_CSHARP " Attach Script"))
         {
-            AttachScriptToEntity(Entity, Types[Picked]);
-            ImGui::CloseCurrentPopup();
+            if (const FPickerItem* Picked = ScriptAttachPicker.DrawContents(&EntityScriptPicker::GatherItems))
+            {
+                AttachScriptToEntity(Entity, Picked->Key);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndMenu();
         }
 
         if (bHasScript)

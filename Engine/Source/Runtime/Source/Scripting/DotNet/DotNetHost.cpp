@@ -1608,6 +1608,75 @@ namespace Lumina::DotNet
         return Found;
     }
 
+    void GatherScriptSourceFolders(TVector<FScriptSourceFolder>& Out)
+    {
+        Out.clear();
+
+        TVector<FScriptUnit> Units;
+        for (FScriptUnit& Unit : BuildScriptUnits())
+        {
+            if (!Unit.DiskDir.empty() && Filesystem::Exists(Unit.DiskDir))
+            {
+                Units.push_back(Move(Unit));
+            }
+        }
+
+        auto ToForwardSlashes = [](FString Path)
+        {
+            for (char& Character : Path)
+            {
+                Character = Character == '\\' ? '/' : Character;
+            }
+            return Path;
+        };
+
+        // Collected per unit first, since the unit name only earns a folder level when more than one unit has scripts.
+        TVector<TVector<FScriptSourceFolder>> PerUnit(Units.size());
+        uint32 UnitsWithScripts = 0;
+        for (size_t UnitIndex = 0; UnitIndex < Units.size(); ++UnitIndex)
+        {
+            const FString Root = ToForwardSlashes(Units[UnitIndex].DiskDir);
+            Filesystem::IterateDirectoryRecursive(Units[UnitIndex].DiskDir, [&](const Filesystem::FDirectoryEntry& Entry)
+            {
+                const FStringView Name(Entry.Name);
+                if (Entry.IsDirectory() || Name.size() <= 3 || !EqualsIgnoreCase(Name.substr(Name.size() - 3), FStringView(".cs")))
+                {
+                    return true;
+                }
+
+                FString Relative = ToForwardSlashes(FString(Entry.FullPath.data(), Entry.FullPath.size()));
+                if (Relative.size() > Root.size() && Relative.compare(0, Root.size(), Root) == 0)
+                {
+                    Relative.erase(0, Root.size());
+                }
+                while (!Relative.empty() && Relative.front() == '/')
+                {
+                    Relative.erase(0, 1);
+                }
+
+                const size_t LastSlash = Relative.find_last_of('/');
+                FScriptSourceFolder& Found = PerUnit[UnitIndex].emplace_back();
+                Found.Stem   = FString(Name.substr(0, Name.size() - 3));
+                Found.Folder = LastSlash == FString::npos ? FString() : Relative.substr(0, LastSlash);
+                Found.Path   = FString(Entry.FullPath.data(), Entry.FullPath.size());
+                return true;
+            });
+            UnitsWithScripts += PerUnit[UnitIndex].empty() ? 0u : 1u;
+        }
+
+        for (size_t UnitIndex = 0; UnitIndex < Units.size(); ++UnitIndex)
+        {
+            for (FScriptSourceFolder& Found : PerUnit[UnitIndex])
+            {
+                if (UnitsWithScripts > 1)
+                {
+                    Found.Folder = Found.Folder.empty() ? Units[UnitIndex].Name : Units[UnitIndex].Name + "/" + Found.Folder;
+                }
+                Out.push_back(Move(Found));
+            }
+        }
+    }
+
     void RequestScriptReload()
     {
         GScriptReloadRequested.store(true, Atomic::MemoryOrderRelease);

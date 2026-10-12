@@ -54,6 +54,18 @@ namespace Lumina::DotNet
      *  Empty when nothing matches, which is the case for a C++ script or a type sharing a file. */
     RUNTIME_API FString FindScriptSourceFile(FStringView TypeName);
 
+    // One script file, by the stem a script class is named after and the folder it sits in under its script root.
+    struct FScriptSourceFolder
+    {
+        FString Stem;
+        // Slash separated and relative to the script root, led by the unit's name when more than one unit has scripts.
+        FString Folder;
+        FString Path;
+    };
+
+    // Every script file in one pass over the script roots, which is what a picker filing scripts into folders needs.
+    RUNTIME_API void GatherScriptSourceFolders(TVector<FScriptSourceFolder>& Out);
+
     /**
      * Reports that a file under a watched source tree changed, and latches a reload if it was one of ours.
      *
