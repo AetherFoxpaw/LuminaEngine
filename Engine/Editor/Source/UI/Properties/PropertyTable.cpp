@@ -953,19 +953,57 @@ namespace Lumina
         return PropertyHandle->Property->IsReadOnly();
     }
 
-    static void DrawPropertyTooltip(const FProperty* Property)
+    // A clipped label leads its tooltip with the full name, since the cell no longer shows it.
+    static void DrawPropertyTooltip(const FProperty* Property, bool bLabelClipped = false)
     {
         if (!ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
         {
             return;
         }
 
-        FStringView Tooltip = Property->GetMetadata("ToolTip");
+        const FCStringView Name = Property->GetPropertyDisplayName();
+        const FStringView Tooltip = Property->GetMetadata("ToolTip");
         if (Tooltip.empty())
         {
-            Tooltip = Property->GetPropertyDisplayName();
+            ImGuiX::WrappedTooltip_Internal(FStringView(Name.c_str(), Name.size()));
+            return;
+        }
+        if (bLabelClipped)
+        {
+            const FString Both = FString(Name.c_str()) + "\n\n" + FString(Tooltip.data(), Tooltip.size());
+            ImGuiX::WrappedTooltip_Internal(FStringView(Both.c_str(), Both.size()));
+            return;
         }
         ImGuiX::WrappedTooltip_Internal(Tooltip);
+    }
+
+    // A label too long for its cell ends in an ellipsis rather than being cut mid-letter, and reports that it did.
+    static bool DrawHeaderLabel(const char* Label)
+    {
+        const bool bClipped = ImGui::CalcTextSize(Label).x > ImGui::GetContentRegionAvail().x;
+        ImGui::TextAligned(0.0f, -FLT_MIN, "%s", Label);
+        return bClipped;
+    }
+
+    // The foldout version of DrawHeaderLabel, drawing the text itself over a header whose own label is hidden.
+    static bool CollapsingHeaderEllipsis(const char* Label, ImGuiTreeNodeFlags Flags, bool& bOutClipped)
+    {
+        ImGui::PushID(Label);
+        const bool bOpen = ImGui::CollapsingHeader("##Header", Flags);
+        ImGui::PopID();
+
+        const ImGuiStyle& Style = ImGui::GetStyle();
+        const ImVec2 Min = ImGui::GetItemRectMin();
+        const ImVec2 Max = ImGui::GetItemRectMax();
+        const bool bLeaf = (Flags & ImGuiTreeNodeFlags_Leaf) != 0;
+        const float ArrowWidth = bLeaf ? Style.FramePadding.x : ImGui::GetFontSize() + Style.FramePadding.x * 3.0f;
+        const ImVec2 TextSize = ImGui::CalcTextSize(Label);
+        const ImVec2 TextMin(Min.x + ArrowWidth, Min.y + Style.FramePadding.y);
+        const ImVec2 TextMax(Max.x - Style.FramePadding.x, Max.y);
+
+        bOutClipped = TextMin.x + TextSize.x > TextMax.x;
+        ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), TextMin, TextMax, TextMax.x, Label, nullptr, &TextSize);
+        return bOpen;
     }
 
     // Shared by the leaf row and the map-entry editors, returning null for struct and array types.
@@ -1025,16 +1063,17 @@ namespace Lumina
         ImGui::Dummy(ImVec2(Offset, 0));
         ImGui::SameLine();
 
+        bool bClipped = false;
         if (IsArrayElementProperty())
         {
             ImGui::Text("%lld", static_cast<long long>(PropertyHandle->Index));
         }
         else
         {
-            ImGui::TextUnformatted(PropertyHandle->Property->GetPropertyDisplayName().c_str());
+            bClipped = DrawHeaderLabel(PropertyHandle->Property->GetPropertyDisplayName().c_str());
         }
 
-        DrawPropertyTooltip(PropertyHandle->Property);
+        DrawPropertyTooltip(PropertyHandle->Property, bClipped);
     }
 
     void FPropertyPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -1183,10 +1222,11 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, 0);
         const ImGuiTreeNodeFlags Flags = ElementCount ? 0 : ImGuiTreeNodeFlags_Leaf;
-        bExpanded = ImGui::CollapsingHeader(ArrayProperty->GetPropertyDisplayName().c_str(), Flags);
+        bool bClipped = false;
+        bExpanded = CollapsingHeaderEllipsis(ArrayProperty->GetPropertyDisplayName().c_str(), Flags, bClipped);
         ImGui::PopStyleColor(3);
 
-        DrawPropertyTooltip(ArrayProperty);
+        DrawPropertyTooltip(ArrayProperty, bClipped);
     }
 
     void FArrayPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -1392,10 +1432,11 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, 0);
         const ImGuiTreeNodeFlags Flags = Count ? 0 : ImGuiTreeNodeFlags_Leaf;
-        bExpanded = ImGui::CollapsingHeader(MapProperty->GetPropertyDisplayName().c_str(), Flags);
+        bool bClipped = false;
+        bExpanded = CollapsingHeaderEllipsis(MapProperty->GetPropertyDisplayName().c_str(), Flags, bClipped);
         ImGui::PopStyleColor(3);
 
-        DrawPropertyTooltip(MapProperty);
+        DrawPropertyTooltip(MapProperty, bClipped);
     }
 
     void FMapPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -1728,15 +1769,16 @@ namespace Lumina
         // A customization draws the whole value in one row, so there is nothing for an arrow to fold.
         if (Customization)
         {
+            bool bLabelClipped = false;
             if (IsArrayElementProperty())
             {
                 ImGui::Text("%lld", static_cast<long long>(PropertyHandle->Index));
             }
             else
             {
-                ImGui::TextUnformatted(StructProperty->GetPropertyDisplayName().c_str());
+                bLabelClipped = DrawHeaderLabel(StructProperty->GetPropertyDisplayName().c_str());
             }
-            DrawPropertyTooltip(StructProperty);
+            DrawPropertyTooltip(StructProperty, bLabelClipped);
             return;
         }
 
@@ -1744,10 +1786,11 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_Header, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, 0);
-        bExpanded = ImGui::CollapsingHeader(StructProperty->GetPropertyDisplayName().c_str());
+        bool bClipped = false;
+        bExpanded = CollapsingHeaderEllipsis(StructProperty->GetPropertyDisplayName().c_str(), 0, bClipped);
         ImGui::PopStyleColor(3);
 
-        DrawPropertyTooltip(StructProperty);
+        DrawPropertyTooltip(StructProperty, bClipped);
     }
 
     void FStructPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -1875,10 +1918,11 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_Header, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, 0);
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, 0);
-        bExpanded = ImGui::CollapsingHeader(InstancedStructProperty->GetPropertyDisplayName().c_str());
+        bool bClipped = false;
+        bExpanded = CollapsingHeaderEllipsis(InstancedStructProperty->GetPropertyDisplayName().c_str(), 0, bClipped);
         ImGui::PopStyleColor(3);
 
-        DrawPropertyTooltip(InstancedStructProperty);
+        DrawPropertyTooltip(InstancedStructProperty, bClipped);
     }
 
     void FInstancedStructPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -1956,8 +2000,8 @@ namespace Lumina
     {
         ImGui::Dummy(ImVec2(Offset, 0));
         ImGui::SameLine();
-        ImGui::TextUnformatted(OptionalProperty->GetPropertyDisplayName().c_str());
-        DrawPropertyTooltip(OptionalProperty);
+        const bool bClipped = DrawHeaderLabel(OptionalProperty->GetPropertyDisplayName().c_str());
+        DrawPropertyTooltip(OptionalProperty, bClipped);
     }
 
     void FOptionalPropertyRow::DrawEditor(const FPropertyDrawArgs& Args)
@@ -2070,8 +2114,14 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, EditorColors::U32(EditorColors::RowBgActive()));
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, EditorColors::U32(EditorColors::RowBgHovered()));
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::TextPrimary());
-        bExpanded = ImGui::CollapsingHeader(Category.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+        bool bClipped = false;
+        bExpanded = CollapsingHeaderEllipsis(Category.c_str(), ImGuiTreeNodeFlags_DefaultOpen, bClipped);
         ImGui::PopStyleColor(4);
+
+        if (bClipped && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            ImGuiX::WrappedTooltip_Internal(FStringView(Category.c_str()));
+        }
     }
 
     float FCategoryPropertyRow::GetMeasuredHeaderTextWidth() const
