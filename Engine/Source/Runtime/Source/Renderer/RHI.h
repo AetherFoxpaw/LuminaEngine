@@ -26,9 +26,9 @@ namespace Lumina::RHI
     constexpr auto kRWImageBindingSlot          = 2;
 
     constexpr auto kFramesInFlight              = 2;
-    // Upper bounds for the bindless bindings; the device limits can lower them at startup.
-    constexpr uint32 kMaxSampledTextureHeapSize = 1u << 16;
-    constexpr uint32 kMaxStorageTextureHeapSize = INT16_MAX;
+    // Upper bounds for the bindless bindings, which the device limits can lower. Some drivers report UINT32_MAX, and every slot costs descriptor memory up front.
+    constexpr uint32 kMaxSampledTextureHeapSize = 1u << 20;
+    constexpr uint32 kMaxStorageTextureHeapSize = 1u << 16;
     constexpr auto kMaxNumSamplers              = 4000;
     constexpr auto kMaxNumTextureHeaps          = 1024;
     constexpr auto kDedicatedMemoryThreshold    = 32 * Constants::kMiB;
@@ -728,6 +728,9 @@ namespace Lumina::RHI
     RUNTIME_API uint32          GetOpenCommandListCount(EQueueType Queue);
 
     RUNTIME_API uint32      HeapWriteTexture(FTextureHeapH Heap, FTextureH Texture);
+
+    // Sampled image slots a heap can hold on this device, the engine ceiling or the driver's limit if lower.
+    RUNTIME_API uint32      GetSampledHeapCapacity();
     // Repoint and unbind reach each frame slot's copy at its next BeginFrame, so no in-flight frame sees the change.
     RUNTIME_API void        HeapRepointTexture(FTextureHeapH Heap, uint32 Slot, FTextureH Texture);
     RUNTIME_API uint32      HeapWriteRWTexture(FTextureHeapH Heap, FTextureH Texture, uint32 Mip = 0);
