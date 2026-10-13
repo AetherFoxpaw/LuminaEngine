@@ -481,8 +481,8 @@ namespace Lumina
             .bValidation = bValidation,
             .bDebugUtils = bDebugUtils,
             .bHeadless   = false,
-            // The scene renderer draws every meshlet through the mesh path; there is no fallback.
-            .RequiredFeatures = RHI::EDeviceFeature::MeshShading,
+            // Meshlets draw through the vertex path without mesh shading, and -nomeshshaders forces that path.
+            .DisabledFeatures = GCommandLine != nullptr && GCommandLine->Has("nomeshshaders") ? RHI::EDeviceFeature::MeshShading : RHI::EDeviceFeature::None,
             .MinDeviceLocalMemoryMiB = MinVRAMMiB,
             .PipelineCachePath = PipelineCachePath(),
         });

@@ -262,7 +262,7 @@ namespace Lumina
         SEntityScriptComponent() = default;
         ~SEntityScriptComponent();
         SEntityScriptComponent(SEntityScriptComponent&&) = default;
-        SEntityScriptComponent& operator=(SEntityScriptComponent&& Other);
+        SEntityScriptComponent& operator=(SEntityScriptComponent&& Other) noexcept;
 
         // A script is a per-entity subobject, so a copy (prefab stamp, component duplicate) clones it.
         SEntityScriptComponent(const SEntityScriptComponent& Other);
