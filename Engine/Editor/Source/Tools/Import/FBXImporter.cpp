@@ -121,7 +121,6 @@ namespace Lumina
             return Node.has_adjust_transform ? Math::Inverse(ToQuat(Node.adjust_pre_rotation)) : FQuat(1.0f, 0.0f, 0.0f, 0.0f);
         }
 
-        // Turns the file's up axis onto +Y, ignoring its front axis, which can disagree with the authored model.
         struct FEngineBasis
         {
             FQuat    Rotation        = FQuat(1.0f, 0.0f, 0.0f, 0.0f);
@@ -135,24 +134,12 @@ namespace Lumina
 
             explicit FEngineBasis(const ufbx_scene& Scene)
             {
-                FVector3 Up(0.0f, 1.0f, 0.0f);
-                switch (Scene.settings.original_axis_up)
-                {
-                case UFBX_COORDINATE_AXIS_POSITIVE_X: Up = FVector3( 1.0f,  0.0f,  0.0f); break;
-                case UFBX_COORDINATE_AXIS_NEGATIVE_X: Up = FVector3(-1.0f,  0.0f,  0.0f); break;
-                case UFBX_COORDINATE_AXIS_NEGATIVE_Y: Up = FVector3( 0.0f, -1.0f,  0.0f); break;
-                case UFBX_COORDINATE_AXIS_POSITIVE_Z: Up = FVector3( 0.0f,  0.0f,  1.0f); break;
-                case UFBX_COORDINATE_AXIS_NEGATIVE_Z: Up = FVector3( 0.0f,  0.0f, -1.0f); break;
-                default: break;
-                }
-
-                // An X-up file is also mirrored on X by the handedness conversion, which this ignores.
-                Rotation          = Math::RotationBetween(Up, FVector3(0.0f, 1.0f, 0.0f));
+                Rotation          = ToQuat(Scene.metadata.root_rotation);
                 InverseRotation   = Math::Inverse(Rotation);
                 Matrix            = Math::ToMatrix4(Rotation);
                 InverseMatrix     = Math::ToMatrix4(InverseRotation);
                 Matrix3           = Math::ToMatrix3(Rotation);
-                InverseRootAdjust = Math::ToMatrix4(Math::Inverse(ToQuat(Scene.metadata.root_rotation)));
+                InverseRootAdjust = InverseMatrix;
             }
 
             FMatrix4 ToEngine(const FMatrix4& M) const { return Matrix * M * InverseMatrix; }
@@ -244,8 +231,12 @@ namespace Lumina
         LoadOptions.filename.data   = SourcePath.c_str();
         LoadOptions.filename.length = SourcePath.size();
 
-        // Mirroring on X rather than Z keeps new imports consistent with every FBX asset already in the tree.
-        LoadOptions.target_axes                = ufbx_axes_left_handed_y_up;
+        // These axes preserve the X mirror used by the GLTF importer.
+        LoadOptions.target_axes                = {
+            UFBX_COORDINATE_AXIS_NEGATIVE_X,
+            UFBX_COORDINATE_AXIS_POSITIVE_Y,
+            UFBX_COORDINATE_AXIS_POSITIVE_Z
+        };
         LoadOptions.handedness_conversion_axis = UFBX_MIRROR_AXIS_X;
         LoadOptions.space_conversion           = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
 
