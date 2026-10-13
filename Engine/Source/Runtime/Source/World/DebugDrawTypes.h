@@ -15,7 +15,7 @@ namespace Lumina
     };
 
     REFLECT()
-    struct RUNTIME_API FDebugDrawVertex
+    struct RUNTIME_API SDebugDrawVertex
     {
         GENERATED_BODY()
 

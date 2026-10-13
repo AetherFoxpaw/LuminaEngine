@@ -83,7 +83,7 @@ namespace Lumina
         }
     }
 
-    void FWorldDebugInterface::DrawSolidTriangles(TSpan<const FDebugDrawVertex> Input, EDebugFillMode Mode, float Duration)
+    void FWorldDebugInterface::DrawSolidTriangles(TSpan<const SDebugDrawVertex> Input, EDebugFillMode Mode, float Duration)
     {
         if (Input.empty() || Input.size() % 3 != 0)
         {
@@ -92,7 +92,7 @@ namespace Lumina
 
         TVector<FSimpleElementVertex> Vertices;
         Vertices.reserve(Input.size());
-        for (const FDebugDrawVertex& Vertex : Input)
+        for (const SDebugDrawVertex& Vertex : Input)
         {
             Vertices.push_back({ Vertex.Position, PackColor(Vertex.Color) });
         }
@@ -440,12 +440,12 @@ namespace Lumina
         }
     }
 
-    void CDebugDrawLibrary::DrawSolidTriangles(CWorld* World, const FDebugDrawVertex* Vertices, int32 Count,
+    void CDebugDrawLibrary::DrawSolidTriangles(CWorld* World, const SDebugDrawVertex* Vertices, int32 Count,
         EDebugFillMode Mode, float Duration)
     {
         if (World != nullptr && Vertices != nullptr && Count > 0 && Count % 3 == 0)
         {
-            World->GetDebugInterface()->DrawSolidTriangles(TSpan<const FDebugDrawVertex>(Vertices, (size_t)Count), Mode, Duration);
+            World->GetDebugInterface()->DrawSolidTriangles(TSpan<const SDebugDrawVertex>(Vertices, (size_t)Count), Mode, Duration);
         }
     }
 

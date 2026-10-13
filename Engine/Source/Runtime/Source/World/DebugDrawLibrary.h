@@ -70,7 +70,7 @@ namespace Lumina
             float Thickness = 1.0f, float Duration = -1.0f, bool bDepthTest = true);
 
         FUNCTION()
-        static void DrawSolidTriangles(CWorld* World, const FDebugDrawVertex* Vertices, int32 Count,
+        static void DrawSolidTriangles(CWorld* World, const SDebugDrawVertex* Vertices, int32 Count,
             EDebugFillMode Mode = EDebugFillMode::Translucent, float Duration = -1.0f);
 
         FUNCTION()

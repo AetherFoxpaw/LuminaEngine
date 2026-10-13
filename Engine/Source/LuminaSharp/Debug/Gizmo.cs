@@ -56,7 +56,7 @@ public static class Gizmo
     public static void Point(FVector3 Position, float Size)
         => CDebugDrawLibrary.DrawPoint(Engine.World, Position, Size, Color, Thickness, Duration, DepthTest);
 
-    public static void SolidTriangles(System.ReadOnlySpan<FDebugDrawVertex> Vertices)
+    public static void SolidTriangles(System.ReadOnlySpan<SDebugDrawVertex> Vertices)
         => CDebugDrawLibrary.DrawSolidTriangles(Engine.World, Vertices, FillMode, Duration);
 
     public static void SolidTriangle(FVector3 A, FVector3 B, FVector3 C)
