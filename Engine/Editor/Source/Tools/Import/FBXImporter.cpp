@@ -1042,12 +1042,7 @@ namespace Lumina
                 FSkeletonResource::FBoneInfo& Bone = Skeleton->Bones[BoneIndex];
                 Bone.Name           = !ToView(Node.name).empty() ? FName(ToFixed(Node.name).c_str())
                                                                  : FName("Bone", (uint32)Node.typed_id);
-                // The import Scale converts units, so ufbx's unit scale left on a top-level bone would apply twice.
                 FMatrix4 LocalTransform = Math::ToMatrix4(InverseAdjustRotation(Node)) * ToMatrix4(Node.node_to_parent);
-                if (Node.has_adjust_transform && Node.adjust_pre_scale > 0.0)
-                {
-                    LocalTransform = Math::Scale(FMatrix4(1.0f), FVector3(1.0f / (float)Node.adjust_pre_scale)) * LocalTransform;
-                }
                 Bone.LocalTransform = Basis.BoneToEngine(Node, LocalTransform);
 
                 // Both sides carry ufbx's adjust, so it cancels and only the engine basis is left to apply.
@@ -1437,10 +1432,6 @@ namespace Lumina
                     const FName TargetBone = !ToView(Node.name).empty()
                         ? FName(ToFixed(Node.name).c_str()) : FName("Bone", (uint32)Node.typed_id);
 
-                    // Matches the skeleton: ufbx's unit scale dropped, its axis rotation replaced by the engine basis.
-                    const float InvUnitScale = Node.has_adjust_transform && Node.adjust_pre_scale > 0.0
-                        ? 1.0f / (float)Node.adjust_pre_scale : 1.0f;
-
                     if (BakedNode.translation_keys.count > 0)
                     {
                         FAnimationChannel Channel;
@@ -1451,7 +1442,7 @@ namespace Lumina
                         for (const ufbx_baked_vec3& Key : BakedNode.translation_keys)
                         {
                             Channel.Timestamps.push_back((float)Key.time);
-                            Channel.Translations.push_back(Basis.KeyTranslation(Node, ToVector3(Key.value)) * InvUnitScale);
+                            Channel.Translations.push_back(Basis.KeyTranslation(Node, ToVector3(Key.value)));
                         }
                         Clip->Channels.push_back(Move(Channel));
                     }
@@ -1481,7 +1472,7 @@ namespace Lumina
                         for (const ufbx_baked_vec3& Key : BakedNode.scale_keys)
                         {
                             Channel.Timestamps.push_back((float)Key.time);
-                            Channel.Scales.push_back(ToVector3(Key.value) * InvUnitScale);
+                            Channel.Scales.push_back(ToVector3(Key.value));
                         }
                         Clip->Channels.push_back(Move(Channel));
                     }
