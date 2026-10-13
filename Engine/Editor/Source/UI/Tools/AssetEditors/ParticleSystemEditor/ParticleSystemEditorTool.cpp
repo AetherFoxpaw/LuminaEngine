@@ -237,7 +237,7 @@ namespace Lumina
 
         if (Emitter->VisibilityRadius > 0.0f)
         {
-            World->DrawSphere(Origin, Emitter->VisibilityRadius, BoundsColor, {}, {}, {});
+            World->GetDebugInterface()->DrawSphere(Origin, Emitter->VisibilityRadius, BoundsColor, {}, {}, {});
         }
 
         const CParticleEmitterStack* Stack = GetStackFor(SelectedEmitter);
@@ -259,13 +259,13 @@ namespace Lumina
             {
             case EParticleEmitterShape::Sphere:
             case EParticleEmitterShape::Hemisphere:
-                World->DrawSphere(Origin, Size.x, ShapeColor, {}, {}, {});
+                World->GetDebugInterface()->DrawSphere(Origin, Size.x, ShapeColor, {}, {}, {});
                 break;
             case EParticleEmitterShape::Box:
-                World->DrawBox(Origin, Size, FQuat::Identity(), ShapeColor, {}, {}, {});
+                World->GetDebugInterface()->DrawBox(Origin, Size, FQuat::Identity(), ShapeColor, {}, {}, {});
                 break;
             case EParticleEmitterShape::Cone:
-                World->DrawCone(Origin, FVector3(0.0f, 1.0f, 0.0f), Math::Atan2(Size.x, Math::Max(Size.y, 1e-4f)), Size.y, ShapeColor, {}, {}, {});
+                World->GetDebugInterface()->DrawCone(Origin, FVector3(0.0f, 1.0f, 0.0f), Math::Atan2(Size.x, Math::Max(Size.y, 1e-4f)), Size.y, ShapeColor, {}, {}, {});
                 break;
             case EParticleEmitterShape::Ring:
             case EParticleEmitterShape::Disk:
@@ -277,7 +277,7 @@ namespace Lumina
                     {
                         const float A = Math::TwoPi<float>() * (float)Index / (float)Segments;
                         const float B = Math::TwoPi<float>() * (float)(Index + 1) / (float)Segments;
-                        World->DrawLine(Origin + FVector3(Math::Cos(A), 0.0f, Math::Sin(A)) * Radius,
+                        World->GetDebugInterface()->DrawLine(Origin + FVector3(Math::Cos(A), 0.0f, Math::Sin(A)) * Radius,
                                         Origin + FVector3(Math::Cos(B), 0.0f, Math::Sin(B)) * Radius, ShapeColor, {}, {}, {});
                     }
                 }
