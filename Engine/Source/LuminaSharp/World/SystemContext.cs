@@ -32,13 +32,13 @@ public readonly unsafe partial struct SystemContext
     public double Time => GetTime();
 
     /// <summary>Creates a new entity and returns its handle.</summary>
-    public Entity Create() => CreateEntity();
+    public FEntity Create() => CreateEntity();
 
     /// <summary>Destroys an entity.</summary>
-    public void Destroy(Entity Entity) => DestroyEntity(Entity);
+    public void Destroy(FEntity Entity) => DestroyEntity(Entity);
 
     /// <summary>Sets an entity's world-space location.</summary>
-    public void SetEntityLocation(Entity Entity, FVector3 Location) => SetLocation(Entity, Location);
+    public void SetEntityLocation(FEntity Entity, FVector3 Location) => SetLocation(Entity, Location);
 
     /// <summary>Draws a debug line for one frame (Dev/Debug only; a no-op in Shipping).</summary>
     public void DrawDebugLine(FVector3 Start, FVector3 End, FVector4 Color) => DrawLine(Start, End, Color);
@@ -53,11 +53,11 @@ public readonly unsafe partial struct SystemContext
     [NativeCall(Module = "Runtime", EntryPoint = "LuminaSharp_SystemContext_GetTime")]
     private partial double GetTime();
     [NativeCall(Module = "Runtime", EntryPoint = "LuminaSharp_SystemContext_Create")]
-    private partial Entity CreateEntity();
+    private partial FEntity CreateEntity();
     [NativeCall(Module = "Runtime", EntryPoint = "LuminaSharp_SystemContext_Destroy")]
-    private partial void DestroyEntity(Entity Entity);
+    private partial void DestroyEntity(FEntity Entity);
     [NativeCall(Module = "Runtime", EntryPoint = "LuminaSharp_SystemContext_SetEntityLocation")]
-    private partial void SetLocation(Entity Entity, FVector3 Location);
+    private partial void SetLocation(FEntity Entity, FVector3 Location);
     [NativeCall(Module = "Runtime", EntryPoint = "LuminaSharp_SystemContext_DrawDebugLine")]
     private partial void DrawLine(FVector3 Start, FVector3 End, FVector4 Color);
 }

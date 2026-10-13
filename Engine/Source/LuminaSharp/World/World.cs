@@ -34,20 +34,20 @@ public unsafe partial class CWorld
     }
 
     /// Spawns a prefab at the origin, unparented. Null entity if the prefab could not be spawned.
-    public Entity SpawnPrefab(string Path) => CPrefabLibrary.SpawnPrefab(this, Path);
+    public FEntity SpawnPrefab(string Path) => CPrefabLibrary.SpawnPrefab(this, Path);
 
     /// Spawns a prefab already placed, in one native call. Null entity if the prefab could not be spawned.
-    public Entity SpawnPrefab(string Path, FVector3 Location, FQuat? Rotation = null, Entity? Parent = null)
+    public FEntity SpawnPrefab(string Path, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
         => SpawnPrefab(Path, new FTransform(Location, Rotation ?? FQuat.Identity, FVector3.One), Parent);
 
     /// Spawns a prefab at a full transform, so an authored scale survives the spawn.
-    public Entity SpawnPrefab(string Path, FTransform Transform, Entity? Parent = null)
-        => CPrefabLibrary.SpawnPrefabAt(this, Path, Transform, Parent ?? Entity.Null);
+    public FEntity SpawnPrefab(string Path, FTransform Transform, FEntity? Parent = null)
+        => CPrefabLibrary.SpawnPrefabAt(this, Path, Transform, Parent ?? FEntity.Null);
 
     /// Spawns a prefab and runs Configure on the root before the next frame, so the values are in place for OnReady.
-    public Entity SpawnPrefab(string Path, FTransform Transform, Action<Entity> Configure, Entity? Parent = null)
+    public FEntity SpawnPrefab(string Path, FTransform Transform, Action<FEntity> Configure, FEntity? Parent = null)
     {
-        Entity Spawned = CPrefabLibrary.SpawnPrefabAt(this, Path, Transform, Parent ?? Entity.Null);
+        FEntity Spawned = CPrefabLibrary.SpawnPrefabAt(this, Path, Transform, Parent ?? FEntity.Null);
         if (!Spawned.IsNull)
         {
             Configure(Spawned);
@@ -57,36 +57,36 @@ public unsafe partial class CWorld
 
     // Prefabs are authored as an asset reference, so the reference types spawn without unwrapping to a path.
 
-    public Entity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab) => SpawnPrefab(Prefab.Path.Path);
+    public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab) => SpawnPrefab(Prefab.Path.Path);
 
-    public Entity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FVector3 Location, FQuat? Rotation = null, Entity? Parent = null)
+    public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path.Path, Location, Rotation, Parent);
 
-    public Entity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, Entity? Parent = null)
+    public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path.Path, Transform, Parent);
 
-    public Entity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, Action<Entity> Configure, Entity? Parent = null)
+    public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, Action<FEntity> Configure, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path.Path, Transform, Configure, Parent);
 
-    public Entity SpawnPrefab(FSoftObjectPath Prefab) => SpawnPrefab(Prefab.Path);
+    public FEntity SpawnPrefab(FSoftObjectPath Prefab) => SpawnPrefab(Prefab.Path);
 
-    public Entity SpawnPrefab(FSoftObjectPath Prefab, FVector3 Location, FQuat? Rotation = null, Entity? Parent = null)
+    public FEntity SpawnPrefab(FSoftObjectPath Prefab, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path, Location, Rotation, Parent);
 
-    public Entity SpawnPrefab(FSoftObjectPath Prefab, FTransform Transform, Entity? Parent = null)
+    public FEntity SpawnPrefab(FSoftObjectPath Prefab, FTransform Transform, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path, Transform, Parent);
 
-    public Entity SpawnPrefab(FSoftObjectPath Prefab, FTransform Transform, Action<Entity> Configure, Entity? Parent = null)
+    public FEntity SpawnPrefab(FSoftObjectPath Prefab, FTransform Transform, Action<FEntity> Configure, FEntity? Parent = null)
         => SpawnPrefab(Prefab.Path, Transform, Configure, Parent);
 
     /// Destroys the entity after Seconds. Zero or less leaves it alone; a second call retimes the countdown.
-    public void SetLifetime(Entity Entity, float Seconds) => SetEntityLifetime(Entity, Seconds);
+    public void SetLifetime(FEntity Entity, float Seconds) => SetEntityLifetime(Entity, Seconds);
 
     /// The first entity carrying Tag, or the null entity. Order is unspecified when several share the tag.
-    public Entity FindByTag(string Tag) => GetEntityByTag(Tag);
+    public FEntity FindByTag(string Tag) => GetEntityByTag(Tag);
 
     /// Every entity carrying Tag. A fresh list per call; empty when nothing carries it.
-    public List<Entity> FindAllByTag(string Tag) => new(GetEntitiesByTag(Tag));
+    public List<FEntity> FindAllByTag(string Tag) => new(GetEntitiesByTag(Tag));
 
     // Every script of type T attached anywhere in this world, an abstract base matching each subclass. A fresh list per call.
     public List<T> Scripts<T>() where T : CEntityScript
@@ -106,9 +106,9 @@ public unsafe partial class CWorld
     }
 
     // A new entity under Parent at LocalOffset in the parent's space. It goes when the parent is destroyed, so it needs no cleanup of its own.
-    public Entity CreateChild(Entity Parent, string Name, FVector3 LocalOffset = default)
+    public FEntity CreateChild(FEntity Parent, string Name, FVector3 LocalOffset = default)
     {
-        Entity Child = CreateEntity(Name);
+        FEntity Child = CreateEntity(Name);
         SetParent(Child, Parent);
         GetComponent<STransformComponent>(Child).SetLocalLocation(LocalOffset);
         return Child;
@@ -122,15 +122,15 @@ public unsafe partial class CWorld
     }
 
     /// A new named entity with a transform and nothing else.
-    public Entity CreateEntity(string Name, FVector3 Location = default, FQuat? Rotation = null, FVector3? Scale = null)
+    public FEntity CreateEntity(string Name, FVector3 Location = default, FQuat? Rotation = null, FVector3? Scale = null)
         => ConstructEntity(Name, new FTransform(Location, Rotation ?? FQuat.Identity, Scale ?? FVector3.One));
 
     /// A new named entity at the given transform.
-    public Entity CreateEntity(string Name, FTransform Transform)
+    public FEntity CreateEntity(string Name, FTransform Transform)
         => ConstructEntity(Name, Transform);
 
     /// A projectile that sweeps forward each frame, reports its first hit through its component's OnHit, and despawns after lifetime seconds.
-    public Entity SpawnProjectile(FVector3 position, FVector3 velocity, float damage = 0.0f, float lifetime = 5.0f)
-        => CProjectileLibrary.SpawnProjectile(this, position, velocity, damage, lifetime, Entity.Null);
+    public FEntity SpawnProjectile(FVector3 position, FVector3 velocity, float damage = 0.0f, float lifetime = 5.0f)
+        => CProjectileLibrary.SpawnProjectile(this, position, velocity, damage, lifetime, FEntity.Null);
 
 }

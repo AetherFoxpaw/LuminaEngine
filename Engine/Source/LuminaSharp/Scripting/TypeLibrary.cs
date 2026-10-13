@@ -210,7 +210,7 @@ internal sealed class TypeLibrary
         {
             return new ScriptType { Kind = EPropertyType.String, Clr = Type };
         }
-        if (Type == typeof(Entity))
+        if (Type == typeof(FEntity))
         {
             return new ScriptType { Kind = EPropertyType.Entity, Clr = Type };
         }

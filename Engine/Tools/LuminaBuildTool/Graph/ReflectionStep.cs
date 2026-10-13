@@ -64,7 +64,7 @@ public sealed class EngineReflectionManifest
 /// <summary>Wires the reflection code generator into the action graph.</summary>
 public static class ReflectionStep
 {
-    private const int CodeGenerationVersion = 2;
+    private const int CodeGenerationVersion = 3;
 
     /// <summary>Must match kUnityShardCount in Reflector/CodeGeneration/CodeGenerator.cpp.</summary>
     public const int UnityShardCount = 8;

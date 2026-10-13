@@ -10,11 +10,11 @@ public partial class CEntityScript
     internal TypeDescription Description = null!;
 
     // The native object owns both values and sets them once at attach, so the first real read is kept.
-    private Entity CachedEntity = Entity.Null;
+    private FEntity CachedEntity = FEntity.Null;
     private CWorld? CachedWorld;
     private STransformComponent? CachedTransform;
 
-    public Entity Entity
+    public FEntity Entity
     {
         get
         {
@@ -63,7 +63,7 @@ public partial class CEntityScript
     // The world subsystem of type T, which is where shared gameplay state belongs.
     protected T? GetSubsystem<T>() where T : NativeObject => World.GetSubsystem<T>();
 
-    protected T? GetScript<T>(Entity Target) where T : CEntityScript
+    protected T? GetScript<T>(FEntity Target) where T : CEntityScript
     {
         return World.GetScript<T>(Target);
     }

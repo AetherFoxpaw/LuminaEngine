@@ -226,7 +226,7 @@ internal static unsafe partial class InteropBenchHooks
         for (int Tick = 0; Tick < Ticks; ++Tick)
         {
             Seen = 0;
-            foreach ((Entity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
+            foreach ((FEntity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
             {
                 Total += Transform.LocalTransform.Location.X;
                 ++Seen;
@@ -250,7 +250,7 @@ internal static unsafe partial class InteropBenchHooks
         for (int Tick = 0; Tick < Ticks; ++Tick)
         {
             Seen = 0;
-            foreach ((Entity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
+            foreach ((FEntity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
             {
                 FTransform Local = Transform.LocalTransform;
                 Local.Location.X += 1.0f;
@@ -301,7 +301,7 @@ internal static unsafe partial class InteropBenchHooks
             for (int Index = 0; Index < Count; ++Index)
             {
                 Lumina.STransformComponent? Transform =
-                    Registry.TryGetComponent<Lumina.STransformComponent>(new Entity(Entities[Index]));
+                    Registry.TryGetComponent<Lumina.STransformComponent>(new FEntity(Entities[Index]));
                 if (Transform != null)
                 {
                     Total += Transform.LocalTransform.Location.X;

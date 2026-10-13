@@ -6,7 +6,7 @@ namespace Lumina;
 
 public unsafe partial class CWorld
 {
-    public T? TryGetComponent<T>(Entity Entity) where T : NativeStruct
+    public T? TryGetComponent<T>(FEntity Entity) where T : NativeStruct
     {
         uint* Epoch = null;
         IntPtr Pointer = Native.GetComponentTracked(WorldHandle, Entity.Id, ComponentOps<T>.Token, &Epoch);
@@ -21,7 +21,7 @@ public unsafe partial class CWorld
     }
 
     // Another lookup of T on this thread rebinds the returned view to a different entity.
-    public T? TryGetComponentUnsafe<T>(Entity Entity) where T : NativeStruct
+    public T? TryGetComponentUnsafe<T>(FEntity Entity) where T : NativeStruct
     {
         uint* Epoch = null;
         IntPtr Pointer = Native.GetComponentTracked(WorldHandle, Entity.Id, ComponentOps<T>.Token, &Epoch);
@@ -47,20 +47,20 @@ public unsafe partial class CWorld
     }
 
     // The pointer is invalid after pool relocation, component removal, or world destruction.
-    public IntPtr TryGetComponentPointer<T>(Entity Entity) where T : NativeStruct
+    public IntPtr TryGetComponentPointer<T>(FEntity Entity) where T : NativeStruct
         => Native.GetComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
 
-    public T GetComponent<T>(Entity Entity) where T : NativeStruct
+    public T GetComponent<T>(FEntity Entity) where T : NativeStruct
     {
         return TryGetComponent<T>(Entity) ?? throw new InvalidOperationException($"Entity {Entity.Id} has no {typeof(T).Name}.");
     }
 
-    public bool HasComponent<T>(Entity Entity) where T : NativeStruct
+    public bool HasComponent<T>(FEntity Entity) where T : NativeStruct
     {
         return Native.HasComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token) != 0;
     }
 
-    public T? GetOrEmplaceComponent<T>(Entity Entity) where T : NativeStruct
+    public T? GetOrEmplaceComponent<T>(FEntity Entity) where T : NativeStruct
     {
         IntPtr Pointer = Native.EmplaceComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
         if (Pointer == IntPtr.Zero)
@@ -70,21 +70,21 @@ public unsafe partial class CWorld
         return TryGetComponent<T>(Entity);
     }
 
-    public bool RemoveComponent<T>(Entity Entity) where T : NativeStruct
+    public bool RemoveComponent<T>(FEntity Entity) where T : NativeStruct
     {
         return Native.RemoveComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token) != 0;
     }
 
-    public RegistrySubscription OnConstruct<T>(Action<Entity> Callback) where T : NativeStruct
+    public RegistrySubscription OnConstruct<T>(Action<FEntity> Callback) where T : NativeStruct
         => Subscribe(ComponentOps<T>.Token, 0, Callback);
-    public RegistrySubscription OnDestroy<T>(Action<Entity> Callback) where T : NativeStruct
+    public RegistrySubscription OnDestroy<T>(Action<FEntity> Callback) where T : NativeStruct
         => Subscribe(ComponentOps<T>.Token, 1, Callback);
-    public RegistrySubscription OnUpdate<T>(Action<Entity> Callback) where T : NativeStruct
+    public RegistrySubscription OnUpdate<T>(Action<FEntity> Callback) where T : NativeStruct
         => Subscribe(ComponentOps<T>.Token, 2, Callback);
-    public void PatchComponent<T>(Entity Entity) where T : NativeStruct
+    public void PatchComponent<T>(FEntity Entity) where T : NativeStruct
         => Native.RegistryPatch(WorldHandle, Entity.Id, ComponentOps<T>.Token);
 
-    private RegistrySubscription Subscribe(IntPtr Token, int Kind, Action<Entity> Callback)
+    private RegistrySubscription Subscribe(IntPtr Token, int Kind, Action<FEntity> Callback)
     {
         if (Token == IntPtr.Zero)
         {
@@ -101,7 +101,7 @@ public unsafe partial class CWorld
         unsafe
         {
             Binding = DelegateBindings.Bind((void*)Signal,
-                new PayloadInvoker<uint> { Handler = Id => Callback(new Entity(Id)) });
+                new PayloadInvoker<uint> { Handler = Id => Callback(new FEntity(Id)) });
         }
 
         if (!Binding.IsValid)
@@ -115,7 +115,7 @@ public unsafe partial class CWorld
 
     private static TSubclassOf<CEntityScript> ClassOf<T>() where T : CEntityScript
         => NativeClass<T>.Of.AsBase<CEntityScript>();
-    public T? GetScript<T>(Entity Entity) where T : CEntityScript
+    public T? GetScript<T>(FEntity Entity) where T : CEntityScript
     {
         if (!ClassOf<T>().IsValid)
         {
@@ -131,7 +131,7 @@ public unsafe partial class CWorld
         return AsScript<T>(CEntityScriptLibrary.FindScript(this, Entity, ClassOf<T>()));
     }
 
-    private CEntityScript[] FindScriptsOfAbstract(Entity Entity)
+    private CEntityScript[] FindScriptsOfAbstract(FEntity Entity)
     {
         return CEntityScriptLibrary.FindScripts(this, Entity, ClassOf<CEntityScript>());
     }
@@ -145,7 +145,7 @@ public unsafe partial class CWorld
         return Script is null ? null : Wrapper<T>.ForObject(Script.Handle);
     }
 
-    public List<T> GetScripts<T>(Entity Entity) where T : CEntityScript
+    public List<T> GetScripts<T>(FEntity Entity) where T : CEntityScript
     {
         CEntityScript[] Scripts = ClassOf<T>().IsValid
             ? CEntityScriptLibrary.FindScripts(this, Entity, ClassOf<T>())
@@ -161,28 +161,28 @@ public unsafe partial class CWorld
         return Result;
     }
 
-    public T? AddScript<T>(Entity Entity) where T : CEntityScript
+    public T? AddScript<T>(FEntity Entity) where T : CEntityScript
     {
         return AsScript<T>(CEntityScriptLibrary.AddScript(this, Entity, ClassOf<T>()));
     }
 
-    public CEntityScript? AddScript(Entity Entity, TSubclassOf<CEntityScript> ScriptClass)
+    public CEntityScript? AddScript(FEntity Entity, TSubclassOf<CEntityScript> ScriptClass)
     {
         return CEntityScriptLibrary.AddScript(this, Entity, ScriptClass) as CEntityScript;
     }
 
-    public CEntityScript? AddScript(Entity Entity, string ClassName)
+    public CEntityScript? AddScript(FEntity Entity, string ClassName)
     {
         return AddScript(Entity, TSubclassOf<CEntityScript>.FromName(ClassName));
     }
 
-    public bool RemoveScript<T>(Entity Entity) where T : CEntityScript
+    public bool RemoveScript<T>(FEntity Entity) where T : CEntityScript
     {
         CEntityScript? Script = GetScript<T>(Entity);
         return Script is not null && CEntityScriptLibrary.RemoveScript(this, Entity, Script);
     }
 
-    public bool HasScript<T>(Entity Entity) where T : CEntityScript
+    public bool HasScript<T>(FEntity Entity) where T : CEntityScript
     {
         return GetScript<T>(Entity) != null;
     }
