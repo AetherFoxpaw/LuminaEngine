@@ -598,7 +598,7 @@ namespace Lumina
             {
                 LUMINA_PROFILE_SECTION_COLORED("ImGui Record", tracy::Color::SlateBlue3);
                 RHI::CmdBeginMarker(CL, "ImGui");
-                ImGuiRenderer->OnEndFrame_NewRHI(CL, SwapImage, Extent, ImGuiDrawData);
+                ImGuiRenderer->OnEndFrame(CL, SwapImage, Extent, ImGuiDrawData);
                 RHI::CmdEndMarker(CL);
             }
             #endif
