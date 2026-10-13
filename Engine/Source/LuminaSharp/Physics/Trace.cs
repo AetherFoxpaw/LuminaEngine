@@ -66,7 +66,7 @@ public struct Trace
         if (Radius > 0.0f)
         {
             SRayResult[] Hits = CPhysicsLibrary.SphereCast(World, From, To, Radius, IgnoreEntity);
-            return Hits.Length > 0 ? Hits[0] : default;
+            return Hits.Length > 0 ? Hits[0] : new SRayResult { Start = From, End = To };
         }
         return CPhysicsLibrary.Raycast(World, From, To, IgnoreEntity, Mask);
     }
