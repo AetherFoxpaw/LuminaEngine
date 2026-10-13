@@ -916,7 +916,7 @@ internal sealed class TypeDescription
     {
         if (InputBindings.Count > 0)
         {
-            Script.Registry.Emplace<Lumina.SInputComponent>(Script.Entity);
+            Script.World.GetOrEmplaceComponent<Lumina.SInputComponent>(Script.Entity);
         }
     }
 

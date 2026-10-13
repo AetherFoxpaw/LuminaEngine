@@ -8,7 +8,7 @@ public readonly unsafe partial struct SystemContext
 {
     internal readonly IntPtr Handle;
 
-    // Resolved once per context rather than on every Registry access.
+    // Resolved once per context.
     private readonly ulong World;
 
     internal SystemContext(IntPtr Handle)
@@ -19,9 +19,6 @@ public readonly unsafe partial struct SystemContext
     }
 
     public bool IsValid => Handle != IntPtr.Zero;
-
-    // The world's component store, mirroring C++ ECS::FRegistry. Author typed views with Registry.View.
-    public EntityRegistry Registry => new(World);
 
     // The world this system ticks in, so a system reaches the same subsystems a script does.
     public CWorld? OwningWorld => World == 0 ? null : Wrapper<CWorld>.ForObject((IntPtr)World);

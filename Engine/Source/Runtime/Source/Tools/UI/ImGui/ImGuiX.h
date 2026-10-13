@@ -145,6 +145,7 @@ namespace Lumina::ImGuiX
 
     // Shows the mixed state while only some are checked, and returns true with the value to apply to all when clicked.
     RUNTIME_API bool SelectAllCheckbox(const char* Label, uint32 NumChecked, uint32 NumTotal, bool& bOutCheckAll);
+    RUNTIME_API bool ToggleSwitch(const char* Label, bool* Value);
 
     RUNTIME_API inline bool FlatButton( char const* pLabel, ImVec2 const& size = ImVec2( 0, 0 ), const ImColor& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
     {

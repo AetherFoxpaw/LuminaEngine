@@ -3,7 +3,7 @@ using System;
 namespace LuminaSharp;
 
 /// <summary>
-// A handle to an entity, mirroring C++ ECS::FEntity. Resolve components through EntityRegistry.
+// A handle to an entity, mirroring C++ ECS::FEntity. Resolve components through CWorld.
 /// </summary>
 public readonly struct Entity : IEquatable<Entity>
 {

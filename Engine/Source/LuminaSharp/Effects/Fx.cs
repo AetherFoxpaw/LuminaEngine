@@ -1,4 +1,4 @@
-﻿using Lumina;
+using Lumina;
 
 namespace LuminaSharp;
 
@@ -48,5 +48,5 @@ public static class Fx
 
     /// Stops an effect entity emitting and lets its live particles finish, rather than cutting them off.
     public static void Stop(Entity Effect)
-        => Engine.World.Registry.TryGet<SParticleSystemComponent>(Effect)?.Deactivate();
+        => Engine.World.TryGetComponent<SParticleSystemComponent>(Effect)?.Deactivate();
 }

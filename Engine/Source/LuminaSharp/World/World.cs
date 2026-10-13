@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using LuminaSharp;
 
@@ -10,12 +10,7 @@ namespace Lumina;
 public unsafe partial class CWorld
 {
     internal ulong WorldHandle => (ulong)Handle.ToInt64();
-    
-    public EntityRegistry Registry => new(WorldHandle);
-    public UI UI => new(WorldHandle);
     public GameplayMessageBus Messages => new(this);
-
-    public Tweens Tweens => new(this);
 
     // The subsystem of type T in this world, or null when none was created. Finds a C++ one just the same.
     public T? GetSubsystem<T>() where T : NativeObject
@@ -24,8 +19,6 @@ public unsafe partial class CWorld
     public float DeltaTime => (float)GetWorldDeltaTime();
     public double ElapsedTime => GetTimeSinceWorldCreation();
 
-    /// <summary>Pauses gameplay (systems, scripts, physics). UI keeps running, so a pause menu built with
-    /// <see cref="UI"/> can still set this back to false.</summary>
     public bool Paused
     {
         get => IsPaused();
@@ -117,7 +110,7 @@ public unsafe partial class CWorld
     {
         Entity Child = CreateEntity(Name);
         SetParent(Child, Parent);
-        Registry.Get<STransformComponent>(Child).SetLocalLocation(LocalOffset);
+        GetComponent<STransformComponent>(Child).SetLocalLocation(LocalOffset);
         return Child;
     }
 
@@ -128,7 +121,7 @@ public unsafe partial class CWorld
         return Found.Count > 0 ? Found[0] : null;
     }
 
-    /// A new named entity with a transform and nothing else; add components through <see cref="Registry"/>, destroy it with <see cref="DestroyEntity(Entity)"/>.
+    /// A new named entity with a transform and nothing else.
     public Entity CreateEntity(string Name, FVector3 Location = default, FQuat? Rotation = null, FVector3? Scale = null)
         => ConstructEntity(Name, new FTransform(Location, Rotation ?? FQuat.Identity, Scale ?? FVector3.One));
 

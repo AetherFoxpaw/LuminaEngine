@@ -226,9 +226,7 @@ namespace Lumina
         
         EPropertyChangeOp DrawProperty(const TSharedPtr<FPropertyHandle>& Property, const FPropertyDrawArgs& Args) override
         {
-            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
-            ImGui::Checkbox("##", &bValue);
-            ImGui::PopItemWidth();
+            ImGuiX::ToggleSwitch("##Value", &bValue);
 
             EPropertyChangeOp Result = EPropertyChangeOp::None;
             if (ImGui::IsItemEdited())
