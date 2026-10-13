@@ -93,7 +93,7 @@ namespace Lumina
         return *this;
     }
 
-    SEntityScriptComponent& SEntityScriptComponent::operator=(SEntityScriptComponent&& Other)
+    SEntityScriptComponent& SEntityScriptComponent::operator=(SEntityScriptComponent&& Other) noexcept
     {
         if (this != &Other)
         {
