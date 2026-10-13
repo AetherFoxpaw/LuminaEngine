@@ -95,17 +95,21 @@ internal static class ScriptPropertyRewriter
         private readonly SemanticModel Model;
         private readonly string FilePath;
         private readonly List<string> Errors;
+        private readonly INamedTypeSymbol? NativeObjectSymbol;
+        private readonly INamedTypeSymbol? EntityScriptSymbol;
 
         public Rewriter(SemanticModel Model, string FilePath, List<string> Errors)
         {
             this.Model = Model;
             this.FilePath = FilePath;
             this.Errors = Errors;
+            NativeObjectSymbol = Model.Compilation.GetTypeByMetadataName(typeof(NativeObject).FullName!);
+            EntityScriptSymbol = Model.Compilation.GetTypeByMetadataName(typeof(Lumina.CEntityScript).FullName!);
         }
 
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax Node)
         {
-            bool bNativeBacked = DerivesFromNativeObject(Model.GetDeclaredSymbol(Node));
+            bool bNativeBacked = DerivesFrom(Model.GetDeclaredSymbol(Node), NativeObjectSymbol);
             List<FStoredMember> Stored = CollectStoredMembers(Node, bNativeBacked);
             List<FRpcMethod> Rpcs = CollectRpcs(Node);
             if (Stored.Count == 0 && Rpcs.Count == 0)
@@ -336,9 +340,9 @@ internal static class ScriptPropertyRewriter
                     Errors.Add($"{Where} has a ref or out parameter, which a remote call has no way to hand back.");
                     continue;
                 }
-                if (!DerivesFromEntityScript(Symbol.ContainingType))
+                if (!DerivesFrom(Symbol.ContainingType, EntityScriptSymbol))
                 {
-                    Errors.Add($"{Where} is declared on {Symbol.ContainingType.Name}, and only an EntityScript has an entity to route the call through.");
+                    Errors.Add($"{Where} is declared on {Symbol.ContainingType.Name}, and only an CEntityScript has an entity to route the call through.");
                     continue;
                 }
                 if (!SeenNames.Add(Symbol.Name))
@@ -369,23 +373,11 @@ internal static class ScriptPropertyRewriter
                 && ScriptPropertyClassifier.RuleFor(Symbol, EScriptMemberKind.Field, bNativeBacked).bStored;
         }
 
-        private static bool DerivesFromNativeObject(INamedTypeSymbol? Type)
+        private static bool DerivesFrom(INamedTypeSymbol? Type, INamedTypeSymbol? Base)
         {
-            for (INamedTypeSymbol? Current = Type; Current != null; Current = Current.BaseType)
+            for (INamedTypeSymbol? Current = Type; Current != null && Base != null; Current = Current.BaseType)
             {
-                if (Current.Name == "NativeObject" && Current.ContainingNamespace?.ToDisplayString() == "LuminaSharp")
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static bool DerivesFromEntityScript(INamedTypeSymbol? Type)
-        {
-            for (INamedTypeSymbol? Current = Type; Current != null; Current = Current.BaseType)
-            {
-                if (Current.Name == "EntityScript" && Current.ContainingNamespace?.ToDisplayString() == "LuminaSharp")
+                if (SymbolEqualityComparer.Default.Equals(Current, Base))
                 {
                     return true;
                 }
@@ -634,9 +626,9 @@ internal static class ScriptPropertyRewriter
                 Errors.Add($"{Where} sets Quantize, which only a number can snap to.");
                 return false;
             }
-            if (bFromOwner && !DerivesFromEntityScript(Symbol.ContainingType))
+            if (bFromOwner && !DerivesFrom(Symbol.ContainingType, EntityScriptSymbol))
             {
-                Errors.Add($"{Where} is FromOwner, and only an EntityScript has an owner to take the write from.");
+                Errors.Add($"{Where} is FromOwner, and only an CEntityScript has an owner to take the write from.");
                 return false;
             }
             if (Validate != null && !bFromOwner)

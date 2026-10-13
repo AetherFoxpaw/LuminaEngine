@@ -862,14 +862,13 @@ namespace Lumina
         constexpr uint32 kParallelMinScripts   = 512;
         constexpr uint32 kParallelChunkScripts = 256;
 
-        // Inherited like the C# attribute, so a subclass keeps its parent's promise.
+        // Inherited, so a subclass keeps its parent's promise.
         bool IsParallelUpdate(const CClass* Class)
         {
             static const FName ParallelUpdateName("ParallelUpdate");
             for (const CClass* Current = Class; Current != nullptr; Current = Current->GetSuperClass())
             {
-                const CScriptClass* Minted = ToScriptClass(Current);
-                if ((Minted != nullptr && Minted->bScriptParallelUpdate) || Current->HasMeta(ParallelUpdateName))
+                if (Current->HasMeta(ParallelUpdateName))
                 {
                     return true;
                 }

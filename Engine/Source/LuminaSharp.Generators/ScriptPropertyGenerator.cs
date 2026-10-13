@@ -25,6 +25,7 @@ namespace LuminaSharp.Generators;
 public sealed class ScriptPropertyGenerator : IIncrementalGenerator
 {
     private const string PropertyAttribute = "LuminaSharp.PropertyAttribute";
+    private const string NativeObjectMetadataName = "LuminaSharp.NativeObject";
 
     private static readonly DiagnosticDescriptor UnsupportedType = new(
         id: "LUM0101",
@@ -77,7 +78,9 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
                 .ForAttributeWithMetadataName(
                     Attribute,
                     static (_, _) => true,
-                    (Context, _) => ReportsFor(Context.TargetSymbol, Attribute) ? Validate(Context.TargetSymbol, Context.TargetNode) : null);
+                    (Context, _) => ReportsFor(Context.TargetSymbol, Attribute)
+                        ? Validate(Context.TargetSymbol, Context.TargetNode, Context.SemanticModel.Compilation)
+                        : null);
 
             context.RegisterSourceOutput(Diagnostics, static (Context, Item) =>
             {
@@ -89,10 +92,10 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
         }
     }
 
-    private static Diagnostic? Validate(ISymbol Symbol, SyntaxNode Node)
+    private static Diagnostic? Validate(ISymbol Symbol, SyntaxNode Node, Compilation Compilation)
     {
         Location Location = Node.GetLocation();
-        bool bNativeOwner = DerivesFromNativeObject(Symbol.ContainingType);
+        bool bNativeOwner = DerivesFrom(Symbol.ContainingType, Compilation.GetTypeByMetadataName(NativeObjectMetadataName));
 
         // A partial property is the pre-rewriter shape. It still compiles in the IDE (nothing implements it
         // there either), so without this it would fail only at script reload, with CS9248 and no explanation.
@@ -194,11 +197,11 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
         return !Owner.GetMembers("__lazyoff_" + Property.Name).IsEmpty || !Owner.GetMembers("__lazyprop_" + Property.Name).IsEmpty;
     }
 
-    private static bool DerivesFromNativeObject(INamedTypeSymbol? Type)
+    private static bool DerivesFrom(INamedTypeSymbol? Type, INamedTypeSymbol? Base)
     {
-        for (INamedTypeSymbol? Current = Type; Current != null; Current = Current.BaseType)
+        for (INamedTypeSymbol? Current = Type; Current != null && Base != null; Current = Current.BaseType)
         {
-            if (Current.Name == "NativeObject" && Current.ContainingNamespace?.ToDisplayString() == "LuminaSharp")
+            if (SymbolEqualityComparer.Default.Equals(Current, Base))
             {
                 return true;
             }

@@ -48,9 +48,9 @@ namespace Lumina::Reflection
     X(Event,                Flag,   Runtime,   "Documents the struct as an ECS event. The dispatcher is type-driven, so this emits no registration.") \
     X(BitMask,              Flag,   Runtime,   "Marks an enum as a set of bit flags. CEnum::IsBitmaskEnum() reports it and the editor draws checkboxes.") \
     X(ParallelUpdate,       Flag,   Runtime,   "An entity script's promise that its OnUpdate and OnFixedUpdate read and write only its own entity, so the driver runs it in parallel with other such scripts. Inherited by subclasses.") \
-    X(HostOnly,             Flag,   Runtime,   "A script, system or world subsystem that runs only on the host, a dedicated server or a standalone game. Inherited, like C# [HostOnly].") \
-    X(ClientOnly,           Flag,   Runtime,   "A script, system or world subsystem that runs only on a client joined to a host. Inherited, like C# [ClientOnly].") \
-    X(Cosmetic,             Flag,   Runtime,   "A script, system or world subsystem that runs only where something is drawn or played, never on a dedicated server, a bot or a headless process. Inherited, like C# [Cosmetic].") \
+    X(HostOnly,             Flag,   Runtime,   "A script, system or world subsystem that runs only on the host, a dedicated server or a standalone game. Inherited, and spelled [Reflect(HostOnly = true)] in C#.") \
+    X(ClientOnly,           Flag,   Runtime,   "A script, system or world subsystem that runs only on a client joined to a host. Inherited, and spelled [Reflect(ClientOnly = true)] in C#.") \
+    X(Cosmetic,             Flag,   Runtime,   "A script, system or world subsystem that runs only where something is drawn or played, never on a dedicated server, a bot or a headless process. Inherited, and spelled [Reflect(Cosmetic = true)] in C#.") \
     X(ConfigFile,           Value,  Runtime,   "Backs the class with the named config file. The config system loads and saves its properties there.") \
     X(DataModel,            Value,  Runtime,   "The name a UI document's data-model attribute uses for this class. The class name without its C prefix when absent.") \
     X(UIDocument,           Value,  Runtime,   "The .rml a UI script shows when its Document property is empty.") \
@@ -128,7 +128,8 @@ namespace Lumina::Reflection
 #define LUMINA_RUNTIME_INJECTED_METADATA(X) \
     X(Aliases,            Value, Runtime, "Prior C# type names for a script type, written by the host so renamed scripts still resolve.") \
     X(ScriptTypeName,     Value, Runtime, "The C# type name behind a script-backed struct, stable across reloads unlike its object name.") \
-    X(ScriptInstanceBase, Flag,  Runtime, "Marks the generated base struct of a script type so pickers offer the concrete subtypes instead.")
+    X(ScriptInstanceBase, Flag,  Runtime, "Marks the generated base struct of a script type so pickers offer the concrete subtypes instead.") \
+    X(UpdatePhase,        Value, Runtime, "PrePhysics or PostPhysics, from a C# [Reflect(UpdatePhase)], the side of the physics step a minted script class ticks on.")
 
     struct FSpecifierInfo
     {

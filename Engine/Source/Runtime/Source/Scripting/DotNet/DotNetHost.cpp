@@ -195,7 +195,6 @@ namespace Lumina::DotNet
         typedef int32 (CORECLR_DELEGATE_CALLTYPE* GetGenerationFn)();
         typedef void  (CORECLR_DELEGATE_CALLTYPE* OnWorldTeardownFn)(uint64);
         typedef int32 (CORECLR_DELEGATE_CALLTYPE* GetRuntimeDiagnosticsFn)(void*, int32);
-        typedef void  (CORECLR_DELEGATE_CALLTYPE* EnumerateEntityScriptsFn)(void*, void*);
         typedef void* (CORECLR_DELEGATE_CALLTYPE* CreateScriptableFn)(const char*, int32, uint64);
         typedef void  (CORECLR_DELEGATE_CALLTYPE* EnumerateScriptablesFn)(void*, void*);
         typedef void  (CORECLR_DELEGATE_CALLTYPE* EnumerateScriptableAliasesFn)(void*, void*);
@@ -214,7 +213,6 @@ namespace Lumina::DotNet
         // where it uses them (TManagedExport) rather than adding a field, a typedef and a resolve line here.
         struct FManagedExports
         {
-            EnumerateEntityScriptsFn    EnumerateEntityScripts;
             CreateScriptableFn          CreateScriptable;
             EnumerateScriptablesFn      EnumerateScriptables;
             EnumerateScriptableAliasesFn EnumerateScriptableAliases;
@@ -264,16 +262,6 @@ namespace Lumina::DotNet
 
         // Reflection layouts for each C# script type, cleared on reload/shutdown.
 
-        // Sink the managed EnumerateEntityScripts calls once per script type; Ctx is the out vector.
-        void LmScriptNameSink(void* Ctx, const char* Name, int Len)
-        {
-            auto* Out = static_cast<TVector<FString>*>(Ctx);
-            if (Out != nullptr && Name != nullptr && Len > 0)
-            {
-                Out->emplace_back(FString(Name, static_cast<size_t>(Len)));
-            }
-        }
-
         // Sink one (prior name, current name) pair; Ctx is the out pair vector.
         void LmScriptableAliasSink(void* Ctx, const char* Old, int OldLen, const char* New, int NewLen)
         {
@@ -290,7 +278,7 @@ namespace Lumina::DotNet
 
         // Sink the managed EnumerateScriptables calls once per Scriptable C# type; Ctx is the out desc vector.
         void LmScriptableSink(void* Ctx, const char* Name, int NameLen, const char* Base, int BaseLen,
-            const char* Overrides, int OverridesLen, uint8 UpdatePhase, uint8 ParallelUpdate, const char* Meta, int MetaLen)
+            const char* Overrides, int OverridesLen, uint8 Flags, const char* Meta, int MetaLen)
         {
             auto* Out = static_cast<TVector<FScriptableTypeDesc>*>(Ctx);
             if (Out == nullptr || Name == nullptr || NameLen <= 0)
@@ -323,10 +311,8 @@ namespace Lumina::DotNet
                 }
             }
 
-            Desc.UpdatePhase     = UpdatePhase;
-            Desc.bParallelUpdate = (ParallelUpdate & 1) != 0;
-            Desc.NetRealm        = static_cast<uint8>((ParallelUpdate >> 1) & 0x7);
-            Desc.bAbstract       = (ParallelUpdate & 16) != 0;
+            constexpr uint8 AbstractFlag = 1;
+            Desc.bAbstract = (Flags & AbstractFlag) != 0;
 
             // Lines of key, a tab, then value.
             if (Meta != nullptr && MetaLen > 0)
@@ -1080,7 +1066,6 @@ namespace Lumina::DotNet
         }
 
         #define LM_RESOLVE(Field, Type) GManaged.Field = (Type)GResolveManagedExport(#Field, (int32)std::strlen(#Field))
-        LM_RESOLVE(EnumerateEntityScripts, EnumerateEntityScriptsFn);
         LM_RESOLVE(CreateScriptable,       CreateScriptableFn);      // optional, only when scripts ship Scriptables
         LM_RESOLVE(EnumerateScriptables,   EnumerateScriptablesFn);
         LM_RESOLVE(EnumerateScriptableAliases, EnumerateScriptableAliasesFn);   // optional, only with an alias
@@ -1856,15 +1841,6 @@ namespace Lumina::DotNet
         return GManaged.GetRuntimeDiagnostics(&OutDiagnostics, bForceCollect ? 1 : 0) != 0;
     }
 
-    void GatherEntityScriptTypes(TVector<FString>& OutTypeNames)
-    {
-        OutTypeNames.clear();
-        if (bInitialized && GManaged.EnumerateEntityScripts)
-        {
-            GManaged.EnumerateEntityScripts(reinterpret_cast<void*>(&LmScriptNameSink), &OutTypeNames);
-        }
-    }
-
     void GatherScriptableTypes(TVector<FScriptableTypeDesc>& Out)
     {
         Out.clear();
@@ -1933,10 +1909,7 @@ namespace Lumina::DotNet
             Definition.TypeName       = FName(Desc.TypeName.c_str());
             Definition.NativeBaseName = Desc.NativeBaseName;
             Definition.OverriddenEvents = Desc.OverriddenEvents;
-            Definition.UpdatePhase    = Desc.UpdatePhase;
-            Definition.bParallelUpdate = Desc.bParallelUpdate;
             Definition.bAbstract       = Desc.bAbstract;
-            Definition.NetRealm        = Desc.NetRealm;
             Definition.ClassMeta       = Desc.ClassMeta;
 
             // The one crossing for this type's schema. Consumers read it from here.

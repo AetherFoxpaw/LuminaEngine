@@ -133,7 +133,7 @@ TEST(EntityScriptUnification, CppScriptRunsThroughTheDriver)
     EXPECT_TRUE(Registry.Get<SEntityScriptComponent>(Entity).Scripts.empty());
 }
 
-// [UpdatePhase(PostPhysics)] moves OnUpdate to the pass after the physics step, keeping OnReady where it was.
+// [Reflect(UpdatePhase = PostPhysics)] moves OnUpdate to the pass after the physics step, keeping OnReady where it was.
 TEST(EntityScriptUnification, UpdatePhaseSelectsWhichPassRunsOnUpdate)
 {
     ECS::FRegistry Registry{};
@@ -471,12 +471,13 @@ TEST(EntityScriptUnification, AMintedClassOptsInThroughItsFlag)
 
     CScriptClass* Class = ToScriptClass(Scripts.front()->GetClass());
     ASSERT_NE(Class, nullptr);
-    Class->bScriptParallelUpdate = true;
+    const FName ParallelUpdateName("ParallelUpdate");
+    Class->Metadata.SetValue(ParallelUpdateName, FString());
 
     EntityScripts::Tick(Registry, 0.5f);
     EntityScripts::Tick(Registry, 0.5f);
 
-    Class->bScriptParallelUpdate = false;
+    Class->Metadata.RemoveValue(ParallelUpdateName);
     for (CEntityScriptTest* Script : Scripts)
     {
         EXPECT_EQ(Script->UpdateCount, 2);

@@ -4,6 +4,7 @@
 #include "Containers/StringFormat.h"
 #include "Core/Object/Class.h"
 #include "Core/Object/ObjectIterator.h"
+#include "Core/Object/ScriptClass.h"
 #include "Scripting/DotNet/DotNetHost.h"
 #include "Scripting/EntityScript.h"
 #include "Tools/UI/ImGui/ImGuiDesignIcons.h"
@@ -38,20 +39,13 @@ namespace Lumina::EntityScriptPicker
             SourceByStem.emplace(LowercaseScriptStem(Source.Stem), &Source);
         }
 
-        TVector<FString> ManagedNames;
-        DotNet::GatherEntityScriptTypes(ManagedNames);
-        THashSet<FString> Managed;
-        for (const FString& Name : ManagedNames)
-        {
-            Managed.insert(Name);
-        }
-
         CClass* Base = CEntityScript::StaticClass();
         for (TObjectIterator<CClass> It; It; ++It)
         {
             CClass* Class = *It;
             if (Class == nullptr || Class == Base || !Class->IsChildOf(Base)
-                || Class->HasAnyFlag(OF_DefaultObject) || Class->HasAnyFlag(OF_MarkedDestroy))
+                || Class->HasAnyFlag(OF_DefaultObject) || Class->HasAnyFlag(OF_MarkedDestroy)
+                || Class->IsAbstract() || Class->IsSuperseded())
             {
                 continue;
             }
@@ -60,10 +54,10 @@ namespace Lumina::EntityScriptPicker
             const FStringView View(FullName);
             const size_t Dot = View.find_last_of('.');
             const FStringView Short = Dot == FStringView::npos ? View : View.substr(Dot + 1);
-            const bool bManaged = Managed.find(FullName) != Managed.end();
+            const bool bManaged = ToScriptClass(Class) != nullptr;
 
             FPickerItem& Item = Out.emplace_back();
-            Item.Name = FString(Short.data(), Short.size());
+            Item.Name = Class->HasMeta("DisplayName") ? Class->GetMeta("DisplayName") : FString(Short.data(), Short.size());
             Item.Key  = FullName;
             Item.Icon = bManaged ? LE_ICON_LANGUAGE_CSHARP : LE_ICON_LANGUAGE_CPP;
 
@@ -78,6 +72,16 @@ namespace Lumina::EntityScriptPicker
                 // A C++ script has no file under the script roots, so it files under its own heading.
                 Item.Category = bManaged ? FString() : FString(NativeCategory);
                 Item.Tooltip  = FullName;
+            }
+
+            // A declared REFLECT(Category) or ToolTip wins over where the source file happens to sit.
+            if (Class->HasMeta("Category"))
+            {
+                Item.Category = Class->GetMeta("Category");
+            }
+            if (Class->HasMeta("ToolTip"))
+            {
+                Item.Tooltip = Lumina::Format("{}\n{}", Class->GetMeta("ToolTip"), Item.Tooltip);
             }
         }
     }
