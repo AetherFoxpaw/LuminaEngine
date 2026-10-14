@@ -19,6 +19,10 @@ namespace Lumina
         FUNCTION()
         static uint64 Run(FScriptCallback Body, int32 Priority);
 
+        // Runs Body over [0, Num) in chunks and returns once all are done; each payload holds Start low and End high.
+        FUNCTION(ScriptInternal)
+        static void ParallelFor(uint32 Num, uint32 MinRange, FScriptCallback Body, int32 Priority);
+
         /** Blocks until the task behind Handle has completed. */
         FUNCTION()
         static void Wait(uint64 Handle);

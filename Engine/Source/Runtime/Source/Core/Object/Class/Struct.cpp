@@ -568,8 +568,8 @@ namespace Lumina
         Tmp.NetGUIDToEntity    = HookSource.NetGUIDToEntity;
         Tmp.ObjectToNetIndex   = HookSource.ObjectToNetIndex;
         Tmp.NetIndexToObject   = HookSource.NetIndexToObject;
-        Tmp.AssetRefToNetIndex = HookSource.AssetRefToNetIndex;
-        Tmp.NetIndexToAssetRef = HookSource.NetIndexToAssetRef;
+        Tmp.DocumentRefToNetIndex = HookSource.DocumentRefToNetIndex;
+        Tmp.NetIndexToDocumentRef = HookSource.NetIndexToDocumentRef;
         Tmp.NameToNetIndex     = HookSource.NameToNetIndex;
         Tmp.NetIndexToName     = HookSource.NetIndexToName;
 
@@ -619,8 +619,8 @@ namespace Lumina
                 Tmp.NetGUIDToEntity    = Ar.NetGUIDToEntity;
                 Tmp.ObjectToNetIndex   = Ar.ObjectToNetIndex;
                 Tmp.NetIndexToObject   = Ar.NetIndexToObject;
-                Tmp.AssetRefToNetIndex = Ar.AssetRefToNetIndex;
-                Tmp.NetIndexToAssetRef = Ar.NetIndexToAssetRef;
+                Tmp.DocumentRefToNetIndex = Ar.DocumentRefToNetIndex;
+                Tmp.NetIndexToDocumentRef = Ar.NetIndexToDocumentRef;
                 Tmp.NameToNetIndex     = Ar.NameToNetIndex;
                 Tmp.NetIndexToName     = Ar.NetIndexToName;
                 Property->NetSerialize(Tmp, Property->GetValuePtr<void>(Source));

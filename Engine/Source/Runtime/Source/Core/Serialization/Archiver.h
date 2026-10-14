@@ -20,6 +20,7 @@ namespace Lumina
 {
     class FField;
     class FGuid;
+    class FPortableBytes;
 }
 
 enum class EArchiverFlags : uint8
@@ -112,9 +113,8 @@ namespace Lumina
         FORCEINLINE int32 GetFileVersion() const { return FileVersion; }
         FORCEINLINE void SetFileVersion(int32 InVersion) { FileVersion = InVersion; }
 
-        // Reads bytes cut from this archive later, resolving names and objects through the same tables. Empty means plain bytes suffice.
-        using FDeferredReaderFactory = TFunction<TUniquePtr<FArchive>(const TVector<uint8>&)>;
-        virtual FDeferredReaderFactory GetDeferredReaderFactory() const { return {}; }
+        // Records what the name slots and object indices in bytes just read from here stand for, false when this archive cannot say.
+        virtual bool DescribeCutBytes(FPortableBytes& Cut) const { return false; }
 
         FORCEINLINE size_t GetMaxSerializeSize() const { return ArMaxSerializeSize; }
 

@@ -40,6 +40,8 @@ namespace Lumina
             this.Path = Path ?? "";
         }
 
+        public static implicit operator FSoftObjectPath(string Path) => new(Path);
+
         public readonly bool IsNull => string.IsNullOrEmpty(Path);
 
         public readonly bool IsValid => !IsNull;
@@ -87,6 +89,10 @@ namespace Lumina
         {
             this.Path = new FSoftObjectPath(Path);
         }
+
+        public static implicit operator TSoftObjectPtr<T>(string Path) => new(Path);
+
+        public static implicit operator FSoftObjectPath(TSoftObjectPtr<T> Reference) => Reference.Path;
 
         public readonly bool IsNull => Path.IsNull;
 

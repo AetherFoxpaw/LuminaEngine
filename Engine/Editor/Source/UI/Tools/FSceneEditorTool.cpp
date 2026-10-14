@@ -496,7 +496,7 @@ namespace Lumina
 
         CStruct* Type = const_cast<CStruct*>(Entry.ReflectedType);
         const FComponentOps* Ops = FindComponentOps(Type->GetName().c_str());
-        void* Data = Ops != nullptr && Ops->Get != nullptr ? Ops->Get(Registry, Entity) : nullptr;
+        void* Data = Ops != nullptr ? Ops->Get(Registry, Entity) : nullptr;
 
         const FString Category = Type->HasMeta("Category") ? Type->GetMeta("Category") : FString();
         const FString Friendly = FriendlyComponentName(Entry.Title);

@@ -41,7 +41,7 @@ internal sealed class FrameMarshalTarget
     [ScriptFunction]
     public void MarshalStructView(Lumina.FAnimGraphBoneMaskBone Bone, out float Weight)
     {
-        Weight = Bone == null ? -1.0f : Bone.Weight;
+        Weight = Bone.Ref.IsNull ? -1.0f : Bone.Weight;
     }
 
     // An async body that yields once, so the token is observably running before the tick completes it.
@@ -311,7 +311,7 @@ internal static unsafe class InteropTestHooks
     public static int Test_ResolveNullableKind(int* OutPayloadKind)
     {
         var Library = new TypeLibrary(new[] { typeof(FrameMarshalTarget) });
-        ScriptType Resolved = Library.ResolveType(typeof(float?), 0, new System.Collections.Generic.HashSet<Type>());
+        ScriptType Resolved = Library.ResolveType(typeof(float?));
 
         *OutPayloadKind = Resolved.Element == null ? -1 : (int)Resolved.Element.Kind;
         return (int)Resolved.Kind;
@@ -364,8 +364,7 @@ internal static unsafe class InteropTestHooks
         return Values.Length;
     }
 
-    // An out container of objects crosses as raw pointers and is rebuilt through the wrapper cache, so every
-    // element has to come back as the same managed instance rather than a fresh one per element.
+    // An out container of objects is rebuilt through the wrapper cache, so each element comes back as the same instance.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static int Test_ObjectArrayBinding(int Count, int* OutIdentical)
@@ -437,7 +436,7 @@ internal static unsafe class InteropTestHooks
     {
         CallbackPayload = 0xFFFFFFFFUL;
         CallbackRuns = 0;
-        return ScriptCallback.OfRepeating((float Value) =>
+        return ScriptCallback.OfFloat((float Value) =>
         {
             CallbackPayload = (ulong)(long)(Value * 1000.0f);
             ++CallbackRuns;
@@ -823,7 +822,7 @@ internal static unsafe class InteropTestHooks
     public static float Test_OpaqueStructArgument(IntPtr Storage)
     {
         Lumina.FInteropOpaqueStruct Opaque = Storage == IntPtr.Zero
-            ? null!
+            ? default
             : new Lumina.FInteropOpaqueStruct(Storage);
 
         return CInteropTestLibrary.ReadOpaqueValue(Opaque);

@@ -6,46 +6,55 @@
 
 namespace Lumina::Scripting
 {
-    void InvokeScriptCallback(FScriptCallback Callback, uint64 Payload)
+    namespace
     {
-        if (!Callback.IsBound())
+        // Both live in LuminaSharp.dll rather than a script assembly, so the resolved pointers survive a reload.
+        uint64 CallInvoke(uint64 Token, uint64 Payload)
         {
-            return;
+            static DotNet::TManagedExport<uint64 (*)(void*, uint64)> Invoke("InvokeScriptCallback");
+            auto* Fn = DotNet::IsInitialized() ? Invoke.Get() : nullptr;
+            return Fn != nullptr ? Fn(reinterpret_cast<void*>(Token), Payload) : 0;
         }
 
-        // Lives in LuminaSharp.dll rather than a script assembly, so the resolved pointer survives a reload.
-        static DotNet::TManagedExport<void (*)(void*, uint64)> Invoke("InvokeScriptCallback");
-        if (auto* Fn = Invoke.Get())
+        void CallFree(void* Handle)
         {
-            Fn(reinterpret_cast<void*>(Callback.Token), Payload);
+            static DotNet::TManagedExport<void (*)(void*)> Free("FreeHandle");
+            if (auto* Fn = DotNet::IsInitialized() ? Free.Get() : nullptr)
+            {
+                Fn(Handle);
+            }
         }
     }
 
-    void InvokeScriptCallbackRepeating(FScriptCallback Callback, uint64 Payload)
+    uint64 InvokeScriptCallback(FScriptCallback Callback, uint64 Payload)
     {
         if (!Callback.IsBound())
         {
-            return;
+            return 0;
         }
+        const uint64 Result = CallInvoke(Callback.Token, Payload);
+        CallFree(reinterpret_cast<void*>(Callback.Token));
+        return Result;
+    }
 
-        static DotNet::TManagedExport<void (*)(void*, uint64)> Invoke("InvokeScriptCallbackRepeating");
-        if (auto* Fn = Invoke.Get())
-        {
-            Fn(reinterpret_cast<void*>(Callback.Token), Payload);
-        }
+    uint64 InvokeScriptCallbackRepeating(FScriptCallback Callback, uint64 Payload)
+    {
+        return Callback.IsBound() ? CallInvoke(Callback.Token, Payload) : 0;
     }
 
     void ReleaseScriptCallback(FScriptCallback Callback)
     {
-        if (!Callback.IsBound())
+        if (Callback.IsBound())
         {
-            return;
+            CallFree(reinterpret_cast<void*>(Callback.Token));
         }
+    }
 
-        static DotNet::TManagedExport<void (*)(void*)> Release("ReleaseScriptCallback");
-        if (auto* Fn = Release.Get())
+    void FreeManagedHandle(void* Handle)
+    {
+        if (Handle != nullptr)
         {
-            Fn(reinterpret_cast<void*>(Callback.Token));
+            CallFree(Handle);
         }
     }
 }

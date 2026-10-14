@@ -176,12 +176,9 @@ namespace Lumina
         return reinterpret_cast<uint64>(RmlUi::GetElementEventListenerDelegate(AsPtr(Listener)));
     }
 
-    FUIDataModel CUILibrary::CreateDataModel(CWorld* World, const FString& Name, uint64 Context,
-        uint64 SetThunk, uint64 EventThunk)
+    FUIDataModel CUILibrary::CreateDataModel(CWorld* World, const FString& Name, FScriptCallback OnSet, FScriptCallback OnEvent)
     {
-        return FromPtr<FUIDataModel>(RmlUi::CreateDataModel(World, Name, reinterpret_cast<void*>(Context),
-            reinterpret_cast<RmlUi::FManagedDataSetThunk>(SetThunk),
-            reinterpret_cast<RmlUi::FManagedDataEventThunk>(EventThunk)));
+        return FromPtr<FUIDataModel>(RmlUi::CreateDataModel(World, Name, OnSet, OnEvent));
     }
 
     void CUILibrary::DestroyDataModel(FUIDataModel Model)

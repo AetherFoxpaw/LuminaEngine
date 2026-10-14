@@ -60,7 +60,7 @@ namespace Lumina::Reflection
     X(HideInComponentList,  Flag,   Editor,    "Hides the component from the scene editor's add-component list.") \
     X(HideInDetails,        Flag,   Editor,    "Hides the type from the details panel.") \
     X(NotPlaceable,         Flag,   Editor,    "Excludes the class from the node graph's placeable node registry.") \
-    X(Scriptable,           Flag,   Script,    "Emits a C# subclassable wrapper. Every reflected virtual on the class becomes overridable from C#.") \
+    X(Scriptable,           Flag,   Script,    "Every reflected virtual on the class becomes overridable from a C# subclass. Any reflected class can be subclassed in C# without it.") \
     X(ScriptFastCalls,      Flag,   Script,    "Applies SuppressGCTransition to every binding on the type. FUNCTION(NoSuppressGCTransition) opts one back out.") \
     X(CSharpValueMirror,    Flag,   Script,    "The type has a hand-written blittable C# value struct. The emitter marshals it by value and generates no wrapper.") \
     X(NoCSharp,             Flag,   Script,    "Suppresses C# binding generation for the type.") \
@@ -115,11 +115,13 @@ namespace Lumina::Reflection
 
 #define LUMINA_FUNCTION_SPECIFIERS(X) \
     X(ToolTip,                  Value, Editor, "Hover text for the function. Filled from the declaration's doc comment when not written by hand.") \
+    X(Button,                   Either, Editor, "Draws a parameterless function as a button in the object's inspector, labeled with the value when one is given.") \
     X(Rpc,                      Value, Runtime, "Broadcast, Host or Owner, the C++ spelling of C# [Rpc.*]. The body starts with NET_RPC(...) passing its parameters.") \
     X(NetFlags,                 Value, Runtime, "Unreliable and OwnerOnly, joined with |, the C++ spelling of C# NetFlags.") \
     X(Bind,                     Flag,  Runtime, "A command a UI document runs from data-event-*, or a computed {{ value }} when it takes nothing and returns one.") \
     X(SuppressGCTransition,     Flag,  Script, "Skips the GC transition on the generated C# call. Only valid on a short leaf function that never calls back into managed code.") \
-    X(NoSuppressGCTransition,   Flag,  Script, "Opts one function back out of a type-wide REFLECT(ScriptFastCalls).")
+    X(NoSuppressGCTransition,   Flag,  Script, "Opts one function back out of a type-wide REFLECT(ScriptFastCalls).") \
+    X(ScriptInternal,           Flag,  Script, "Binds the generated C# method as internal, for plumbing only a typed C# helper calls.")
 
 #define LUMINA_SCRIPT_EXPORT_SPECIFIERS(X) \
     X(Class,                Value, Script, "Required. The C# static class the free function binds to, optionally namespaced.") \
@@ -128,8 +130,7 @@ namespace Lumina::Reflection
     // Injected by the scripting layer at runtime, never authored in a macro, so validation skips them.
 #define LUMINA_RUNTIME_INJECTED_METADATA(X) \
     X(Aliases,            Value, Runtime, "Prior C# type names for a script type, written by the host so renamed scripts still resolve.") \
-    X(ScriptTypeName,     Value, Runtime, "The C# type name behind a script-backed struct, stable across reloads unlike its object name.") \
-    X(ScriptInstanceBase, Flag,  Runtime, "Marks the generated base struct of a script type so pickers offer the concrete subtypes instead.") \
+    X(ScriptTypeName,     Value, Runtime, "The C# type name behind a script struct, which it keeps when a reshape renames it aside.") \
     X(UpdatePhase,        Value, Runtime, "PrePhysics or PostPhysics, from a C# [Reflect(UpdatePhase)], the side of the physics step a minted script class ticks on.")
 
     struct FSpecifierInfo

@@ -4,12 +4,15 @@
 #include "EditorToolContext.h"
 #include "Assets/AssetRegistry/AssetData.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
+#include "Assets/AssetTypes/Animation/Montage/AnimationMontage.h"
 #include "Assets/AssetTypes/Material/Material.h"
 #include "Assets/AssetTypes/Material/MaterialInstance.h"
+#include "Assets/AssetTypes/Mesh/Animation/Animation.h"
 #include "Assets/AssetTypes/Mesh/StaticMesh/StaticMesh.h"
 #include "Assets/AssetTypes/Physics/CollisionShape.h"
 #include "Physics/CollisionShapeGen.h"
 #include "Assets/Factories/Factory.h"
+#include "Assets/Factories/AnimationMontageFactory/AnimationMontageFactory.h"
 #include "Core/Object/Cast.h"
 #include "Core/Object/Class.h"
 #include "Core/Object/Package/Package.h"
@@ -276,6 +279,46 @@ namespace Lumina
             }
         }
 
+        void CreateMontageFrom(const FAssetActionContext& Context)
+        {
+            CAnimation* Clip = Cast<CAnimation>(LoadObject<CObject>(Context.Asset->AssetGUID));
+            if (Clip == nullptr)
+            {
+                ImGuiX::Notifications::NotifyError("Could not load '{0}' to build a montage from it.", Context.Asset->Path);
+                return;
+            }
+
+            const FFixedString NewPath = MakeSiblingAssetPath(
+                FStringView(Context.Asset->Path.c_str(), Context.Asset->Path.size()), "_Montage");
+
+            CAnimationMontage* Montage = CFactory::CreateNewOf<CAnimationMontage>(NewPath);
+            if (Montage == nullptr)
+            {
+                ImGuiX::Notifications::NotifyError("Failed to create a montage at '{0}'.", NewPath);
+                return;
+            }
+
+            CAnimationMontageFactory::InitializeMontage(*Montage, Clip->Skeleton.Get(), Clip);
+
+            if (!CPackage::SavePackage(Montage->GetPackage(), NewPath))
+            {
+                ImGuiX::Notifications::NotifyError("Failed to save '{0}'.", NewPath);
+                return;
+            }
+
+            FAssetRegistry::Get().AssetCreated(Montage);
+
+            ImGuiX::Notifications::NotifySuccess("Created '{0}'.", NewPath);
+
+            if (Context.ToolContext != nullptr)
+            {
+                if (const FAssetData* NewData = FAssetRegistry::Get().GetAssetByPath(FStringView(NewPath.c_str(), NewPath.size())))
+                {
+                    Context.ToolContext->OpenAssetEditor(NewData->AssetGUID);
+                }
+            }
+        }
+
         void BrowseToParentMaterial(const FAssetActionContext& Context)
         {
             CMaterialInstance* Instance = Cast<CMaterialInstance>(LoadObject<CObject>(Context.Asset->AssetGUID));
@@ -317,6 +360,12 @@ namespace Lumina
         {
             .Label   = LE_ICON_CUBE_OUTLINE " Create Collision Shape",
             .Execute = &CreateCollisionShapeFrom,
+        });
+
+        Registry.RegisterAction(CAnimation::StaticClass(), FAssetAction
+        {
+            .Label   = LE_ICON_ANIMATION " Create Animation Montage",
+            .Execute = &CreateMontageFrom,
         });
 
         // Answering whether it has a parent means loading it, and the menu redraws every frame.

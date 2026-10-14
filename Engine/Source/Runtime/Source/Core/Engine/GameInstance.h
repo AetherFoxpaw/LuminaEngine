@@ -27,12 +27,12 @@ namespace Lumina
         FUNCTION()
         virtual void Shutdown();
 
-        // Called for every Game world (packaged boot, runtime travel, and editor PIE play) right BEFORE it is
+        // Called for every Game world (packaged boot, runtime travel, and editor PIE play) right before it is
         // initialized.
         FUNCTION()
         virtual void PreWorldLoad(CWorld* World) {}
 
-        // Called for the same worlds right AFTER InitializeWorld.
+        // Called for the same worlds right after InitializeWorld.
         FUNCTION()
         virtual void PostWorldLoad(CWorld* World) {}
     };

@@ -4,6 +4,7 @@
 #include "Core/Object/ObjectMacros.h"
 #include "Core/Math/Vector/VectorTypes.h"
 #include "Containers/String.h"
+#include "Scripting/ScriptCallback.h"
 #include "UI/UITypes.h"
 #include "UILibrary.generated.h"
 
@@ -129,10 +130,9 @@ namespace Lumina
 
         //~ Data models
 
-        // Context is the managed GCHandle handed back to the two thunks, which are managed function pointers.
-        FUNCTION()
-        static FUIDataModel CreateDataModel(CWorld* World, const FString& Name, uint64 Context,
-            uint64 SetThunk, uint64 EventThunk);
+        // OnSet gets an FUIDataSet and OnEvent an FUIDataEvent by address, and the model owns both from here.
+        FUNCTION(ScriptInternal)
+        static FUIDataModel CreateDataModel(CWorld* World, const FString& Name, FScriptCallback OnSet, FScriptCallback OnEvent);
 
         FUNCTION()
         static void DestroyDataModel(FUIDataModel Model);

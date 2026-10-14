@@ -10,6 +10,7 @@
 #include "Core/Assertions/Assert.h"
 #include "Input/InputAction.h"
 #include "Scripting/DotNet/LayoutRegistry.h"
+#include "UI/RmlUiBridge.h"
 
 namespace Lumina
 {
@@ -45,6 +46,9 @@ namespace Lumina
     LE_REGISTER_LAYOUT("FInputActionState", FInputActionState);
     LE_REGISTER_LAYOUT("FUIntVector2", FUIntVector2);
     LE_REGISTER_LAYOUT("FUIntVector3", FUIntVector3);
+    LE_REGISTER_LAYOUT("FUIArg",       RmlUi::FUIArg);
+    LE_REGISTER_LAYOUT("FUIDataSet",   RmlUi::FUIDataSet);
+    LE_REGISTER_LAYOUT("FUIDataEvent", RmlUi::FUIDataEvent);
     LE_REGISTER_LAYOUT("FIntVector2",  FIntVector2);
     LE_REGISTER_LAYOUT("FIntVector3",  FIntVector3);
 

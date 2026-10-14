@@ -2269,6 +2269,28 @@ namespace Lumina
                     });
                 }
 
+                const bool bPackageLeftPath = Event.Action == EFileAction::Removed || Event.Action == EFileAction::Renamed;
+                const FFixedString LeftPath = Event.Action == EFileAction::Renamed ? MakeVirtualPath(Event.OldPath) : RelativePath;
+                if (bPackageLeftPath && VFS::HasExtension(LeftPath, ".lasset"))
+                {
+                    MainThread::Enqueue([LeftPath]
+                    {
+                        // Saves replace the file by rename, so only a path still missing now was really deleted or moved.
+                        const FStringView Path(LeftPath.c_str(), LeftPath.size());
+                        if (VFS::Exists(Path))
+                        {
+                            return;
+                        }
+
+                        FAssetRegistry& Reg = FAssetRegistry::Get();
+                        if (const FAssetData* Stale = Reg.GetAssetByPath(Path))
+                        {
+                            const FGuid StaleGUID = Stale->AssetGUID;
+                            Reg.AssetDeleted(StaleGUID);
+                        }
+                    });
+                }
+
                 // C# is not a text asset, so its extension is checked explicitly.
                 const bool bIsCSharp = VFS::HasExtension(Event.Path, ".cs");
                 if ((TextAsset::IsTextAssetPath(RelView) || bIsCSharp) && Event.Action != EFileAction::Modified)
@@ -3760,6 +3782,7 @@ namespace Lumina
             Contents += "using Lumina;\n\n";
             // Not "Game", which would shadow LuminaSharp.Game and break Game.OpenLevel in every script.
             Contents += "namespace GameScripts;\n\n";
+            Contents += "[Reflect]\n";
             Contents += "public sealed class ";
             Contents += ClassName.c_str();
             Contents += " : CEntityScript\n";

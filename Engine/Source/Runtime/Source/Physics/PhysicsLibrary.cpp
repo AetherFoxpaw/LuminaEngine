@@ -36,8 +36,7 @@ namespace Lumina
         }
     }
 
-    SRayResult CPhysicsLibrary::Raycast(CWorld* World, FVector3 Start, FVector3 End,
-        ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
+    SRayResult CPhysicsLibrary::Raycast(CWorld* World, FVector3 Start, FVector3 End, ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
         SRayResult Miss;
         Miss.Start = Start;

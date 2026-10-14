@@ -210,16 +210,16 @@ namespace Lumina::Physics
         
         virtual TOptional<SRayResult> CastRay(const SRayCastSettings& Settings) = 0;
 
-        // Sweep hits near-to-far; OutHits is CLEARED first, so reusing one buffer keeps the query alloc-free.
+        // Sweep hits near-to-far; OutHits is cleared first, so reusing one buffer keeps the query alloc-free.
         virtual void CastSphere(const SSphereCastSettings& Settings, TVector<SRayResult>& OutHits) = 0;
 
         // Nearest sweep hit; lets the backend shrink the query instead of gathering every hit behind it.
         virtual TOptional<SRayResult> CastSphereClosest(const SSphereCastSettings& Settings) { return {}; }
 
-        // Every body the ray crosses, near-to-far (penetrating bullets). OutHits is CLEARED first.
+        // Every body the ray crosses, near-to-far (penetrating bullets). OutHits is cleared first.
         virtual void CastRayAll(const SRayCastSettings& Settings, TVector<SRayResult>& OutHits) { OutHits.clear(); }
 
-        // Distinct entities whose bodies CONTAIN the world point (volume containment, no sweep).
+        // Distinct entities whose bodies contain the world point (volume containment, no sweep).
         virtual int32 CollidePoint(const FVector3& Point, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) { return 0; }
 
         // Distinct entities intersecting the shape; returns the count written, == size() means possibly more.
@@ -236,10 +236,7 @@ namespace Lumina::Physics
         virtual void SetAngularVelocity(ECS::FEntity Entity, const FVector3& AngularVelocity) = 0;
         virtual void SetGravityFactor(ECS::FEntity Entity, float Factor) = 0;
 
-        // Shape-accurate buoyancy: applies submerged-volume buoyancy + linear/angular drag impulse for
-        // this frame. The caller supplies the fluid surface point + normal (e.g. sampled from the rendered
-        // Gerstner waves), so the fluid plane follows the wave surface instead of being flat. Buoyancy is the
-        // fluid/body density ratio: 1 = neutral, >1 floats. No-op without a dynamic body. Default is a no-op.
+        // Shape-accurate buoyancy.
         virtual void ApplyBuoyancyImpulse(ECS::FEntity Entity, const FVector3& SurfacePosition, const FVector3& SurfaceNormal,
             float Buoyancy, float LinearDrag, float AngularDrag, const FVector3& FluidVelocity, float DeltaTime) {}
 

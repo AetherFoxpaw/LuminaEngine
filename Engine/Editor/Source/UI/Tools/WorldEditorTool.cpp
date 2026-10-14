@@ -2961,6 +2961,11 @@ namespace Lumina
             return;
         }
 
+        if (!World->GetPackage()->IsDirty())
+        {
+            return;
+        }
+
         // The world editor saves its live CWorld in place, and the thumbnail comes from the viewport.
         if (ShouldGenerateThumbnailOnSave())
         {

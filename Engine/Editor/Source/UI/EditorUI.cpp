@@ -91,7 +91,6 @@
 #include "Properties/Customizations/CustomPrimitiveDataCustomization.h"
 #include "Tools/AssetEditors/ParticleSystemEditor/ParticleParamCustomization.h"
 #include "Tools/AssetEditors/ParticleSystemEditor/ParticleParameterCustomization.h"
-#include "Properties/Customizations/AssetRefPropertyCustomization.h"
 #include "Properties/Customizations/UIDocumentPropertyCustomization.h"
 #include "UI/UIDocumentRef.h"
 #include "Properties/Customizations/GameplayTagPropertyCustomization.h"
@@ -575,11 +574,6 @@ namespace Lumina
         PropertyCustomizationRegistry->RegisterPropertyCustomization(StaticStruct<FTransform>()->GetName(), []
         {
             return FTransformPropertyCustomization::MakeInstance();
-        });
-
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(FAssetRef::StaticStruct()->GetName(), []
-        {
-           return FAssetRefPropertyCustomization::MakeInstance();
         });
 
         PropertyCustomizationRegistry->RegisterPropertyCustomization(FUIDocumentRef::StaticStruct()->GetName(), []
@@ -2129,6 +2123,26 @@ namespace Lumina
             }
         }
 
+        // Backtick works like a game console, opening the log ready to type and closing it from the command line.
+        if (ConsoleLogTool != nullptr && ImGui::IsKeyPressed(ImGuiKey_GraveAccent, false) && ImGui::GetIO().KeyMods == ImGuiMod_None)
+        {
+            if (FFooterDrawer* ConsoleDrawer = FindDrawerForTool(ConsoleLogTool))
+            {
+                if (ConsoleLogTool->IsCommandInputActive())
+                {
+                    if (!ConsoleDrawer->bDocked && OpenDrawer == ConsoleLogTool)
+                    {
+                        ActivateDrawer(*ConsoleDrawer);
+                    }
+                }
+                else if (!ImGui::GetIO().WantTextInput)
+                {
+                    ShowDrawer(*ConsoleDrawer);
+                    ConsoleLogTool->FocusCommandInput();
+                }
+            }
+        }
+
         const float Scale = ImGuiX::GetUIScale();
         const float BarHeight = ImGui::GetFrameHeight() + 6.0f * Scale;
 
@@ -3051,6 +3065,12 @@ namespace Lumina
         {
             const FStringView   DiskPath(Script.c_str(), Script.size());
             const FStringView   FileName    = VFS::FileName(DiskPath);
+            const FStringView   Parent      = VFS::Parent(DiskPath, true);
+            if (FileName.ends_with(".generated.cs") ||
+                (VFS::FileName(Parent) == "Generated" && VFS::FileName(VFS::Parent(Parent, true)) == "Scripts"))
+            {
+                continue;
+            }
             const FFixedString  VirtualPath = VFS::ResolveToVirtualPath(DiskPath);
             Entries.push_back(FEntry{ FGuid(), FFixedString(FileName.data(), FileName.size()),
                                       VirtualPath.empty() ? FFixedString(Script.c_str()) : VirtualPath, FName(),

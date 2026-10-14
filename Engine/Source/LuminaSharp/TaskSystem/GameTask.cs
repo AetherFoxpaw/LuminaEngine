@@ -106,7 +106,7 @@ public static class GameTask
         Lumina.CWorld World = Engine.World;
         FPending<bool> Pending = new(World);
         Pending.CancelOn(Token);
-        uint Timer = CTimerLibrary.SetTimer(World, Seconds, ScriptCallback.OfRepeating(() => Pending.Settle(true)));
+        uint Timer = CTimerLibrary.SetTimer(World, Seconds, ScriptCallback.Of(() => Pending.Settle(true)));
         Pending.WaitOnTimer(World, Timer);
         return Pending.Source.Task;
     }

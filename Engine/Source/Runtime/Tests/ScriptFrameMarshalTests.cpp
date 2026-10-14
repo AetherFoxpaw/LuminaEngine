@@ -30,6 +30,7 @@
 #include "Core/Delegates/ScriptDelegate.h"
 #include "Core/Object/InstancedStruct.h"
 #include "Scripting/ScriptDelegateTestTypes.h"
+#include "ScriptTestUtil.h"
 
 using namespace Lumina;
 
@@ -91,18 +92,9 @@ namespace
         return Field;
     }
 
-    Scripting::FScriptExportField ScalarField(const char* Name, EPropertyTypeFlags Kind)
-    {
-        Scripting::FScriptExportField Field;
-        Field.Name = FName(Name);
-        Field.Type = MakeShared<Scripting::FScriptExportType>();
-        Field.Type->Kind = Kind;
-        return Field;
-    }
-
     Scripting::FScriptExportField EntityField(const char* Name)
     {
-        return ScalarField(Name, EPropertyTypeFlags::Entity);
+        return ScriptTest::ScalarField(Name, EPropertyTypeFlags::Entity);
     }
 
     Scripting::FScriptExportField ByteEnumField(const char* Name, const char* EnumName)
@@ -113,10 +105,8 @@ namespace
         Field.Type->Kind = EPropertyTypeFlags::Enum;
         Field.Type->EnumName = FName(EnumName);
         Field.Type->EnumUnderlying = EPropertyTypeFlags::UInt8;
-        Field.Type->EnumEntries.push_back({FName("Zero"), 0});
-        Field.Type->EnumEntries.push_back({FName("One"), 1});
-        Field.Type->EnumEntries.push_back({FName("Two"), 2});
-        Field.Type->EnumEntries.push_back({FName("Highest"), 255});
+        ScriptTest::PublishEnum(EnumName, EPropertyTypeFlags::UInt8,
+            { {FName("Zero"), 0}, {FName("One"), 1}, {FName("Two"), 2}, {FName("Highest"), 255} });
         return Field;
     }
 
@@ -169,7 +159,7 @@ namespace
         }
 
         Scripting::FScriptExportSchema Properties;
-        Properties.Fields.push_back(ScalarField("Anchor", EPropertyTypeFlags::Int32));
+        Properties.Fields.push_back(ScriptTest::ScalarField("Anchor", EPropertyTypeFlags::Int32));
         Scripting::AppendScriptPropertiesToClass(Class, Properties);
 
         CScriptStruct* Record = Cast<CScriptStruct>(Class->LayoutRecord.Get());
@@ -266,7 +256,7 @@ TEST_F(FFrameMarshalTest, AByteEnumIsReadAtItsOwnWidth)
 
     Scripting::FScriptExportSchema Params;
     Params.Fields.push_back(ByteEnumField("Channel", "FrameMarshal_Channel"));
-    Params.Fields.push_back(ScalarField("After", EPropertyTypeFlags::UInt8));
+    Params.Fields.push_back(ScriptTest::ScalarField("After", EPropertyTypeFlags::UInt8));
 
     FFunction* Function = MintFrame("FrameMarshal_ReadEnum", Params);
     ASSERT_NE(Function, nullptr);
@@ -291,7 +281,7 @@ TEST_F(FFrameMarshalTest, AByteEnumWriteStaysInsideItsSlot)
 
     Scripting::FScriptExportSchema Params;
     Params.Fields.push_back(ByteEnumField("Channel", "FrameMarshal_WriteChannel"));
-    Params.Fields.push_back(ScalarField("After", EPropertyTypeFlags::UInt8));
+    Params.Fields.push_back(ScriptTest::ScalarField("After", EPropertyTypeFlags::UInt8));
 
     FFunction* Function = MintFrame("FrameMarshal_WriteEnum", Params);
     ASSERT_NE(Function, nullptr);
@@ -337,7 +327,7 @@ TEST_F(FFrameMarshalTest, ASlotTooNarrowForItsMirrorIsRefused)
     ASSERT_NE(Bind, nullptr);
 
     Scripting::FScriptExportSchema Params;
-    Params.Fields.push_back(ScalarField("NotAVector", EPropertyTypeFlags::Float));
+    Params.Fields.push_back(ScriptTest::ScalarField("NotAVector", EPropertyTypeFlags::Float));
 
     FFunction* Function = MintFrame("FrameMarshal_Mismatch", Params);
     ASSERT_NE(Function, nullptr);
@@ -1495,7 +1485,7 @@ TEST_F(FFrameMarshalTest, AnAsyncScriptFunctionHandsBackATokenNativeCanPoll)
 
     Scripting::FScriptExportSchema Params;
     Params.Fields.push_back(ParamField("Value", EPropertyTypeFlags::Int32, EPropertyFlags::None));
-    Params.Fields.push_back(ScalarField("ReturnValue", EPropertyTypeFlags::UInt64));
+    Params.Fields.push_back(ScriptTest::ScalarField("ReturnValue", EPropertyTypeFlags::UInt64));
 
     FFunction* Function = MintFrame("FrameMarshal_Async", Params, "MarshalAsync", 1);
     ASSERT_NE(Function, nullptr);
@@ -1541,7 +1531,7 @@ TEST_F(FFrameMarshalTest, AFinishedAsyncScriptFunctionIsReapedOnTheTick)
 
     Scripting::FScriptExportSchema Params;
     Params.Fields.push_back(ParamField("Value", EPropertyTypeFlags::Int32, EPropertyFlags::None));
-    Params.Fields.push_back(ScalarField("ReturnValue", EPropertyTypeFlags::UInt64));
+    Params.Fields.push_back(ScriptTest::ScalarField("ReturnValue", EPropertyTypeFlags::UInt64));
 
     FFunction* Function = MintFrame("FrameMarshal_AsyncReap", Params, "MarshalAsync", 1);
     ASSERT_NE(Function, nullptr);

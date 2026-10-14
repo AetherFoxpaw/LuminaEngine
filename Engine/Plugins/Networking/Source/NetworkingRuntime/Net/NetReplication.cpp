@@ -12,7 +12,7 @@
 #include "Core/Math/Hash/Hash.h"
 #include "Containers/HashTable.h"
 #include "Containers/Vector.h"
-#include "Assets/AssetRef.h"
+#include "UI/UIDocumentRef.h"
 #include "World/Entity/Components/Component.h"
 #include "World/Entity/EntityUtils.h"
 #include "World/Entity/Components/TransformComponent.h"
@@ -1002,7 +1002,7 @@ namespace Lumina::Net
         }
 
         // Get-or-assign a stable index for an asset ref, keyed by GUID (else Path) so it dedupes.
-        uint32 NetAsset_GetOrAssign(FNetAssetMap& Map, const FAssetRef& Ref)
+        uint32 NetAsset_GetOrAssign(FNetAssetMap& Map, const FUIDocumentRef& Ref)
         {
             if (Ref.IsNull()) { return 0; }
             const FString& Key = !Ref.Guid.empty() ? Ref.Guid : Ref.Path;
@@ -1015,11 +1015,11 @@ namespace Lumina::Net
             return Index;
         }
 
-        FAssetRef NetAsset_Resolve(FNetAssetMap& Map, uint32 Index)
+        FUIDocumentRef NetAsset_Resolve(FNetAssetMap& Map, uint32 Index)
         {
-            if (Index == 0) { return FAssetRef(); }
+            if (Index == 0) { return FUIDocumentRef(); }
             auto It = Map.IndexToRef.find(Index);
-            return It != Map.IndexToRef.end() ? It->second : FAssetRef();
+            return It != Map.IndexToRef.end() ? It->second : FUIDocumentRef();
         }
 
         // Get-or-assign a stable index for a name, keyed by the FName itself so it dedupes.
@@ -1056,7 +1056,7 @@ namespace Lumina::Net
             return Net != nullptr ? Net->NetGUID.Value : 0u;
         };
         Ar.ObjectToNetIndex   = [&State](CObject* O)         { return NetObj_GetOrAssign(State.OutObjects, O); };
-        Ar.AssetRefToNetIndex = [&State](const FAssetRef& R) { return NetAsset_GetOrAssign(State.OutAssets, R); };
+        Ar.DocumentRefToNetIndex = [&State](const FUIDocumentRef& R) { return NetAsset_GetOrAssign(State.OutAssets, R); };
         Ar.NameToNetIndex     = [&State](const FName& N)     { return NetName_GetOrAssign(State.OutNames, N); };
     }
 
@@ -1096,7 +1096,7 @@ namespace Lumina::Net
             return NetObj_Resolve(InObj, I);
         };
 
-        Ar.NetIndexToAssetRef = [&InAst](uint32 I, FAssetRef& Out)
+        Ar.NetIndexToDocumentRef = [&InAst](uint32 I, FUIDocumentRef& Out)
         {
             Out = NetAsset_Resolve(InAst, I);
         };
@@ -1177,7 +1177,7 @@ namespace Lumina::Net
             Reader << Path;
             Reader << Guid;
             if (Reader.HasError()) { break; }
-            FAssetRef Ref;
+            FUIDocumentRef Ref;
             Ref.Path = Path;
             Ref.Guid = Guid;
             Map.IndexToRef[Index] = Ref;

@@ -251,10 +251,7 @@ namespace Lumina
         }
 
         // Systems that only react to changed components would otherwise never see a sequence move the value.
-        if (Ops->Patch != nullptr)
-        {
-            Ops->Patch(Registry, Entity);
-        }
+        Ops->Patch(Registry, Entity);
     }
 
     bool CSequenceTrack_Property::SampleValue(CWorld* World, ECS::FEntity Entity, float& OutValue) const
