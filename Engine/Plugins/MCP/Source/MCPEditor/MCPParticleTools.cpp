@@ -196,7 +196,7 @@ namespace Lumina::MCP
             return false;
         }
 
-        nlohmann::json ParameterValueJson(const FParticleParameter& Param)
+        nlohmann::json ParameterValueJson(const SParticleParameter& Param)
         {
             switch (Param.Type)
             {
@@ -208,7 +208,7 @@ namespace Lumina::MCP
             }
         }
 
-        bool ReadParameterValue(const nlohmann::json& Value, FParticleParameter& Param, FString& OutError)
+        bool ReadParameterValue(const nlohmann::json& Value, SParticleParameter& Param, FString& OutError)
         {
             switch (Param.Type)
             {
@@ -311,7 +311,7 @@ namespace Lumina::MCP
                     }
 
                     Out.Name = FString(System->GetName().ToString().c_str());
-                    for (const FParticleParameter& Param : System->UserParameters)
+                    for (const SParticleParameter& Param : System->UserParameters)
                     {
                         SParticleUserParameterInfo Info;
                         Info.Name  = FString(Param.Name.ToString().c_str());
@@ -374,14 +374,7 @@ namespace Lumina::MCP
                     }
 
                     // Held strongly, since the export table only watches it and a compile job releasing its ref would free it.
-                    const TStrongObjectPtr<CParticleSystem> System(CFactory::CreateNewOf<CParticleSystem>(FStringView(Path.c_str(), Path.size())));
-
-                    // CreateNewOf skips the factory, which is what gives a new system its first emitter.
-                    if (System && System->Emitters.empty())
-                    {
-                        System->AddEmitter();
-                    }
-
+                    const TStrongObjectPtr<CParticleSystem> System(CFactoryRegistry::Get().FindFactory(CParticleSystem::StaticClass())->TryCreateNew<CParticleSystem>(FStringView(Path.c_str(), Path.size())));
                     if (!System || System->Emitters.empty())
                     {
                         return Agent::FToolResult::Error(Lumina::Format("Could not create a particle system at {}.", Path));
@@ -798,7 +791,7 @@ namespace Lumina::MCP
                         return Agent::FToolResult::Error("A parameter needs a name.");
                     }
 
-                    FParticleParameter Param;
+                    SParticleParameter Param;
                     Param.Name = FName(In.Name.c_str());
                     if (!ParseParameterType(In.Type, Param.Type))
                     {
@@ -812,7 +805,7 @@ namespace Lumina::MCP
                     }
 
                     bool bReplaced = false;
-                    for (FParticleParameter& Existing : System->UserParameters)
+                    for (SParticleParameter& Existing : System->UserParameters)
                     {
                         if (Existing.Name == Param.Name)
                         {

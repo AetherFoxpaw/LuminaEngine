@@ -60,7 +60,7 @@ namespace Lumina::ParticleOps
         {
             if (!Input.ParameterName.IsNone())
             {
-                if (const FParticleParameter* Bound = System->FindUserParameter(Input.ParameterName))
+                if (const SParticleParameter* Bound = System->FindUserParameter(Input.ParameterName))
                 {
                     return Bound->Type == EParticleParameterType::Float ? FVector2(Bound->Scalar) : FVector2(Bound->Vector.x, Bound->Vector.y);
                 }

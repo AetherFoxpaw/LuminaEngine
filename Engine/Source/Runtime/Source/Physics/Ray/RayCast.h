@@ -20,7 +20,7 @@ namespace Lumina
     inline constexpr ECollisionProfiles AllCollisionProfiles = ECollisionProfiles::All;
 
     REFLECT()
-    struct FPhysicsBodyTarget
+    struct SPhysicsBodyTarget
     {
         GENERATED_BODY()
 
@@ -46,7 +46,7 @@ namespace Lumina
 
     // The volume a sweep or overlap tests, centered on the query position, a capsule running along its rotated up axis.
     REFLECT()
-    struct FQueryShape
+    struct SQueryShape
     {
         GENERATED_BODY()
 
@@ -67,25 +67,25 @@ namespace Lumina
         PROPERTY()
         FQuat Rotation = FQuat::Identity();
 
-        static FQueryShape Sphere(float Radius)
+        static SQueryShape Sphere(float Radius)
         {
-            FQueryShape Shape;
+            SQueryShape Shape;
             Shape.Radius = Radius;
             return Shape;
         }
 
-        static FQueryShape Box(const FVector3& HalfExtents, const FQuat& Rotation)
+        static SQueryShape Box(const FVector3& HalfExtents, const FQuat& Rotation)
         {
-            FQueryShape Shape;
+            SQueryShape Shape;
             Shape.Type = EQueryShapeType::Box;
             Shape.HalfExtents = HalfExtents;
             Shape.Rotation = Rotation;
             return Shape;
         }
 
-        static FQueryShape Capsule(float Radius, float HalfHeight, const FQuat& Rotation)
+        static SQueryShape Capsule(float Radius, float HalfHeight, const FQuat& Rotation)
         {
-            FQueryShape Shape;
+            SQueryShape Shape;
             Shape.Type = EQueryShapeType::Capsule;
             Shape.Radius = Radius;
             Shape.HalfHeight = HalfHeight;
@@ -100,7 +100,7 @@ namespace Lumina
         GENERATED_BODY()
 
         PROPERTY()
-        FPhysicsBodyTarget Target;
+        SPhysicsBodyTarget Target;
 
         PROPERTY()
         uint32 Entity = ECS::NullEntity.Value;

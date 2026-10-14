@@ -593,9 +593,6 @@ namespace Lumina
         PhysicsScene.reset();
         DestroyRenderer();
 
-        // After the renderer, so nothing still draws the meshes script built.
-        RetainedObjects.clear();
-
         FCoreDelegates::Get().PostWorldUnload.Broadcast();
     }
 
@@ -925,7 +922,7 @@ namespace Lumina
         else
         {
             // Degenerate fracture falls back to subdividing the bounds into textured box chunks.
-            const FAABB& LocalBounds = SourceMesh->GetAABB();
+            const SAABB& LocalBounds = SourceMesh->GetAABB();
             const FVector3 LocalExtent = Math::Max(LocalBounds.GetSize(), FVector3(0.01f));
             const FVector3 LocalCenter = LocalBounds.GetCenter();
             const int32 Target = Math::Clamp(Destructible->FragmentCount, 2, 512);

@@ -28,6 +28,9 @@ public sealed class ReflectAttribute : Attribute
     // Backs a settings class with this config file, which the config system loads and saves its properties to.
     public string? ConfigFile { get; set; }
 
+    // Puts every asset of this class and its subclasses in the named asset group, the same as a C++ REFLECT(Group = ...).
+    public string? Group { get; set; }
+
     public bool HideInComponentList { get; set; }
 
     public bool HideInDetails { get; set; }
@@ -126,6 +129,10 @@ public sealed class ReflectAttribute : Attribute
         if (ConfigFile != null)
         {
             yield return new(nameof(ConfigFile), ConfigFile);
+        }
+        if (Group != null)
+        {
+            yield return new(nameof(Group), Group);
         }
         if (HideInComponentList)
         {
@@ -281,6 +288,12 @@ public sealed class PropertyAttribute : Attribute
 
     // Turns a string into a picker of those file kinds, such as "rml" or "rml,rcss", the same as a C++ PROPERTY(AssetType = ...).
     public string? AssetType { get; set; }
+
+    // Soft references in this field load with their owner when the named bundle is asked for, the same as a C++ PROPERTY(Bundle = ...).
+    public string? Bundle { get; set; }
+
+    // Narrows an SAssetId field's picker to one asset group, the same as a C++ PROPERTY(Group = ...).
+    public string? Group { get; set; }
 
     /// <summary>
     /// Reflected flags for this property, on top of the Editable one <see cref="PropertyAttribute"/> implies.

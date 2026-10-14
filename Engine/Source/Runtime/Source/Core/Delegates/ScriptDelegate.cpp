@@ -30,7 +30,7 @@ namespace Lumina
         // The context is the callback's token, and the payload pointer crosses as its value.
         void InvokeManagedListener(void* Context, const void* Payload)
         {
-            Scripting::InvokeScriptCallbackRepeating(FScriptCallback{ reinterpret_cast<uint64>(Context) }, reinterpret_cast<uint64>(Payload));
+            Scripting::InvokeScriptCallbackRepeating(SScriptCallback{ reinterpret_cast<uint64>(Context) }, reinterpret_cast<uint64>(Payload));
         }
     }
 
@@ -218,7 +218,7 @@ namespace Lumina
         Listeners.resize(Write);
     }
 
-    uint64 FScriptDelegateBase::BindManaged(FScriptCallback Callback)
+    uint64 FScriptDelegateBase::BindManaged(SScriptCallback Callback)
     {
         return BindManaged(&InvokeManagedListener, reinterpret_cast<void*>(Callback.Token));
     }

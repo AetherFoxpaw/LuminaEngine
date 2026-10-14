@@ -92,8 +92,16 @@ public partial class CEntityScript
         return World.RemoveScript<T>(Entity);
     }
 
+    // The entity and world were set again by the level change, so the cached ones belong to a world that is gone.
+    partial void __BeforeScriptEvent_OnTraveled()
+    {
+        CachedEntity = FEntity.Null;
+        CachedWorld = null;
+        CachedTransform = null;
+    }
+
     // Feeds the script's SInputAction and SInputAxis bindings before its own OnAction runs.
-    partial void __BeforeScriptEvent_OnAction(FName Action, FInputActionState State)
+    partial void __BeforeScriptEvent_OnAction(FName Action, SInputActionState State)
     {
         if (Description == null || !Description.HasInputBindings)
         {

@@ -6,7 +6,7 @@ using Lumina;
 
 namespace LuminaSharp;
 
-// Every way native calls back into managed code is one of these behind a GCHandle, carried as an FScriptCallback.
+// Every way native calls back into managed code is one of these behind a GCHandle, carried as an SScriptCallback.
 public abstract class ScriptClosure
 {
     // The payload's meaning is the binding's own; the answer goes back to native, which most callers ignore.
@@ -29,37 +29,37 @@ internal sealed class ActionClosure : ScriptClosure
     }
 }
 
-// Builds the FScriptCallback a reflected native function takes. Native decides whether it fires once or repeatedly.
+// Builds the SScriptCallback a reflected native function takes. Native decides whether it fires once or repeatedly.
 public static class ScriptCallback
 {
     // Tracked so a generation unload can clear closures over user types before they pin the collectible context.
     private static readonly HashSet<IntPtr> Live = new();
 
-    public static FScriptCallback Of(Action Handler)
+    public static SScriptCallback Of(Action Handler)
     {
         return Bind(new ActionClosure(_ => Handler()));
     }
 
     // The payload is the entity the operation produced, or the null entity when it produced none.
-    public static FScriptCallback Of(Action<FEntity> Handler)
+    public static SScriptCallback Of(Action<FEntity> Handler)
     {
         return Bind(new ActionClosure(Payload => Handler(new FEntity((uint)Payload))));
     }
 
     // The payload is a float packed by Scripting::PackFloatPayload, such as a tween's value.
-    public static FScriptCallback OfFloat(Action<float> Handler)
+    public static SScriptCallback OfFloat(Action<float> Handler)
     {
         return Bind(new ActionClosure(Payload => Handler(BitConverter.Int32BitsToSingle(unchecked((int)(uint)Payload)))));
     }
 
-    public static FScriptCallback Bind(ScriptClosure Closure)
+    public static SScriptCallback Bind(ScriptClosure Closure)
     {
         IntPtr Token = GCHandle.ToIntPtr(GCHandle.Alloc(Closure));
         lock (Live)
         {
             Live.Add(Token);
         }
-        return new FScriptCallback { Token = (ulong)Token };
+        return new SScriptCallback { Token = (ulong)Token };
     }
 
     // Runs the closure and keeps it bound; native frees it through FreeHandle when it is done with it.

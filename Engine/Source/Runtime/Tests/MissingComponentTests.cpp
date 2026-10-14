@@ -95,7 +95,7 @@ TEST(MissingComponents, HeldBytesReadBackThroughAnotherNameTable)
     Fill(Struct, Source);
 
     SMissingComponents Holder;
-    FHeldValue& Entry = Holder.Entries.emplace_back();
+    SHeldValue& Entry = Holder.Entries.emplace_back();
     Entry.TypeName = FName("SComp_GTestHeldBytes");
     Entry.Data.Capture(*Struct, Source);
     Ops->Delete(Source);

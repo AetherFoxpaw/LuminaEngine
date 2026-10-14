@@ -10,7 +10,7 @@ namespace Lumina
 {
     // A value whose type was not loaded when it was read, kept whole until the type comes back.
     REFLECT()
-    struct RUNTIME_API FHeldValue
+    struct RUNTIME_API SHeldValue
     {
         GENERATED_BODY()
 
@@ -19,7 +19,7 @@ namespace Lumina
 
         FPortableBytes Data;
 
-        friend FArchive& operator<<(FArchive& Ar, FHeldValue& Held) { return Ar << Held.TypeName << Held.Data; }
+        friend FArchive& operator<<(FArchive& Ar, SHeldValue& Held) { return Ar << Held.TypeName << Held.Data; }
     };
 
     // Components whose type was not loaded, saved and copied with the entity until a load or script reload brings the type back.
@@ -29,7 +29,7 @@ namespace Lumina
         GENERATED_BODY()
 
         PROPERTY(ReadOnly, NoResize, NoReorder, TitleProperty = "TypeName")
-        TVector<FHeldValue> Entries;
+        TVector<SHeldValue> Entries;
 
         bool Serialize(FArchive& Ar)
         {
@@ -40,7 +40,7 @@ namespace Lumina
 
     namespace MissingComponents
     {
-        RUNTIME_API void Hold(ECS::FRegistry& Registry, ECS::FEntity Entity, FHeldValue&& Held);
+        RUNTIME_API void Hold(ECS::FRegistry& Registry, ECS::FEntity Entity, SHeldValue&& Held);
 
         // Emplaces every held component whose type now resolves, returning how many came back.
         RUNTIME_API int32 Restore(ECS::FRegistry& Registry, ECS::FEntity Entity);

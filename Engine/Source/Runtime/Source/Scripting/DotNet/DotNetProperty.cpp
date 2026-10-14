@@ -556,10 +556,10 @@ LUMINA_DOTNET_EXPORT(uint64, DelegateBind)(void* DelegatePtr, uint64 Callback)
 {
     if (DelegatePtr == nullptr)
     {
-        Scripting::ReleaseScriptCallback(FScriptCallback{ Callback });
+        Scripting::ReleaseScriptCallback(SScriptCallback{ Callback });
         return 0;
     }
-    return static_cast<FScriptDelegateBase*>(DelegatePtr)->BindManaged(FScriptCallback{ Callback });
+    return static_cast<FScriptDelegateBase*>(DelegatePtr)->BindManaged(SScriptCallback{ Callback });
 }
 
 // A delegate's argument properties, so the managed side can bind frame slots the way a function does.

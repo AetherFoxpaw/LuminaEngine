@@ -403,8 +403,8 @@ namespace Lumina::RmlUi
             TVector<int32>            Types;              // per-field EUIVarType
             TVector<Rml::String>      VarNames;           // per-field name, for DirtyVariable
             TVector<TUniquePtr<FListField>> Lists;        // list fields (own id space, index == list field id)
-            FScriptCallback           OnSet;
-            FScriptCallback           OnEvent;
+            SScriptCallback           OnSet;
+            SScriptCallback           OnEvent;
 
             // Set for an editor preview's design model, which belongs to that context rather than to a world.
             Rml::Context*             OwnerContext = nullptr;
@@ -2533,7 +2533,7 @@ namespace Lumina::RmlUi
         }
     }
 
-    void* CreateDataModel(CWorld* World, FStringView Name, FScriptCallback OnSet, FScriptCallback OnEvent)
+    void* CreateDataModel(CWorld* World, FStringView Name, SScriptCallback OnSet, SScriptCallback OnEvent)
     {
         NoteUIChanged();
         FState& State = S();

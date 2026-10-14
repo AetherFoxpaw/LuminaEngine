@@ -9,7 +9,7 @@ public struct Trace
     private CWorld World;
     private FVector3 From;
     private FVector3 To;
-    private FQueryShape Shape;
+    private SQueryShape Shape;
     private bool bSwept;
     private FEntity IgnoreEntity;
     private ECollisionProfiles Mask;

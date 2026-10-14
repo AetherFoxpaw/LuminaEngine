@@ -108,6 +108,9 @@ enum class ELuminaEngineVersion : uint32
 	// An entity script whose class was not loaded is written after the live ones with the names and objects its bytes refer to.
 	PORTABLE_HELD_SCRIPTS,
 
+	// A soft import lists the asset bundles that reference it.
+	ASSET_BUNDLES,
+
 	AUTOMATIC_VERSION_PLUS_ONE,
 	AUTOMATIC_VERSION = AUTOMATIC_VERSION_PLUS_ONE - 1
 };

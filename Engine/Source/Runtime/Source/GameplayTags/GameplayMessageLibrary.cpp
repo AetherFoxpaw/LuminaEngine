@@ -12,7 +12,7 @@ namespace Lumina
         // The context is the listener's callback token, and the message crosses as its address.
         uint32 InvokeManagedListener(void* Context, const FGameplayMessage* Message)
         {
-            return Scripting::InvokeScriptCallbackRepeating(FScriptCallback{ reinterpret_cast<uint64>(Context) }, reinterpret_cast<uint64>(Message)) != 0 ? 1u : 0u;
+            return Scripting::InvokeScriptCallbackRepeating(SScriptCallback{ reinterpret_cast<uint64>(Context) }, reinterpret_cast<uint64>(Message)) != 0 ? 1u : 0u;
         }
     }
 
@@ -21,7 +21,7 @@ namespace Lumina
         return TypeName.IsNone() ? 0 : MakeGameplayMessageType(TypeName);
     }
 
-    uint64 CGameplayMessageLibrary::Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, FScriptCallback Listener)
+    uint64 CGameplayMessageLibrary::Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, SScriptCallback Listener)
     {
         if (World == nullptr || !Listener.IsBound())
         {

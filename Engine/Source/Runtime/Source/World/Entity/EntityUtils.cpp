@@ -356,7 +356,7 @@ namespace Lumina::ECS::Utils
             }
 
             // Held after the loop, so a held-components entry read later for this entity cannot replace them.
-            TVector<FHeldValue> Unloaded;
+            TVector<SHeldValue> Unloaded;
 
             for (size_t i = 0; i < NumComponents; ++i)
             {
@@ -398,7 +398,7 @@ namespace Lumina::ECS::Utils
                 }
                 else
                 {
-                    FHeldValue& Held = Unloaded.emplace_back();
+                    SHeldValue& Held = Unloaded.emplace_back();
                     Held.TypeName = TypeName;
                     if (Held.Data.Cut(Ar, ComponentSize))
                     {
@@ -415,7 +415,7 @@ namespace Lumina::ECS::Utils
                 Ar.Seek(ComponentEnd);
             }
 
-            for (FHeldValue& Held : Unloaded)
+            for (SHeldValue& Held : Unloaded)
             {
                 MissingComponents::Hold(Registry, Entity, Move(Held));
             }
@@ -1558,6 +1558,19 @@ namespace Lumina::ECS::Utils
             RemapEntityHandle(Value, Map, bClearUnmapped);
         };
         ForEachEntityRefOnEntity(Registry, Entity, Visit);
+    }
+
+    void RemapEntityReferences(CObject* Object, const THashMap<ECS::FEntity, ECS::FEntity>& Map, bool bClearUnmapped)
+    {
+        if (Object == nullptr || Object->GetClass() == nullptr)
+        {
+            return;
+        }
+        auto Visit = [&](uint32& Value)
+        {
+            RemapEntityHandle(Value, Map, bClearUnmapped);
+        };
+        ForEachEntityRefInStruct(Object->GetClass(), Object, Visit);
     }
 
     void CollectEntityReferences(ECS::FRegistry& Registry, ECS::FEntity Entity, TVector<ECS::FEntity>& Out)

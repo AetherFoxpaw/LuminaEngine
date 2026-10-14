@@ -143,7 +143,7 @@ namespace Lumina
             #endif
         }
 
-        bool ShouldDraw(const FDebugDrawState& State, const FAABB& Bounds)
+        bool ShouldDraw(const FDebugDrawState& State, const SAABB& Bounds)
         {
             #if !defined(LE_SHIPPING)
             if (!State.bEnabled || !State.bHasView)

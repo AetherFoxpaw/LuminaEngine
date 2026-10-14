@@ -32,6 +32,6 @@ namespace Lumina
 
         /** Loads the prefab off the game thread, then spawns and reports it once, back on the game thread. */
         FUNCTION()
-        static void SpawnPrefabAsync(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab, FScriptCallback OnSpawned);
+        static void SpawnPrefabAsync(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab, SScriptCallback OnSpawned);
     };
 }

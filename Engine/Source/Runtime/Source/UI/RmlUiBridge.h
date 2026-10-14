@@ -243,7 +243,7 @@ namespace Lumina::RmlUi
     };
 
     // Creates a named data model on the world's context, which owns both callbacks from here. Null when there is no context or the name is taken.
-    RUNTIME_API void* CreateDataModel(CWorld* World, FStringView Name, FScriptCallback OnSet, FScriptCallback OnEvent);
+    RUNTIME_API void* CreateDataModel(CWorld* World, FStringView Name, SScriptCallback OnSet, SScriptCallback OnEvent);
 
     // Register a scalar variable (Type is EUIVarType); returns its field id (a dense index), or -1 on failure.
     RUNTIME_API int32 DataModelBindScalar(void* Model, FStringView Name, int32 Type);

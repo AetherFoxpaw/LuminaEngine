@@ -191,7 +191,7 @@ TEST_F(PhysicsSceneLifecycle, ConstraintsWaitForBothPendingBodies)
 {
     const ECS::FEntity A = Spawn(-2.0f);
     const ECS::FEntity B = Spawn(2.0f, false);
-    Physics::FConstraintDesc Desc;
+    Physics::SConstraintDesc Desc;
     Desc.BodyA = A;
     Desc.BodyB = B;
     const uint32 Constraint = Scene->CreateConstraint(Desc);
@@ -252,8 +252,8 @@ TEST_F(PhysicsSceneLifecycle, ShapeSweepsReachPastTheRayLine)
     const FVector3 End(0.6f, 0.0f, 3.0f);
     EXPECT_FALSE(Scene->CastRay(Ray(0.6f)).has_value());
 
-    for (const FQueryShape& Shape : { FQueryShape::Sphere(0.2f), FQueryShape::Box(FVector3(0.2f), FQuat::Identity()),
-                                      FQueryShape::Capsule(0.2f, 0.5f, FQuat::Identity()) })
+    for (const SQueryShape& Shape : { SQueryShape::Sphere(0.2f), SQueryShape::Box(FVector3(0.2f), FQuat::Identity()),
+                                      SQueryShape::Capsule(0.2f, 0.5f, FQuat::Identity()) })
     {
         const TOptional<SRayResult> Hit = Scene->CastShapeClosest(Shape, Start, End, ECollisionProfiles::All, {});
         ASSERT_TRUE(Hit.has_value()) << "shape " << (int)Shape.Type;
@@ -294,15 +294,15 @@ TEST_F(PhysicsSceneLifecycle, OverlapsFollowShapeRotationAndLayerMask)
 
     ECS::FEntity Found[4];
     const FVector3 Above(0.0f, 1.2f, 0.0f);
-    EXPECT_EQ(Scene->OverlapShape(FQueryShape::Capsule(0.1f, 1.0f, FQuat::Identity()), Above, ECollisionProfiles::All, {}, Found), 1)
+    EXPECT_EQ(Scene->OverlapShape(SQueryShape::Capsule(0.1f, 1.0f, FQuat::Identity()), Above, ECollisionProfiles::All, {}, Found), 1)
         << "a standing capsule reaches down into the sphere";
     EXPECT_EQ(Found[0], Entity);
 
     const FQuat Lying = Math::FromAxisAngle(FVector3(0.0f, 0.0f, 1.0f), Math::HalfPi<float>());
-    EXPECT_EQ(Scene->OverlapShape(FQueryShape::Capsule(0.1f, 1.0f, Lying), Above, ECollisionProfiles::All, {}, Found), 0)
+    EXPECT_EQ(Scene->OverlapShape(SQueryShape::Capsule(0.1f, 1.0f, Lying), Above, ECollisionProfiles::All, {}, Found), 0)
         << "the same capsule lying down stays above it";
 
-    EXPECT_EQ(Scene->OverlapShape(FQueryShape::Sphere(1.0f), FVector3(0.0f), (ECollisionProfiles)0, {}, Found), 0)
+    EXPECT_EQ(Scene->OverlapShape(SQueryShape::Sphere(1.0f), FVector3(0.0f), (ECollisionProfiles)0, {}, Found), 0)
         << "an empty layer mask matches nothing";
 }
 
@@ -315,7 +315,7 @@ TEST_F(PhysicsSceneLifecycle, ClosestPointAndBoundsMeasureTheColliders)
     ASSERT_TRUE(Scene->GetClosestPointOnBody(Entity, FVector3(3.0f, 0.0f, 0.0f), Closest));
     EXPECT_NEAR(Closest.x, 0.5f, 0.01f);
 
-    FAABB Bounds;
+    SAABB Bounds;
     ASSERT_TRUE(Scene->GetBodyBounds(Entity, Bounds));
     EXPECT_NEAR(Bounds.Min.x, -0.5f, 0.05f);
     EXPECT_NEAR(Bounds.Max.y, 0.5f, 0.05f);

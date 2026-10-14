@@ -25,7 +25,7 @@ namespace Lumina
 
         // The bus owns Listener from here, and releases it when the subscription goes.
         FUNCTION(ScriptInternal)
-        static uint64 Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, FScriptCallback Listener);
+        static uint64 Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, SScriptCallback Listener);
 
         FUNCTION(ScriptInternal)
         static bool Unsubscribe(CWorld* World, uint64 Id);

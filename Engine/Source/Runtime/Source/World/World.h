@@ -591,15 +591,10 @@ namespace Lumina
 
         NODISCARD const TVector<TStrongObjectPtr<CWorldSubsystem>>& GetSubsystems() const { return Subsystems; }
 
-        // Holds an object until the world is torn down, since a managed wrapper is only weak.
-        FUNCTION()
-        void RetainObject(CObject* Object) { if (Object != nullptr) { RetainedObjects.emplace_back(Object); } }
-
         // Runtime state rather than map data, but reflected so the hot reload reinstancer reaches it.
         PROPERTY(NoSerialize)
         TVector<TStrongObjectPtr<CWorldSubsystem>>         Subsystems;
-        
-        TVector<TStrongObjectPtr<CObject>>                 RetainedObjects;
+
 
         //~ Physics scene and queries.
 

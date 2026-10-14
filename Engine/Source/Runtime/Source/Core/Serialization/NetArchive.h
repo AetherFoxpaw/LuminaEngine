@@ -9,7 +9,7 @@ namespace Lumina
 {
     class CObject;
     class FName;
-    struct FUIDocumentRef;
+    struct SUIDocumentRef;
 
     // Compact bit-oriented archive for replication.
     class RUNTIME_API FNetArchive : public FArchive
@@ -53,8 +53,8 @@ namespace Lumina
         TFunction<CObject*(uint32)> NetIndexToObject;
 
         // Same scheme for UI document fields, exported once via AssetExport. The reader takes an out-param so the type can stay incomplete.
-        TFunction<uint32(const FUIDocumentRef&)>    DocumentRefToNetIndex;
-        TFunction<void(uint32, FUIDocumentRef&)>    NetIndexToDocumentRef;
+        TFunction<uint32(const SUIDocumentRef&)>    DocumentRefToNetIndex;
+        TFunction<void(uint32, SUIDocumentRef&)>    NetIndexToDocumentRef;
 
         // Same scheme for FName fields, exported once via NameExport. When set, names serialize as a compact
         // varint index; the string is carried by the export. Null reads/writes the full string.

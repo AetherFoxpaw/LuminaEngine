@@ -331,7 +331,13 @@ namespace Lumina
 
                 void* ValuePtr = Current->GetValuePtr<void>(Data);
 
+                const FCStringView Bundles = Current->GetMetadata("Bundle");
+                const FStringView OuterBundles = Bundles.empty() ? FStringView() : Ar.SetSoftReferenceBundles(FStringView(Bundles.data(), Bundles.size()));
                 Current->Serialize(Ar, ValuePtr);
+                if (!Bundles.empty())
+                {
+                    Ar.SetSoftReferenceBundles(OuterBundles);
+                }
 
                 int64 DataEndPosition = Ar.Tell();
                 Header.Size = (int32)(DataEndPosition - AfterHeaderPosition);

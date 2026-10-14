@@ -7,7 +7,7 @@
 
 namespace Lumina
 {
-    uint64 CTaskLibrary::Run(FScriptCallback Body, int32 Priority)
+    uint64 CTaskLibrary::Run(SScriptCallback Body, int32 Priority)
     {
         if (!Body.IsBound())
         {
@@ -23,7 +23,7 @@ namespace Lumina
         return (uint64)(uintptr_t)(new FTaskHandle(Task));
     }
 
-    void CTaskLibrary::ParallelFor(uint32 Num, uint32 MinRange, FScriptCallback Body, int32 Priority)
+    void CTaskLibrary::ParallelFor(uint32 Num, uint32 MinRange, SScriptCallback Body, int32 Priority)
     {
         if (Body.IsBound() && Num > 0)
         {

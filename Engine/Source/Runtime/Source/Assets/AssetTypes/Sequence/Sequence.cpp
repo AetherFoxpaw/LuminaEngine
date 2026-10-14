@@ -344,7 +344,7 @@ namespace Lumina
                 continue;
             }
 
-            FAudioPlayParams Params = CAudioLibrary::DefaultPlayParams();
+            SAudioPlayParams Params = CAudioLibrary::DefaultPlayParams();
             Params.Volume = Clip.Volume;
             Params.Pitch = Clip.Pitch;
             Params.Bus = Clip.Bus;
@@ -396,7 +396,7 @@ namespace Lumina
 
         if (Playing == nullptr)
         {
-            FCameraShakeParams Params;
+            SCameraShakeParams Params;
             Params.LocationAmplitude = LocationAmplitude;
             Params.RotationAmplitude = RotationAmplitude;
             Params.Frequency = Frequency;

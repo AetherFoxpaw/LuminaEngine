@@ -91,6 +91,8 @@
 #include "Properties/Customizations/CustomPrimitiveDataCustomization.h"
 #include "Tools/AssetEditors/ParticleSystemEditor/ParticleParamCustomization.h"
 #include "Tools/AssetEditors/ParticleSystemEditor/ParticleParameterCustomization.h"
+#include "Assets/AssetManager/AssetManager.h"
+#include "Properties/Customizations/AssetIdPropertyCustomization.h"
 #include "Properties/Customizations/UIDocumentPropertyCustomization.h"
 #include "UI/UIDocumentRef.h"
 #include "Properties/Customizations/GameplayTagPropertyCustomization.h"
@@ -576,9 +578,14 @@ namespace Lumina
             return FTransformPropertyCustomization::MakeInstance();
         });
 
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(FUIDocumentRef::StaticStruct()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SUIDocumentRef::StaticStruct()->GetName(), []
         {
            return FUIDocumentPropertyCustomization::MakeInstance();
+        });
+
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SAssetId::StaticStruct()->GetName(), []
+        {
+            return FAssetIdPropertyCustomization::MakeInstance();
         });
         
         PropertyCustomizationRegistry->RegisterPropertyCustomization(SCustomPrimitiveData::StaticStruct()->GetName(), []
@@ -586,7 +593,7 @@ namespace Lumina
            return FCustomPrimDataPropertyCustomization::MakeInstance();
         });
 
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(FParticleParameter::StaticStruct()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SParticleParameter::StaticStruct()->GetName(), []
         {
            return FParticleParameterCustomization::MakeInstance();
         });
@@ -611,12 +618,12 @@ namespace Lumina
            return FKeyPropertyCustomization::MakeInstance();
         });
 
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(FInputActionHandle::StaticStruct()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SInputActionHandle::StaticStruct()->GetName(), []
         {
            return FInputActionHandlePropertyCustomization::MakeInstance();
         });
 
-        PropertyCustomizationRegistry->RegisterPropertyCustomization(FGameplayTag::StaticStruct()->GetName(), []
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SGameplayTag::StaticStruct()->GetName(), []
         {
            return FGameplayTagPropertyCustomization::MakeInstance();
         });

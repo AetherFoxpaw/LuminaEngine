@@ -448,8 +448,15 @@ internal sealed class TypeLibrary
             {
                 MemberType = Property.PropertyType;
 
+                // The rewriter turns a native struct field on a class into a ref readonly view of the owner's storage.
+                bool bStructView = MemberType.IsByRef;
+                if (bStructView)
+                {
+                    MemberType = MemberType.GetElementType()!;
+                }
+
                 // A get-only container is a view over storage native owns, so it is stored even with no setter.
-                Kind = Property.CanWrite || IsNativeOwnedViewType(MemberType) ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
+                Kind = Property.CanWrite || bStructView || IsNativeOwnedViewType(MemberType) ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
             }
             else
             {
@@ -543,18 +550,21 @@ internal sealed class TypeLibrary
         return false;
     }
 
-    // The same keys and values the C++ PROPERTY(Sync = ..., Change = ..., AssetType = ...) gives a field.
+    // The same keys and values the C++ PROPERTY(Sync = ..., Change = ..., AssetType = ..., Bundle = ..., Group = ...) gives a field.
     private static List<KeyValuePair<string, string>>? ExtraMetaOf(MemberInfo Member, PropertyAttribute? Meta)
     {
         var Result = new List<KeyValuePair<string, string>>();
-        if (!string.IsNullOrEmpty(Meta?.Name))
+        void AddIfSet(string Key, string? Value)
         {
-            Result.Add(new("DisplayName", Meta.Name));
+            if (!string.IsNullOrEmpty(Value))
+            {
+                Result.Add(new(Key, Value));
+            }
         }
-        if (!string.IsNullOrEmpty(Meta?.AssetType))
-        {
-            Result.Add(new("AssetType", Meta.AssetType));
-        }
+        AddIfSet("DisplayName", Meta?.Name);
+        AddIfSet(nameof(PropertyAttribute.AssetType), Meta?.AssetType);
+        AddIfSet(nameof(PropertyAttribute.Bundle), Meta?.Bundle);
+        AddIfSet(nameof(PropertyAttribute.Group), Meta?.Group);
         if (Member.GetCustomAttribute<BindAttribute>() is BindAttribute Bind)
         {
             Result.Add(new("Bind", Bind.Name ?? ""));
@@ -853,7 +863,7 @@ internal sealed class TypeDescription
     }
 
     /// <summary>Hands one action's state to each of the instance's bindings that listens to it.</summary>
-    public void DispatchAction(Lumina.CEntityScript Script, Lumina.FName Action, in Lumina.FInputActionState State)
+    public void DispatchAction(Lumina.CEntityScript Script, Lumina.FName Action, in Lumina.SInputActionState State)
     {
         foreach (ScriptProperty Property in InputBindings)
         {

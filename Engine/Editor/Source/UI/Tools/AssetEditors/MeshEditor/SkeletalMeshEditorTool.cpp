@@ -559,7 +559,7 @@ namespace Lumina
 
             FMeshResource& Resource = SkeletalMesh->GetMeshResource();
             const FMeshletData& MD = Resource.MeshletData;
-            const FAABB& BoundingBox = SkeletalMesh->GetAABB();
+            const SAABB& BoundingBox = SkeletalMesh->GetAABB();
 
             ImGuiX::Font::PushFont(ImGuiX::Font::EFont::Large);
             ImGui::SeparatorText("Mesh Statistics");
@@ -850,7 +850,7 @@ namespace Lumina
         STransformComponent& MeshTransform = World->GetComponent<STransformComponent>(MeshEntity);
 
         // Framed off bounds, or anything but a human-sized rig opens inside the mesh or too far to see.
-        const FAABB Bounds = SkeletalMesh->GetAABB();
+        const SAABB Bounds = SkeletalMesh->GetAABB();
         CreateFloorPlane(MeshTransform.GetLocation().y + Bounds.Min.y);
 
         const FVector3 Center = MeshTransform.GetLocation() + Bounds.GetCenter();
@@ -1044,7 +1044,7 @@ namespace Lumina
 
         if (bShowAABB)
         {
-            FAABB AABB = MeshComponent.GetAABB().ToWorld(EntityMatrix);
+            SAABB AABB = MeshComponent.GetAABB().ToWorld(EntityMatrix);
             World->GetDebugInterface()->DrawBox(AABB.GetCenter(), AABB.GetSize() * 0.5f, FQuat(1, 0, 0, 0), FColor::Green);
         }
 
@@ -1080,7 +1080,7 @@ namespace Lumina
                         Hi = Math::Max(Hi, B.Center + FVector3(B.Radius));
                     }
 
-                    FAABB SurfaceAABB;
+                    SAABB SurfaceAABB;
                     SurfaceAABB.Min = Lo;
                     SurfaceAABB.Max = Hi;
                     SurfaceAABB     = SurfaceAABB.ToWorld(EntityMatrix);
@@ -1147,7 +1147,7 @@ namespace Lumina
 
         if (bShowSockets)
         {
-            for (const FMeshSocket& Socket : SkeletalMesh->Skeleton->Sockets)
+            for (const SMeshSocket& Socket : SkeletalMesh->Skeleton->Sockets)
             {
                 const int32 BoneIndex = SkeletonResource->FindBoneIndex(Socket.BoneName);
                 if (BoneIndex == Constants::kIndexNone || BoneIndex >= (int32)BoneWorld.size())

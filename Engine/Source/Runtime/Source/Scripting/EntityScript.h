@@ -77,7 +77,11 @@ namespace Lumina
 
         /// An authored action that changed this frame. A C# override must call base, which feeds its input bindings.
         FUNCTION()
-        virtual void OnAction(FName Action, FInputActionState State) {}
+        virtual void OnAction(FName Action, SInputActionState State) {}
+
+        // The level changed and SPersistentComponent carried this script along, so anything found in the old level is gone.
+        FUNCTION()
+        virtual void OnTraveled() {}
 
         // A save game just wrote this running script's SaveGame fields back, so anything built from them is stale.
         FUNCTION()
@@ -282,7 +286,7 @@ namespace Lumina
         TVector<TStrongObjectPtr<CEntityScript>> Scripts;
 
         // Unresolved at load, written back with what its bytes refer to, retried on the next script reload.
-        TVector<FHeldValue> Pending;
+        TVector<SHeldValue> Pending;
 
         bool Serialize(FArchive& Ar);
     };
@@ -338,7 +342,7 @@ namespace Lumina
         RUNTIME_API void DispatchInput(ECS::FRegistry& Registry, ECS::FEntity Entity, const SInputEvent& Event);
 
         /** Delivers OnAction for each of ChangedActionIndices to every script on Entity. */
-        RUNTIME_API void DispatchActions(ECS::FRegistry& Registry, ECS::FEntity Entity, const FInputActionState* States,
+        RUNTIME_API void DispatchActions(ECS::FRegistry& Registry, ECS::FEntity Entity, const SInputActionState* States,
             int32 Count, TSpan<const int32> ChangedActionIndices);
 
     }

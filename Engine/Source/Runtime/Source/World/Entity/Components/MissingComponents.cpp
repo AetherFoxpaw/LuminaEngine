@@ -7,10 +7,10 @@
 
 namespace Lumina::MissingComponents
 {
-    void Hold(ECS::FRegistry& Registry, ECS::FEntity Entity, FHeldValue&& Held)
+    void Hold(ECS::FRegistry& Registry, ECS::FEntity Entity, SHeldValue&& Held)
     {
         SMissingComponents& Holder = Registry.GetOrEmplace<SMissingComponents>(Entity);
-        for (FHeldValue& Existing : Holder.Entries)
+        for (SHeldValue& Existing : Holder.Entries)
         {
             if (Existing.TypeName == Held.TypeName)
             {
@@ -30,9 +30,9 @@ namespace Lumina::MissingComponents
         }
 
         // Moved out first, since emplacing fires construct signals that may touch the holder.
-        TVector<FHeldValue> Holding = Move(Holder->Entries);
+        TVector<SHeldValue> Holding = Move(Holder->Entries);
         int32 Restored = 0;
-        Holding.RemoveAllBy([&](const FHeldValue& Held)
+        Holding.RemoveAllBy([&](const SHeldValue& Held)
         {
             CStruct* Struct = ResolveStructByName(Held.TypeName);
             const FComponentOps* Ops = Struct != nullptr ? Struct->GetComponentOps() : nullptr;
@@ -111,7 +111,7 @@ namespace Lumina::MissingComponents
             }
             for (ECS::FEntity Entity : Entities)
             {
-                FHeldValue Value;
+                SHeldValue Value;
                 Value.TypeName = TypeName;
                 Value.Data.Capture(Struct, Set->GetRaw(Entity));
                 Registry.RemoveRaw(TypeID, Entity);

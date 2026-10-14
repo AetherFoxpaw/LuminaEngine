@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "Assets/AssetManager/AssetManager.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
 #include "Assets/AssetRegistry/AssetData.h"
 #include "Assets/AssetRegistry/CookRoot.h"
@@ -705,7 +706,7 @@ namespace Lumina
             Result.ErrorMessage =
                 "No cook roots defined.\n"
                 "  Open Project Settings -> Maps -> Cook Roots and add at least one asset path,\n"
-                "  declare CookRoots in a plugin's .lplugin, or flag an asset EAssetFlags::Primary.";
+                "  declare CookRoots in a plugin's .lplugin, or put assets in a REFLECT(Group = ...) class.";
             return Result;
         }
 
@@ -717,15 +718,15 @@ namespace Lumina
 
         // FindByPredicate returns hash order, so sort by GUID before adding to keep the graph deterministic.
         {
-            TVector<FAssetData*> Primaries = FAssetRegistry::Get().FindByPredicate(
-                [](const FAssetData& D) { return HasFlag(D.Flags, EAssetFlags::Primary); });
-            Algo::Sort(Primaries,
+            TVector<FAssetData*> Grouped = FAssetRegistry::Get().FindByPredicate(
+                [](const FAssetData& D) { return !FAssetManager::Get().GetGroupOfClass(D.AssetClass).IsNone(); });
+            Algo::Sort(Grouped,
                 [](const FAssetData* A, const FAssetData* B) { return A->AssetGUID < B->AssetGUID; });
-            if (!Primaries.empty())
+            if (!Grouped.empty())
             {
-                LogCooker(LogFunc, Format("  Primary assets: {} -> implicit cook roots", Primaries.size()).c_str());
+                LogCooker(LogFunc, Format("  Grouped assets: {} -> implicit cook roots", Grouped.size()).c_str());
             }
-            for (const FAssetData* Data : Primaries)
+            for (const FAssetData* Data : Grouped)
             {
                 FCookRoot Root;
                 Root.Asset = FString(Data->Path.c_str(), Data->Path.size());

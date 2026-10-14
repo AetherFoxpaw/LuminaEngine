@@ -961,7 +961,7 @@ TEST_F(FFrameMarshalTest, AScriptCallbackRunsOnceAndReleasesItsHandle)
     ASSERT_NE(Bind, nullptr);
     ASSERT_NE(Result, nullptr);
 
-    FScriptCallback Callback;
+    SScriptCallback Callback;
     Callback.Token = Bind();
     ASSERT_TRUE(Callback.IsBound());
 
@@ -988,7 +988,7 @@ TEST_F(FFrameMarshalTest, ARepeatingScriptCallbackSurvivesEveryFireUntilReleased
     ASSERT_NE(Bind, nullptr);
     ASSERT_NE(Result, nullptr);
 
-    FScriptCallback Callback;
+    SScriptCallback Callback;
     Callback.Token = Bind();
     ASSERT_TRUE(Callback.IsBound());
 
@@ -1014,7 +1014,7 @@ TEST_F(FFrameMarshalTest, AScriptCallbackOwnerReleasesWhenTheThingHoldingItDies)
     ASSERT_NE(Bind, nullptr);
     ASSERT_NE(Result, nullptr);
 
-    FScriptCallback Callback;
+    SScriptCallback Callback;
     Callback.Token = Bind();
     ASSERT_TRUE(Callback.IsBound());
 
@@ -1032,7 +1032,7 @@ TEST_F(FFrameMarshalTest, AScriptCallbackOwnerReleasesWhenTheThingHoldingItDies)
 
 TEST_F(FFrameMarshalTest, AnUnboundScriptCallbackIsSafeToInvoke)
 {
-    FScriptCallback Unbound;
+    SScriptCallback Unbound;
     EXPECT_FALSE(Unbound.IsBound());
     Scripting::InvokeScriptCallback(Unbound, 7);
 }
@@ -1272,7 +1272,7 @@ TEST_F(FFrameMarshalTest, AnOpaqueStructParameterIsReadThroughAViewOverItsSlot)
     ASSERT_NE(Invoke, nullptr);
 
     Scripting::FScriptExportSchema Params;
-    Params.Fields.push_back(NativeStructField("Bone", "FAnimGraphBoneMaskBone"));
+    Params.Fields.push_back(NativeStructField("Bone", "SAnimGraphBoneMaskBone"));
     Params.Fields.push_back(ParamField("Weight", EPropertyTypeFlags::Float, EPropertyFlags::OutParam));
 
     FFunction* Function = MintFrame("FrameMarshal_StructView", Params, "MarshalStructView");
@@ -1282,7 +1282,7 @@ TEST_F(FFrameMarshalTest, AnOpaqueStructParameterIsReadThroughAViewOverItsSlot)
     ASSERT_NE(Target, nullptr);
 
     FFunctionFrame Frame(*Function);
-    Frame.At<FAnimGraphBoneMaskBone>(0).Weight = 0.75f;
+    Frame.At<SAnimGraphBoneMaskBone>(0).Weight = 0.75f;
     Invoke(Target, Function, Frame.GetMemory());
 
     EXPECT_FLOAT_EQ(Frame.At<float>(1), 0.75f) << "the struct view never reached the managed method";
@@ -1297,7 +1297,7 @@ TEST_F(FFrameMarshalTest, ResetClearsEveryCacheKeyedByAUserType)
     ASSERT_NE(Probe, nullptr);
 
     Scripting::FScriptExportSchema Params;
-    Params.Fields.push_back(NativeStructField("Bone", "FAnimGraphBoneMaskBone"));
+    Params.Fields.push_back(NativeStructField("Bone", "SAnimGraphBoneMaskBone"));
     Params.Fields.push_back(VectorField("Values", EPropertyTypeFlags::Float));
 
     FFunction* Function = MintFrame("FrameMarshal_CacheProbe", Params, "MarshalStructView");
@@ -1325,12 +1325,12 @@ TEST_F(FFrameMarshalTest, AnOpaqueStructCrossesAsAFunctionArgument)
     auto* Read = (FOpaqueArgFn)DotNet::ResolveManagedExport("Test_OpaqueStructArgument");
     ASSERT_NE(Read, nullptr);
 
-    FInteropOpaqueStruct Opaque;
+    SInteropOpaqueStruct Opaque;
     Opaque.Label = FName("abcd");
     Opaque.Value = 2.5f;
 
     EXPECT_FLOAT_EQ(Read(&Opaque), 6.5f) << "the callee did not see the struct the wrapper views";
-    const float Default = CInteropTestLibrary::ReadOpaqueValue(FInteropOpaqueStruct{});
+    const float Default = CInteropTestLibrary::ReadOpaqueValue(SInteropOpaqueStruct{});
     EXPECT_FLOAT_EQ(Read(nullptr), Default) << "a null wrapper has to stand in as a default, not crash";
 }
 
@@ -1387,7 +1387,7 @@ TEST_F(FFrameMarshalTest, AMapCarriesAMarshalledKeyAndValue)
 
     RegisterPendingTypes();
 
-    FInteropOpaqueStruct Opaque;
+    SInteropOpaqueStruct Opaque;
     EXPECT_EQ(RoundTrip(&Opaque), 63) << "a map operation did not survive the round trip";
 
     EXPECT_EQ(Opaque.Weights.size(), 1u) << "native does not see what managed left behind";
@@ -1437,7 +1437,7 @@ TEST_F(FFrameMarshalTest, AnOptionalCarriesAMarshalledPayload)
 
     RegisterPendingTypes();
 
-    FInteropOpaqueStruct Opaque;
+    SInteropOpaqueStruct Opaque;
     EXPECT_EQ(RoundTrip(&Opaque), 15) << "an optional operation did not survive the round trip";
     EXPECT_FALSE(Opaque.Note.IsSet()) << "native still sees a payload managed reset";
 }

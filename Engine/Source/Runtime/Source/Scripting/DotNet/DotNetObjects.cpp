@@ -2,20 +2,16 @@
 #include "Scripting/DotNet/DotNetExport.h"
 #include "Scripting/DotNet/DotNetHost.h"
 #include "Scripting/DotNet/ExportSignature.h"
-#include "Assets/AssetRegistry/AssetRegistry.h"
 #include "Core/Object/ManagedInstance.h"
 #include "Core/Object/Object.h"
 #include "Core/Object/ObjectArray.h"
 #include "Core/Object/ObjectCore.h"
 #include "Core/Object/ObjectHandleTyped.h"
 #include "Core/Object/ObjectReferenceProvider.h"
-#include "Core/Object/SoftObjectPtr.h"
 #include "Core/Threading/Sync.h"
 #include "Log/Log.h"
 #include "Scripting/ScriptCallback.h"
 #include "Scripting/ScriptableObject.h"
-#include "TaskSystem/Future.h"
-#include "TaskSystem/ThreadedCallback.h"
 
 // A wrapper to a since-freed object throws on access rather than reading reclaimed memory.
 LUMINA_DOTNET_EXPORT(int64, ObjectGetHandle)(void* Object)
@@ -75,16 +71,6 @@ LUMINA_DOTNET_EXPORT(int32, ObjectAdoptScriptTwin)(void* Object, void* WeakHandl
 LUMINA_DOTNET_EXPORT(void, ReleaseAllManagedInstances)()
 {
     Lumina::ManagedInstances::ReleaseAll();
-}
-
-// Synchronous (blocking) load by virtual path; returns the CObject* or null. Backs Asset.Load<T>.
-LUMINA_DOTNET_EXPORT(void*, LoadObject)(const char* Path, int Len)
-{
-    if (Path == nullptr || Len <= 0)
-    {
-        return nullptr;
-    }
-    return Lumina::StaticLoadObject(Lumina::FStringView(Path, static_cast<size_t>(Len)));
 }
 
 namespace
@@ -169,90 +155,6 @@ LUMINA_DOTNET_EXPORT(void, UnpinObject)(void* Pin)
     }
 }
 
-// Registry probe with no load, returning bool because the generated binding marshals a C# bool as one byte.
-LUMINA_DOTNET_EXPORT(bool, AssetExists)(const char* Path, int Len)
-{
-    if (Path == nullptr || Len <= 0)
-    {
-        return false;
-    }
-    return Lumina::FAssetRegistry::Get().GetAssetByPath(Lumina::FStringView(Path, static_cast<size_t>(Len))) != nullptr;
-}
-
-namespace
-{
-    struct FPendingScriptLoad
-    {
-        Lumina::FString         Path;
-        Lumina::FScriptCallback Callback;
-    };
-
-    // A streaming script asks for hundreds of assets in one frame, so a request only queues its path and a worker resolves the batch.
-    Lumina::FMutex                       GScriptLoadMutex;
-    Lumina::TVector<FPendingScriptLoad>  GScriptLoads;
-    bool                                 bScriptLoadDrainScheduled = false;
-
-    void RequestScriptLoad(const Lumina::FString& Path, Lumina::FScriptCallback Callback)
-    {
-        Lumina::FSoftObjectPath Soft{ Lumina::FStringView(Path.c_str(), Path.size()) };
-        Soft.LoadAsync([Callback](Lumina::CObject* Object)
-        {
-            // The only owner may be a release already queued for the game thread, so the hop holds its own reference.
-            Lumina::MainThread::Enqueue([Callback, Held = Lumina::TStrongObjectPtr<Lumina::CObject>(Object)]()
-            {
-                Lumina::Scripting::InvokeScriptCallback(Callback, reinterpret_cast<Lumina::uint64>(Held.Get()));
-            });
-        });
-    }
-
-    void DrainScriptLoads()
-    {
-        LUMINA_PROFILE_SCOPE();
-        Lumina::TVector<FPendingScriptLoad> Batch;
-        for (;;)
-        {
-            {
-                Lumina::FScopeLock Lock(GScriptLoadMutex);
-                if (GScriptLoads.empty())
-                {
-                    bScriptLoadDrainScheduled = false;
-                    return;
-                }
-                Batch.swap(GScriptLoads);
-            }
-            for (const FPendingScriptLoad& Load : Batch)
-            {
-                RequestScriptLoad(Load.Path, Load.Callback);
-            }
-            Batch.clear();
-        }
-    }
-}
-
-// Resumes the managed continuation on the game thread with the loaded object, or null.
-LUMINA_DOTNET_EXPORT(void, LoadObjectAsync)(const char* Path, int Len, Lumina::uint64 Token)
-{
-    LUMINA_PROFILE_SCOPE();
-    const Lumina::FScriptCallback Callback{ Token };
-    if (Path == nullptr || Len <= 0)
-    {
-        Lumina::Scripting::InvokeScriptCallback(Callback, 0);
-        return;
-    }
-
-    bool bSchedule = false;
-    {
-        Lumina::FScopeLock Lock(GScriptLoadMutex);
-        GScriptLoads.push_back(FPendingScriptLoad{ Lumina::FString(Path, static_cast<size_t>(Len)), Callback });
-        bSchedule = !bScriptLoadDrainScheduled;
-        bScriptLoadDrainScheduled = true;
-    }
-    if (bSchedule)
-    {
-        Lumina::Task::Async([]() { DrainScriptLoads(); });
-    }
-}
-
 LUMINA_DOTNET_SIGNATURES(
     LUMINA_DOTNET_SIG(ObjectGetHandle),
     LUMINA_DOTNET_SIG(ObjectResolve),
@@ -261,10 +163,7 @@ LUMINA_DOTNET_SIGNATURES(
     LUMINA_DOTNET_SIG(ObjectGetManagedInstance),
     LUMINA_DOTNET_SIG(ObjectSetManagedInstance),
     LUMINA_DOTNET_SIG(ReleaseAllManagedInstances),
-    LUMINA_DOTNET_SIG(LoadObject),
     LUMINA_DOTNET_SIG(PinObject),
     LUMINA_DOTNET_SIG(ObjectAdoptScriptTwin),
-    LUMINA_DOTNET_SIG(UnpinObject),
-    LUMINA_DOTNET_SIG(AssetExists),
-    LUMINA_DOTNET_SIG(LoadObjectAsync)
+    LUMINA_DOTNET_SIG(UnpinObject)
 );

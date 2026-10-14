@@ -777,7 +777,7 @@ namespace Lumina
     namespace
     {
         // Null while the class is still not loaded.
-        CEntityScript* RestoreHeldScript(const FHeldValue& Held)
+        CEntityScript* RestoreHeldScript(const SHeldValue& Held)
         {
             CClass* ScriptClass = FScriptableRegistry::ResolveClass(Held.TypeName);
             if (ScriptClass == nullptr || !ScriptClass->IsChildOf(CEntityScript::StaticClass()))
@@ -883,7 +883,7 @@ namespace Lumina
                     }
 
                     // Held rather than discarded, since the class is usually just not loaded yet.
-                    FHeldValue Held;
+                    SHeldValue Held;
                     Held.TypeName = ClassName;
                     if (Held.Data.Cut(Ar, ScriptSize))
                     {
@@ -913,9 +913,9 @@ namespace Lumina
 
             if (Ar.GetFileVersion() >= (int32)ELuminaEngineVersion::PORTABLE_HELD_SCRIPTS)
             {
-                TVector<FHeldValue> Held;
+                TVector<SHeldValue> Held;
                 Ar << Held;
-                for (FHeldValue& Value : Held)
+                for (SHeldValue& Value : Held)
                 {
                     if (CEntityScript* Script = RestoreHeldScript(Value))
                     {
@@ -2086,7 +2086,7 @@ namespace Lumina
             }
         }
 
-        void DispatchActions(ECS::FRegistry& Registry, ECS::FEntity Entity, const FInputActionState* States,
+        void DispatchActions(ECS::FRegistry& Registry, ECS::FEntity Entity, const SInputActionState* States,
             int32 Count, TSpan<const int32> ChangedActionIndices)
         {
             FScriptSnapshot Scripts;
@@ -2145,7 +2145,7 @@ namespace Lumina
             for (ECS::FEntity Entity : Registry.View<SEntityScriptComponent>())
             {
                 SEntityScriptComponent& Component = Registry.Get<SEntityScriptComponent>(Entity);
-                Restored += (int32)Component.Pending.RemoveAllBy([&Component](const FHeldValue& Held)
+                Restored += (int32)Component.Pending.RemoveAllBy([&Component](const SHeldValue& Held)
                 {
                     CEntityScript* Script = RestoreHeldScript(Held);
                     if (Script != nullptr)

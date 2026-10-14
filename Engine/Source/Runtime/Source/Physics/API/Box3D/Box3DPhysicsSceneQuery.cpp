@@ -140,7 +140,7 @@ namespace Lumina::Physics
         }
 
         // Box3D proxies are points plus a radius, so each query shape is a few points around the query position.
-        b3ShapeProxy MakeProxy(const FQueryShape& Shape, b3Vec3 (&Points)[8])
+        b3ShapeProxy MakeProxy(const SQueryShape& Shape, b3Vec3 (&Points)[8])
         {
             switch (Shape.Type)
             {
@@ -353,7 +353,7 @@ namespace Lumina::Physics
         return Nearest;
     }
 
-    void FBox3DPhysicsScene::CastShapeAll(const FQueryShape& Shape, const FVector3& Start, const FVector3& End, ECollisionProfiles LayerMask,
+    void FBox3DPhysicsScene::CastShapeAll(const SQueryShape& Shape, const FVector3& Start, const FVector3& End, ECollisionProfiles LayerMask,
                                           TSpan<const ECS::FEntity> IgnoreEntities, TVector<SRayResult>& OutHits)
     {
         OutHits.clear();
@@ -381,7 +381,7 @@ namespace Lumina::Physics
         SortNearToFar(OutHits);
     }
 
-    TOptional<SRayResult> FBox3DPhysicsScene::CastShapeClosest(const FQueryShape& Shape, const FVector3& Start, const FVector3& End,
+    TOptional<SRayResult> FBox3DPhysicsScene::CastShapeClosest(const SQueryShape& Shape, const FVector3& Start, const FVector3& End,
                                                                ECollisionProfiles LayerMask, TSpan<const ECS::FEntity> IgnoreEntities)
     {
         const FVector3 Delta = End - Start;
@@ -412,7 +412,7 @@ namespace Lumina::Physics
         return Result;
     }
 
-    int32 FBox3DPhysicsScene::OverlapShape(const FQueryShape& Shape, const FVector3& Center, ECollisionProfiles LayerMask,
+    int32 FBox3DPhysicsScene::OverlapShape(const SQueryShape& Shape, const FVector3& Center, ECollisionProfiles LayerMask,
                                            TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities)
     {
         b3Vec3 Points[8];
@@ -449,7 +449,7 @@ namespace Lumina::Physics
         return true;
     }
 
-    bool FBox3DPhysicsScene::GetBodyBounds(ECS::FEntity Entity, FAABB& OutBounds) const
+    bool FBox3DPhysicsScene::GetBodyBounds(ECS::FEntity Entity, SAABB& OutBounds) const
     {
         FBodyShapes Shapes;
         if (!GatherShapes(ResolveBody(FindEntityBody(Entity)), Shapes))
@@ -457,7 +457,7 @@ namespace Lumina::Physics
             return false;
         }
 
-        OutBounds = FAABB(FVector3(FLT_MAX), FVector3(-FLT_MAX));
+        OutBounds = SAABB(FVector3(FLT_MAX), FVector3(-FLT_MAX));
         for (b3ShapeId Shape : Shapes)
         {
             const b3AABB Bounds = b3Shape_GetAABB(Shape);

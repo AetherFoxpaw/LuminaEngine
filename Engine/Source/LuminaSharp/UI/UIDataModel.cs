@@ -72,7 +72,7 @@ public sealed unsafe class UIDataModel : IDisposable
     private readonly string _name;
     private readonly object _target;
     private readonly UIModelShape _shape;
-    private Lumina.FUIDataModel _native;
+    private Lumina.SUIDataModel _native;
 
     // Native field id per scalar and per list, parallel to the shape's lists. Negative when the bind failed.
     private readonly int[] _scalarField;

@@ -107,7 +107,7 @@ namespace Lumina
 
     // Where a particle hit, read back from the GPU for an emitter that reports its collisions.
     REFLECT()
-    struct RUNTIME_API FParticleCollision
+    struct RUNTIME_API SParticleCollision
     {
         GENERATED_BODY()
 
@@ -165,7 +165,7 @@ namespace Lumina
 
     /** Named, typed value on a particle asset; component overrides reuse the same shape. */
     REFLECT()
-    struct RUNTIME_API FParticleParameter
+    struct RUNTIME_API SParticleParameter
     {
         GENERATED_BODY()
 
@@ -184,7 +184,7 @@ namespace Lumina
         /** Writes only the storage matching Type. */
         bool Serialize(FArchive& Ar);
 
-        void CopyFrom(const FParticleParameter& Other)
+        void CopyFrom(const SParticleParameter& Other)
         {
             Name    = Other.Name;
             Type    = Other.Type;
@@ -194,7 +194,7 @@ namespace Lumina
             Vector  = Other.Vector;
         }
 
-        bool operator==(const FParticleParameter& Other) const
+        bool operator==(const SParticleParameter& Other) const
         {
             return Name    == Other.Name
                 && Type    == Other.Type
@@ -207,7 +207,7 @@ namespace Lumina
 
     /** Routes a built-in simulation property through a named user parameter. */
     REFLECT()
-    struct RUNTIME_API FParticlePropertyBinding
+    struct RUNTIME_API SParticlePropertyBinding
     {
         GENERATED_BODY()
 
@@ -735,12 +735,12 @@ namespace Lumina
         void MoveEmitter(CParticleEmitter* Emitter, int32 Direction);
 
         PROPERTY(Editable, Category = "User Parameters")
-        TVector<FParticleParameter> UserParameters;
+        TVector<SParticleParameter> UserParameters;
 
         PROPERTY()
-        TVector<FParticlePropertyBinding> PropertyBindings;
+        TVector<SParticlePropertyBinding> PropertyBindings;
 
-        const FParticleParameter* FindUserParameter(const FName& InName) const;
+        const SParticleParameter* FindUserParameter(const FName& InName) const;
 
         // Seconds from activation until the last burst particle dies, or zero when an emitter streams forever.
         FUNCTION()

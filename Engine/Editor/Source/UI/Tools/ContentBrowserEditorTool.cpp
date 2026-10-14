@@ -5,6 +5,7 @@
 #include "EditorAssetActions.h"
 #include "EditorToolContext.h"
 #include "ReplaceReferencesModal.h"
+#include "Assets/AssetManager/AssetManager.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
 #include "Assets/AssetRegistry/TextAssetTypes.h"
 #include "Assets/AssetRegistry/TextAssetSidecar.h"
@@ -795,10 +796,13 @@ namespace Lumina
             if (HasFlag(Data->Flags, EAssetFlags::RuntimeOnly)) { AddFlag("Runtime-Only"); }
             if (HasFlag(Data->Flags, EAssetFlags::AlwaysCook))  { AddFlag("Always Cook"); }
             if (HasFlag(Data->Flags, EAssetFlags::NeverCook))   { AddFlag("Never Cook"); }
-            if (HasFlag(Data->Flags, EAssetFlags::Primary))     { AddFlag("Primary"); }
             if (!Flags.empty())
             {
                 ImGui::TextColored(kMenuTextDim, "Flags: %s", Flags.c_str());
+            }
+            if (const FName Group = FAssetManager::Get().GetGroupOfClass(Data->AssetClass); !Group.IsNone())
+            {
+                ImGui::TextColored(kMenuTextDim, "Group: %s", Group.c_str());
             }
 
             DrawItemSizeLine(Info);

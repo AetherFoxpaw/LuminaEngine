@@ -26,7 +26,7 @@ namespace Lumina::Scripting
         }
     }
 
-    uint64 InvokeScriptCallback(FScriptCallback Callback, uint64 Payload)
+    uint64 InvokeScriptCallback(SScriptCallback Callback, uint64 Payload)
     {
         if (!Callback.IsBound())
         {
@@ -37,12 +37,12 @@ namespace Lumina::Scripting
         return Result;
     }
 
-    uint64 InvokeScriptCallbackRepeating(FScriptCallback Callback, uint64 Payload)
+    uint64 InvokeScriptCallbackRepeating(SScriptCallback Callback, uint64 Payload)
     {
         return Callback.IsBound() ? CallInvoke(Callback.Token, Payload) : 0;
     }
 
-    void ReleaseScriptCallback(FScriptCallback Callback)
+    void ReleaseScriptCallback(SScriptCallback Callback)
     {
         if (Callback.IsBound())
         {

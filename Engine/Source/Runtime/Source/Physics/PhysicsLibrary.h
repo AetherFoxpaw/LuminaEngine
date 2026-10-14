@@ -80,11 +80,11 @@ namespace Lumina
 
         // Any shape, for a caller that picks the shape at runtime.
         FUNCTION()
-        static SRayResult ShapeCast(CWorld* World, FQueryShape Shape, FVector3 Start, FVector3 End,
+        static SRayResult ShapeCast(CWorld* World, SQueryShape Shape, FVector3 Start, FVector3 End,
             ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask = ECollisionProfiles::All);
 
         FUNCTION()
-        static void ShapeCastAll(CWorld* World, FQueryShape Shape, FVector3 Start, FVector3 End,
+        static void ShapeCastAll(CWorld* World, SQueryShape Shape, FVector3 Start, FVector3 End,
             ECS::FEntity IgnoreEntity, TVector<SRayResult>& Out, ECollisionProfiles LayerMask = ECollisionProfiles::All);
 
         //~ Overlaps list distinct entities whose bodies intersect the shape. IgnoreEntity excludes the querier.
@@ -102,7 +102,7 @@ namespace Lumina
             ECS::FEntity IgnoreEntity, TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask = ECollisionProfiles::All);
 
         FUNCTION()
-        static void OverlapShape(CWorld* World, FQueryShape Shape, FVector3 Center, ECS::FEntity IgnoreEntity,
+        static void OverlapShape(CWorld* World, SQueryShape Shape, FVector3 Center, ECS::FEntity IgnoreEntity,
             TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask = ECollisionProfiles::All);
 
         /** Entities whose bodies contain the point, which is volume containment rather than a shape sweep. */
@@ -141,7 +141,7 @@ namespace Lumina
 
         // The world bounds of the entity's colliders, an invalid box when it has no body.
         FUNCTION()
-        static FAABB GetBodyBounds(CWorld* World, ECS::FEntity Entity);
+        static SAABB GetBodyBounds(CWorld* World, ECS::FEntity Entity);
 
         // The height of the first surface straight down through Point, searching SearchDistance above and below it.
         FUNCTION()
@@ -219,7 +219,7 @@ namespace Lumina
         //~ Constraints. A body left as the null entity anchors that side to the world.
 
         FUNCTION()
-        static uint32 CreateConstraint(CWorld* World, Physics::FConstraintDesc Desc);
+        static uint32 CreateConstraint(CWorld* World, Physics::SConstraintDesc Desc);
 
         /** Welds the two bodies rigidly at their current relative pose. */
         FUNCTION()

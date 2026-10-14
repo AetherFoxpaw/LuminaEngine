@@ -153,6 +153,9 @@ namespace Lumina
          *  a Soft ImportTable entry. No-op on archives without an import table. */
         virtual void RegisterSoftAssetReference(const FGuid& AssetGUID) {}
 
+        // The bundles a property names for the soft references inside it, returning the ones it replaces so nesting restores them.
+        virtual FStringView SetSoftReferenceBundles(FStringView Bundles) { return {}; }
+
         // Offered its resolved path+GUID on write so a fixup archive can retarget a soft ref in place.
         virtual bool RewriteSoftAssetReference(FString& Path, FGuid& AssetGUID) { return false; }
 

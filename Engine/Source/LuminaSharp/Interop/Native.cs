@@ -129,12 +129,9 @@ public static unsafe partial class Native
     [NativeCall] public static partial void ViewIncludeEpochs(IntPtr State, uint** OutSlots, int NInclude);
     [NativeCall] public static partial void ViewEnd(IntPtr State);
 
-    // Asset loading by virtual path.
-    [NativeCall] public static partial IntPtr LoadObject(string Path);
+    // The strong reference a canonical wrapper owns.
     [NativeCall] public static partial IntPtr PinObject(IntPtr Object);
     [NativeCall] public static partial void UnpinObject(IntPtr Pin);
-    [NativeCall] public static partial bool AssetExists(string Path);
-    [NativeCall] public static partial void LoadObjectAsync(string Path, ulong Callback);
 
     // An object's array slot and generation, which NativeObject checks to tell a live object from a reused slot.
     [NativeCall(SuppressGCTransition = true)] public static partial long ObjectGetHandle(IntPtr Object);

@@ -43,7 +43,7 @@ namespace Lumina
         }
 
         // The scene writes into a span, so the result vector is sized first and trimmed to what it wrote.
-        void Overlap(CWorld* World, const FQueryShape& Shape, const FVector3& Center, ECS::FEntity IgnoreEntity,
+        void Overlap(CWorld* World, const SQueryShape& Shape, const FVector3& Center, ECS::FEntity IgnoreEntity,
             ECollisionProfiles LayerMask, TVector<ECS::FEntity>& Out)
         {
             Physics::IPhysicsScene* Scene = SceneOf(World);
@@ -59,7 +59,7 @@ namespace Lumina
             Out.resize(Start + (size_t)(Written > 0 ? Written : 0));
         }
 
-        bool IsFree(CWorld* World, const FQueryShape& Shape, const FVector3& Center, ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
+        bool IsFree(CWorld* World, const SQueryShape& Shape, const FVector3& Center, ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
         {
             Physics::IPhysicsScene* Scene = SceneOf(World);
             ECS::FEntity First;
@@ -138,40 +138,40 @@ namespace Lumina
     void CPhysicsLibrary::SphereCast(CWorld* World, FVector3 Start, FVector3 End, float Radius,
         ECS::FEntity IgnoreEntity, TVector<SRayResult>& Out, ECollisionProfiles LayerMask)
     {
-        ShapeCastAll(World, FQueryShape::Sphere(Radius), Start, End, IgnoreEntity, Out, LayerMask);
+        ShapeCastAll(World, SQueryShape::Sphere(Radius), Start, End, IgnoreEntity, Out, LayerMask);
     }
 
     SRayResult CPhysicsLibrary::SphereCastClosest(CWorld* World, FVector3 Start, FVector3 End, float Radius,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return ShapeCast(World, FQueryShape::Sphere(Radius), Start, End, IgnoreEntity, LayerMask);
+        return ShapeCast(World, SQueryShape::Sphere(Radius), Start, End, IgnoreEntity, LayerMask);
     }
 
     SRayResult CPhysicsLibrary::BoxCast(CWorld* World, FVector3 Start, FVector3 End, FVector3 HalfExtents, FQuat Rotation,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return ShapeCast(World, FQueryShape::Box(HalfExtents, Rotation), Start, End, IgnoreEntity, LayerMask);
+        return ShapeCast(World, SQueryShape::Box(HalfExtents, Rotation), Start, End, IgnoreEntity, LayerMask);
     }
 
     void CPhysicsLibrary::BoxCastAll(CWorld* World, FVector3 Start, FVector3 End, FVector3 HalfExtents, FQuat Rotation,
         ECS::FEntity IgnoreEntity, TVector<SRayResult>& Out, ECollisionProfiles LayerMask)
     {
-        ShapeCastAll(World, FQueryShape::Box(HalfExtents, Rotation), Start, End, IgnoreEntity, Out, LayerMask);
+        ShapeCastAll(World, SQueryShape::Box(HalfExtents, Rotation), Start, End, IgnoreEntity, Out, LayerMask);
     }
 
     SRayResult CPhysicsLibrary::CapsuleCast(CWorld* World, FVector3 Start, FVector3 End, float Radius, float HalfHeight, FQuat Rotation,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return ShapeCast(World, FQueryShape::Capsule(Radius, HalfHeight, Rotation), Start, End, IgnoreEntity, LayerMask);
+        return ShapeCast(World, SQueryShape::Capsule(Radius, HalfHeight, Rotation), Start, End, IgnoreEntity, LayerMask);
     }
 
     void CPhysicsLibrary::CapsuleCastAll(CWorld* World, FVector3 Start, FVector3 End, float Radius, float HalfHeight, FQuat Rotation,
         ECS::FEntity IgnoreEntity, TVector<SRayResult>& Out, ECollisionProfiles LayerMask)
     {
-        ShapeCastAll(World, FQueryShape::Capsule(Radius, HalfHeight, Rotation), Start, End, IgnoreEntity, Out, LayerMask);
+        ShapeCastAll(World, SQueryShape::Capsule(Radius, HalfHeight, Rotation), Start, End, IgnoreEntity, Out, LayerMask);
     }
 
-    SRayResult CPhysicsLibrary::ShapeCast(CWorld* World, FQueryShape Shape, FVector3 Start, FVector3 End,
+    SRayResult CPhysicsLibrary::ShapeCast(CWorld* World, SQueryShape Shape, FVector3 Start, FVector3 End,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
         Physics::IPhysicsScene* Scene = SceneOf(World);
@@ -179,7 +179,7 @@ namespace Lumina
         return Hit.has_value() ? Hit.value() : MissOf(Start, End);
     }
 
-    void CPhysicsLibrary::ShapeCastAll(CWorld* World, FQueryShape Shape, FVector3 Start, FVector3 End,
+    void CPhysicsLibrary::ShapeCastAll(CWorld* World, SQueryShape Shape, FVector3 Start, FVector3 End,
         ECS::FEntity IgnoreEntity, TVector<SRayResult>& Out, ECollisionProfiles LayerMask)
     {
         if (Physics::IPhysicsScene* Scene = SceneOf(World))
@@ -191,22 +191,22 @@ namespace Lumina
     void CPhysicsLibrary::OverlapSphere(CWorld* World, FVector3 Center, float Radius,
         ECS::FEntity IgnoreEntity, TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask)
     {
-        Overlap(World, FQueryShape::Sphere(Radius), Center, IgnoreEntity, LayerMask, Out);
+        Overlap(World, SQueryShape::Sphere(Radius), Center, IgnoreEntity, LayerMask, Out);
     }
 
     void CPhysicsLibrary::OverlapBox(CWorld* World, FVector3 Center, FVector3 HalfExtents, FQuat Rotation,
         ECS::FEntity IgnoreEntity, TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask)
     {
-        Overlap(World, FQueryShape::Box(HalfExtents, Rotation), Center, IgnoreEntity, LayerMask, Out);
+        Overlap(World, SQueryShape::Box(HalfExtents, Rotation), Center, IgnoreEntity, LayerMask, Out);
     }
 
     void CPhysicsLibrary::OverlapCapsule(CWorld* World, FVector3 Center, float Radius, float HalfHeight, FQuat Rotation,
         ECS::FEntity IgnoreEntity, TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask)
     {
-        Overlap(World, FQueryShape::Capsule(Radius, HalfHeight, Rotation), Center, IgnoreEntity, LayerMask, Out);
+        Overlap(World, SQueryShape::Capsule(Radius, HalfHeight, Rotation), Center, IgnoreEntity, LayerMask, Out);
     }
 
-    void CPhysicsLibrary::OverlapShape(CWorld* World, FQueryShape Shape, FVector3 Center, ECS::FEntity IgnoreEntity,
+    void CPhysicsLibrary::OverlapShape(CWorld* World, SQueryShape Shape, FVector3 Center, ECS::FEntity IgnoreEntity,
         TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask)
     {
         Overlap(World, Shape, Center, IgnoreEntity, LayerMask, Out);
@@ -215,24 +215,24 @@ namespace Lumina
     void CPhysicsLibrary::OverlapPoint(CWorld* World, FVector3 Point, ECS::FEntity IgnoreEntity,
         TVector<ECS::FEntity>& Out, ECollisionProfiles LayerMask)
     {
-        Overlap(World, FQueryShape::Sphere(0.0f), Point, IgnoreEntity, LayerMask, Out);
+        Overlap(World, SQueryShape::Sphere(0.0f), Point, IgnoreEntity, LayerMask, Out);
     }
 
     bool CPhysicsLibrary::IsSpaceFree(CWorld* World, FVector3 Center, float Radius, ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return IsFree(World, FQueryShape::Sphere(Radius), Center, IgnoreEntity, LayerMask);
+        return IsFree(World, SQueryShape::Sphere(Radius), Center, IgnoreEntity, LayerMask);
     }
 
     bool CPhysicsLibrary::IsBoxSpaceFree(CWorld* World, FVector3 Center, FVector3 HalfExtents, FQuat Rotation,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return IsFree(World, FQueryShape::Box(HalfExtents, Rotation), Center, IgnoreEntity, LayerMask);
+        return IsFree(World, SQueryShape::Box(HalfExtents, Rotation), Center, IgnoreEntity, LayerMask);
     }
 
     bool CPhysicsLibrary::IsCapsuleSpaceFree(CWorld* World, FVector3 Center, float Radius, float HalfHeight, FQuat Rotation,
         ECS::FEntity IgnoreEntity, ECollisionProfiles LayerMask)
     {
-        return IsFree(World, FQueryShape::Capsule(Radius, HalfHeight, Rotation), Center, IgnoreEntity, LayerMask);
+        return IsFree(World, SQueryShape::Capsule(Radius, HalfHeight, Rotation), Center, IgnoreEntity, LayerMask);
     }
 
     ECS::FEntity CPhysicsLibrary::FindNearestEntity(CWorld* World, FVector3 Center, float Radius, ECS::FEntity IgnoreEntity,
@@ -273,13 +273,13 @@ namespace Lumina
         return Scene != nullptr && Scene->GetClosestPointOnBody(Entity, Point, Closest) ? Math::Length(Closest - Point) : -1.0f;
     }
 
-    FAABB CPhysicsLibrary::GetBodyBounds(CWorld* World, ECS::FEntity Entity)
+    SAABB CPhysicsLibrary::GetBodyBounds(CWorld* World, ECS::FEntity Entity)
     {
         Physics::IPhysicsScene* Scene = SceneOf(World);
-        FAABB Bounds;
+        SAABB Bounds;
         if (Scene == nullptr || !Scene->GetBodyBounds(Entity, Bounds))
         {
-            return FAABB();
+            return SAABB();
         }
         return Bounds;
     }
@@ -415,7 +415,7 @@ namespace Lumina
         if (Physics::IPhysicsScene* Scene = SceneOf(World)) { Scene->SetSurfaceVelocity(Entity, Linear, Angular); }
     }
 
-    uint32 CPhysicsLibrary::CreateConstraint(CWorld* World, Physics::FConstraintDesc Desc)
+    uint32 CPhysicsLibrary::CreateConstraint(CWorld* World, Physics::SConstraintDesc Desc)
     {
         Physics::IPhysicsScene* Scene = SceneOf(World);
         return Scene ? Scene->CreateConstraint(Desc) : 0;
@@ -424,7 +424,7 @@ namespace Lumina
     uint32 CPhysicsLibrary::CreateFixedConstraint(CWorld* World, ECS::FEntity BodyA, ECS::FEntity BodyB,
         float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Fixed;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;
@@ -435,7 +435,7 @@ namespace Lumina
     uint32 CPhysicsLibrary::CreatePointConstraint(CWorld* World, ECS::FEntity BodyA, ECS::FEntity BodyB,
         FVector3 Pivot, float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Point;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;
@@ -448,7 +448,7 @@ namespace Lumina
         FVector3 PointA, FVector3 PointB, float MinDistance, float MaxDistance, float Frequency,
         float Damping, float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Distance;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;
@@ -467,7 +467,7 @@ namespace Lumina
         FVector3 Pivot, FVector3 Axis, float MinAngle, float MaxAngle, bool bLimited, float MaxFrictionTorque,
         float MotorTorqueLimit, float MotorFrequency, float MotorDamping, float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Hinge;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;
@@ -489,7 +489,7 @@ namespace Lumina
         float MaxFrictionForce, float MotorForceLimit, float MotorFrequency, float MotorDamping,
         float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Slider;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;
@@ -509,7 +509,7 @@ namespace Lumina
     uint32 CPhysicsLibrary::CreateConeConstraint(CWorld* World, ECS::FEntity BodyA, ECS::FEntity BodyB,
         FVector3 Pivot, FVector3 TwistAxis, float HalfConeAngle, float BreakForce)
     {
-        Physics::FConstraintDesc Desc;
+        Physics::SConstraintDesc Desc;
         Desc.Type = EPhysicsConstraintType::Cone;
         Desc.BodyA = BodyA;
         Desc.BodyB = BodyB;

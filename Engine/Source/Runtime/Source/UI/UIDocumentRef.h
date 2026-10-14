@@ -10,7 +10,7 @@ namespace Lumina
 
     // A rename-safe reference to an .rml document, which the details panel picks from the project's UI documents.
     REFLECT()
-    struct RUNTIME_API FUIDocumentRef
+    struct RUNTIME_API SUIDocumentRef
     {
         GENERATED_BODY()
 
@@ -22,8 +22,8 @@ namespace Lumina
         PROPERTY()
         FString Guid;
 
-        FUIDocumentRef() = default;
-        explicit FUIDocumentRef(FStringView InPath) : Path(InPath.data(), InPath.size()) {}
+        SUIDocumentRef() = default;
+        explicit SUIDocumentRef(FStringView InPath) : Path(InPath.data(), InPath.size()) {}
 
         bool IsNull() const  { return Path.empty() && Guid.empty(); }
         bool IsValid() const { return !IsNull(); }
@@ -45,7 +45,7 @@ namespace Lumina
         // A compact net index when the archive binds the document hooks, otherwise the full path and GUID.
         void NetSerialize(FNetArchive& Ar);
 
-        bool operator==(const FUIDocumentRef& Other) const { return Path == Other.Path && Guid == Other.Guid; }
-        bool operator!=(const FUIDocumentRef& Other) const { return !(*this == Other); }
+        bool operator==(const SUIDocumentRef& Other) const { return Path == Other.Path && Guid == Other.Guid; }
+        bool operator!=(const SUIDocumentRef& Other) const { return !(*this == Other); }
     };
 }

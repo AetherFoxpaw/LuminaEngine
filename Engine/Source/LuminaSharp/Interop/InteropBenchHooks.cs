@@ -162,7 +162,7 @@ internal static unsafe partial class InteropBenchHooks
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static double Bench_BlittableMapLookup(IntPtr Storage, int Iterations)
     {
-        var Opaque = new Lumina.FInteropOpaqueStruct(Storage);
+        var Opaque = new Lumina.SInteropOpaqueStruct(Storage);
         Opaque.Scores.Set(1, 1.0f);
 
         float Total = 0.0f;

@@ -7,7 +7,7 @@
 
 namespace Lumina
 {
-    void FUIDocumentRef::NetSerialize(FNetArchive& Ar)
+    void SUIDocumentRef::NetSerialize(FNetArchive& Ar)
     {
         if (Ar.IsWriting())
         {
@@ -40,7 +40,7 @@ namespace Lumina
         }
     }
 
-    FGuid FUIDocumentRef::GetGuid() const
+    FGuid SUIDocumentRef::GetGuid() const
     {
         if (Guid.empty())
         {
@@ -53,7 +53,7 @@ namespace Lumina
         return FGuid();
     }
 
-    FStringView FUIDocumentRef::ResolvePath() const
+    FStringView SUIDocumentRef::ResolvePath() const
     {
         FAssetRegistry& Registry = FAssetRegistry::Get();
 
@@ -66,7 +66,7 @@ namespace Lumina
                 const FStringView Current(Data->Path.c_str(), Data->Path.size());
                 if (Current != GetPath())
                 {
-                    const_cast<FUIDocumentRef*>(this)->Path.assign(Current.data(), Current.size());
+                    const_cast<SUIDocumentRef*>(this)->Path.assign(Current.data(), Current.size());
                 }
                 return GetPath();
             }
@@ -77,14 +77,14 @@ namespace Lumina
         {
             if (FTextAssetData* Data = Registry.GetTextAssetByPath(GetPath()))
             {
-                const_cast<FUIDocumentRef*>(this)->Guid = Data->Guid.ToString();
+                const_cast<SUIDocumentRef*>(this)->Guid = Data->Guid.ToString();
             }
         }
 
         return GetPath();
     }
 
-    bool FUIDocumentRef::ReadText(FString& OutText) const
+    bool SUIDocumentRef::ReadText(FString& OutText) const
     {
         const FStringView ResolvedPath = ResolvePath();
         if (ResolvedPath.empty())
@@ -94,7 +94,7 @@ namespace Lumina
         return VFS::ReadFile(OutText, ResolvedPath);
     }
 
-    void FUIDocumentRef::SetPath(FStringView InPath)
+    void SUIDocumentRef::SetPath(FStringView InPath)
     {
         Path.assign(InPath.data(), InPath.size());
         Guid.clear();
@@ -107,7 +107,7 @@ namespace Lumina
         }
     }
 
-    void FUIDocumentRef::Set(FStringView InPath, const FGuid& InGuid)
+    void SUIDocumentRef::Set(FStringView InPath, const FGuid& InGuid)
     {
         Path.assign(InPath.data(), InPath.size());
         Guid = InGuid.IsValid() ? InGuid.ToString() : FString();
