@@ -359,6 +359,9 @@ namespace Lumina
         void PostLoad() override;
         void OnDestroy() override;
 
+        // An emitter saved as its own package, which systems reference and share, rather than one living inside a system.
+        bool IsAsset() const override;
+
         // The shader sources a generated simulation can reach, hashed once per run.
         static uint64 GetSimulationTemplateHash();
 

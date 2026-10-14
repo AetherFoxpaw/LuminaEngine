@@ -175,14 +175,19 @@ namespace Lumina::Physics
         FPhysicsBodyTarget MakeBodyTarget(uint32 Handle) const;
 
         TOptional<SRayResult> CastRay(const SRayCastSettings& Settings) override;
-        void CastSphere(const SSphereCastSettings& Settings, TVector<SRayResult>& OutHits) override;
-        TOptional<SRayResult> CastSphereClosest(const SSphereCastSettings& Settings) override;
         void CastRayAll(const SRayCastSettings& Settings, TVector<SRayResult>& OutHits) override;
+        bool CastRayAny(const SRayCastSettings& Settings) override;
+        TOptional<SRayResult> CastRayAgainst(ECS::FEntity Entity, const FVector3& Start, const FVector3& End) override;
+        void CastShapeAll(const FQueryShape& Shape, const FVector3& Start, const FVector3& End, ECollisionProfiles LayerMask,
+                          TSpan<const ECS::FEntity> IgnoreEntities, TVector<SRayResult>& OutHits) override;
+        TOptional<SRayResult> CastShapeClosest(const FQueryShape& Shape, const FVector3& Start, const FVector3& End,
+                                               ECollisionProfiles LayerMask, TSpan<const ECS::FEntity> IgnoreEntities) override;
+        int32 OverlapShape(const FQueryShape& Shape, const FVector3& Center, ECollisionProfiles LayerMask,
+                           TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) override;
+        bool GetClosestPointOnBody(ECS::FEntity Entity, const FVector3& Point, FVector3& OutPoint) const override;
+        bool GetBodyBounds(ECS::FEntity Entity, FAABB& OutBounds) const override;
 
         int32 ResolveHitBoneIndex(ECS::FEntity Entity, b3BodyId BodyId) const;
-        int32 CollidePoint(const FVector3& Point, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) override;
-        int32 OverlapSphere(const FVector3& Center, float Radius, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) override;
-        int32 OverlapBox(const FVector3& Center, const FVector3& HalfExtents, const FQuat& Rotation, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) override;
 
         void OnCharacterComponentConstructed(ECS::FRegistry& Registry, ECS::FEntity Entity);
         void OnCharacterComponentDestroyed(ECS::FRegistry& Registry, ECS::FEntity Entity);

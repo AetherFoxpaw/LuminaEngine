@@ -1563,6 +1563,7 @@ namespace Lumina
 
         // Lookup walks the class hierarchy most-derived first, so an override resolves before its base.
         Registry.RegisterAssetEditor<CParticleSystem,     FParticleSystemEditorTool>(Owner);
+        Registry.RegisterAssetEditor<CParticleEmitter,    FParticleSystemEditorTool>(Owner);
         Registry.RegisterAssetEditor<CMaterial,           FMaterialEditorTool>(Owner);
         Registry.RegisterAssetEditor<CMaterialInstance,   FMaterialInstanceEditorTool>(Owner);
         Registry.RegisterAssetEditor<CMaterialFunction,   FMaterialFunctionEditorTool>(Owner);

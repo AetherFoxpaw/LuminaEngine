@@ -6,6 +6,7 @@
 #include "Core/Engine/Engine.h"
 #include "Core/Math/Hash/Hash.h"
 #include "Core/Object/Package/Package.h"
+#include "FileSystem/FileSystem.h"
 #include "Renderer/RenderManager.h"
 #include "Renderer/ShaderLibrary.h"
 #include "Renderer/ShaderPaths.h"
@@ -108,6 +109,17 @@ namespace Lumina
 #endif
     }
 
+    bool CParticleEmitter::IsAsset() const
+    {
+        const CPackage* Package = GetPackage();
+        if (Package == nullptr)
+        {
+            return false;
+        }
+        const FFixedString Path = Package->GetPackagePath();
+        return GetName() == FName(VFS::FileName(FStringView(Path.c_str(), Path.size()), true));
+    }
+
     void CParticleEmitter::OnDestroy()
     {
         CObject::OnDestroy();
@@ -192,21 +204,27 @@ namespace Lumina
     void CParticleSystem::PostLoad()
     {
         LUMINA_MEMORY_SCOPE("Particles");
+        // A shared emitter asset that was deleted leaves an empty slot nothing can draw or edit.
+        if (const size_t Missing = Emitters.RemoveAllBy([](const TStrongObjectPtr<CParticleEmitter>& Emitter) { return !Emitter.IsValid(); }))
+        {
+            LOG_WARN("Particle system '{}' dropped {} emitter(s) whose asset no longer exists.", GetName().c_str(), Missing);
+        }
+
         // Emitters is the only thing every consumer indexes, so an empty one gets a default instead.
         if (Emitters.empty())
         {
             AddEmitter();
         }
 
-        // PostLoad commits their shader binaries, and a nested export gets none from the outer load.
+        // A nested export gets no PostLoad from the outer load, while a shared emitter asset already had its own.
         bool bNeedsCompile = false;
         for (const TStrongObjectPtr<CParticleEmitter>& Emitter : Emitters)
         {
-            if (Emitter.IsValid())
+            if (Emitter->GetPackage() == GetPackage())
             {
                 Emitter->PostLoad();
-                bNeedsCompile |= Emitter->NeedsShaderCompile();
             }
+            bNeedsCompile |= Emitter->NeedsShaderCompile();
         }
 
 #if USING(WITH_EDITOR)

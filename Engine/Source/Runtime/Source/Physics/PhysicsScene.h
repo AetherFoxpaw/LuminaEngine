@@ -9,6 +9,7 @@
 #include "Containers/Span.h"
 #include "Containers/Vector.h"
 #include "Memory/SmartPtr.h"
+#include "Core/Math/AABB.h"
 #include "Core/Math/Matrix/MatrixMath.h"
 #include "Ray/RayCast.h"
 #include "Renderer/SkeletonResource.h"
@@ -210,21 +211,56 @@ namespace Lumina::Physics
         
         virtual TOptional<SRayResult> CastRay(const SRayCastSettings& Settings) = 0;
 
+        // Every body the ray crosses, near-to-far (penetrating bullets). OutHits is cleared first.
+        virtual void CastRayAll(const SRayCastSettings& Settings, TVector<SRayResult>& OutHits) = 0;
+
+        // Whether anything blocks the ray, stopping at the first hit rather than finding the nearest.
+        virtual bool CastRayAny(const SRayCastSettings& Settings) = 0;
+
+        // The ray against one entity's body alone, everything else ignored.
+        virtual TOptional<SRayResult> CastRayAgainst(ECS::FEntity Entity, const FVector3& Start, const FVector3& End) = 0;
+
         // Sweep hits near-to-far; OutHits is cleared first, so reusing one buffer keeps the query alloc-free.
-        virtual void CastSphere(const SSphereCastSettings& Settings, TVector<SRayResult>& OutHits) = 0;
+        virtual void CastShapeAll(const FQueryShape& Shape, const FVector3& Start, const FVector3& End, ECollisionProfiles LayerMask,
+                                  TSpan<const ECS::FEntity> IgnoreEntities, TVector<SRayResult>& OutHits) = 0;
 
         // Nearest sweep hit; lets the backend shrink the query instead of gathering every hit behind it.
-        virtual TOptional<SRayResult> CastSphereClosest(const SSphereCastSettings& Settings) { return {}; }
-
-        // Every body the ray crosses, near-to-far (penetrating bullets). OutHits is cleared first.
-        virtual void CastRayAll(const SRayCastSettings& Settings, TVector<SRayResult>& OutHits) { OutHits.clear(); }
-
-        // Distinct entities whose bodies contain the world point (volume containment, no sweep).
-        virtual int32 CollidePoint(const FVector3& Point, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) { return 0; }
+        virtual TOptional<SRayResult> CastShapeClosest(const FQueryShape& Shape, const FVector3& Start, const FVector3& End,
+                                                       ECollisionProfiles LayerMask, TSpan<const ECS::FEntity> IgnoreEntities) = 0;
 
         // Distinct entities intersecting the shape; returns the count written, == size() means possibly more.
-        virtual int32 OverlapSphere(const FVector3& Center, float Radius, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) = 0;
-        virtual int32 OverlapBox(const FVector3& Center, const FVector3& HalfExtents, const FQuat& Rotation, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) = 0;
+        virtual int32 OverlapShape(const FQueryShape& Shape, const FVector3& Center, ECollisionProfiles LayerMask,
+                                   TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities) = 0;
+
+        // False when the entity has no body.
+        virtual bool GetClosestPointOnBody(ECS::FEntity Entity, const FVector3& Point, FVector3& OutPoint) const = 0;
+        virtual bool GetBodyBounds(ECS::FEntity Entity, FAABB& OutBounds) const = 0;
+
+        void CastSphere(const SSphereCastSettings& Settings, TVector<SRayResult>& OutHits)
+        {
+            CastShapeAll(FQueryShape::Sphere(Settings.Radius), Settings.Start, Settings.End, Settings.LayerMask, Settings.IgnoreEntities, OutHits);
+        }
+
+        TOptional<SRayResult> CastSphereClosest(const SSphereCastSettings& Settings)
+        {
+            return CastShapeClosest(FQueryShape::Sphere(Settings.Radius), Settings.Start, Settings.End, Settings.LayerMask, Settings.IgnoreEntities);
+        }
+
+        // Distinct entities whose bodies contain the world point, a zero-radius overlap rather than a sweep.
+        int32 CollidePoint(const FVector3& Point, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities)
+        {
+            return OverlapShape(FQueryShape::Sphere(0.0f), Point, ECollisionProfiles::All, IgnoreEntities, OutEntities);
+        }
+
+        int32 OverlapSphere(const FVector3& Center, float Radius, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities)
+        {
+            return OverlapShape(FQueryShape::Sphere(Radius), Center, ECollisionProfiles::All, IgnoreEntities, OutEntities);
+        }
+
+        int32 OverlapBox(const FVector3& Center, const FVector3& HalfExtents, const FQuat& Rotation, TSpan<const ECS::FEntity> IgnoreEntities, TSpan<ECS::FEntity> OutEntities)
+        {
+            return OverlapShape(FQueryShape::Box(HalfExtents, Rotation), Center, ECollisionProfiles::All, IgnoreEntities, OutEntities);
+        }
         
         virtual void AddForce(ECS::FEntity Entity, const FVector3& Force) = 0;
         virtual void AddImpulse(ECS::FEntity Entity, const FVector3& Impulse) = 0;

@@ -108,29 +108,40 @@ namespace Lumina
             return nullptr;
         }
 
-        // The PRIMARY object shares its package's name, while sub-objects are found by name instead.
-        const FStringView DestAssetName = VFS::FileName(DestPath, /*bRemoveExtension*/ true);
+        // The primary object shares its package's name, while sub-objects are found by name instead.
+        const FName DestAssetName(VFS::FileName(DestPath, /*bRemoveExtension*/ true));
+        const THashMap<CObject*, CObject*> Remap = CopyObjectsInto(SourceObjects, DestPackage, [&](CObject* Source)
+        {
+            return Source == PrimaryAsset ? DestAssetName : Source->GetName();
+        });
+        if (Remap.empty() || !CPackage::SavePackage(DestPackage, DestPath))
+        {
+            return nullptr;
+        }
 
+        return Remap.find(PrimaryAsset)->second;
+    }
+
+    THashMap<CObject*, CObject*> CopyObjectsInto(TSpan<CObject* const> Sources, CPackage* Dest, const TFunction<FName(CObject*)>& NameFor)
+    {
         // Pass 1 constructs every copy first, so pass 2 can resolve a reference to any sibling.
         THashMap<CObject*, CObject*> Remap;
-        Remap.reserve(SourceObjects.size());
+        Remap.reserve(Sources.size());
 
-        for (CObject* Source : SourceObjects)
+        for (CObject* Source : Sources)
         {
-            const FName CopyName = (Source == PrimaryAsset) ? FName(DestAssetName) : Source->GetName();
-
-            CObject* Copy = NewObject(Source->GetClass(), DestPackage, CopyName, FGuid::New(), OF_Public);
+            CObject* Copy = NewObject(Source->GetClass(), Dest, NameFor(Source), FGuid::New(), OF_Public);
             if (Copy == nullptr)
             {
-                return nullptr;
+                return {};
             }
 
-            // The saver rebuilds ExportTable, so being outered to DestPackage is what makes a copy an export.
+            // The saver rebuilds ExportTable, so being outered to Dest is what makes a copy an export.
             Remap.emplace(Source, Copy);
         }
 
         // Copying reflected properties alone loses state a class serializes by hand, such as a mesh resource.
-        for (CObject* Source : SourceObjects)
+        for (CObject* Source : Sources)
         {
             CObject* Copy = Remap[Source];
 
@@ -164,17 +175,11 @@ namespace Lumina
         }
 
         // A PostLoad that reaches for a sibling needs the whole set present and remapped first.
-        for (CObject* Source : SourceObjects)
+        for (CObject* Source : Sources)
         {
             Remap[Source]->PostLoad();
         }
-
-        if (!CPackage::SavePackage(DestPackage, DestPath))
-        {
-            return nullptr;
-        }
-
-        return Remap[PrimaryAsset];
+        return Remap;
     }
 
     namespace
