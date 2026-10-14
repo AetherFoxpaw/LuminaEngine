@@ -6,6 +6,7 @@
 #include <cstring>
 #include <pthread.h>
 #include <linux/futex.h>
+#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -66,6 +67,11 @@ namespace Lumina::Threading
     bool SetThreadPerformanceHint()
     {
         return false;
+    }
+
+    bool SetThreadBackgroundPriority(bool bBackground)
+    {
+        return ::setpriority(PRIO_PROCESS, (id_t)GetThreadID(), bBackground ? 10 : 0) == 0;
     }
 
     bool WaitOnAddress32(const volatile uint32* Address, uint32 Compare, uint32 TimeoutMs)

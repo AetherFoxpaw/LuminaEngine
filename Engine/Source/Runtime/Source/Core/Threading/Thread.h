@@ -103,6 +103,9 @@ namespace Lumina
         // Opts the current thread out of EcoQoS power throttling.
         RUNTIME_API bool SetThreadPerformanceHint();
 
+        // Lets the scheduler run the frame's threads first, for throughput work nothing waits on. False puts the thread back to normal.
+        RUNTIME_API bool SetThreadBackgroundPriority(bool bBackground = true);
+
         // One entry per logical processor. SMT siblings share PhysicalCore; last-level-cache peers share
         // CacheGroup. Both are dense ids with no meaning beyond equality.
         struct FCpuTopology

@@ -166,6 +166,13 @@ namespace Lumina::Threading
         ::SetThreadIdealProcessorEx(::GetCurrentThread(), &Ideal, nullptr);
     }
 
+    bool SetThreadBackgroundPriority(bool bBackground)
+    {
+        // The wake boost would lift a background thread level with the frame's workers for a whole quantum.
+        ::SetThreadPriorityBoost(::GetCurrentThread(), bBackground ? TRUE : FALSE);
+        return ::SetThreadPriority(::GetCurrentThread(), bBackground ? THREAD_PRIORITY_LOWEST : THREAD_PRIORITY_NORMAL) != 0;
+    }
+
     bool SetThreadPerformanceHint()
     {
         // A zero state mask opts out of EcoQoS so the Thread Director picks performance cores.
