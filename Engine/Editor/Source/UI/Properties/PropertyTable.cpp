@@ -31,6 +31,8 @@
 namespace Lumina
 {
     static constexpr int        ComplexArrayDisplayLimit = 32;
+    static constexpr int32      MaxLiveElementRows = 1024;
+    static constexpr int32      ElementRowMargin = 64;
     static constexpr float      ChildIndentStep = 14.0f;
     static constexpr uint32     ArrayControlSeed = 428768833;
     static constexpr float      ResetColumnWidth = 22.0f;
@@ -1211,6 +1213,18 @@ namespace Lumina
             DispatchChange(EPropertyChangeOp::Updated);
             DispatchChange(EPropertyChangeOp::Finished);
         }
+
+        // Game code can resize the array and a scroll leaves rows far behind, so the window is clamped before this frame draws.
+        const int32 Count = GetElementCount();
+        const int32 WindowEnd = WindowBegin + (int32)Children.size();
+        if (Children.empty() || WindowEnd > Count)
+        {
+            SetWindow(0, Math::Min(Count, ComplexArrayDisplayLimit));
+        }
+        else if ((int32)Children.size() > MaxLiveElementRows && IsInnerFixedHeight())
+        {
+            SetWindow(Math::Max(0, LastVisibleBegin - ElementRowMargin), Math::Min(Count, LastVisibleEnd + ElementRowMargin));
+        }
     }
 
     void FArrayPropertyRow::QueueMutation(TFunction<void()> Mutation)
@@ -1266,35 +1280,49 @@ namespace Lumina
 
     void FArrayPropertyRow::DrawChildren(float ChildOffset, const FPropertyDrawArgs& Args)
     {
-        const int ChildCount = static_cast<int>(Children.size());
-        if (ChildCount == 0)
+        const int32 Count = GetElementCount();
+        if (Count == 0)
         {
             return;
         }
 
         if (IsInnerFixedHeight())
         {
+            // A known row height skips the clipper's measuring pass, which would otherwise pull element 0 into a scrolled window.
             ImGuiListClipper Clipper;
-            Clipper.Begin(ChildCount);
+            Clipper.Begin(Count, ElementRowHeight);
+            int32 Widest = 0;
             while (Clipper.Step())
             {
-                for (int i = Clipper.DisplayStart; i < Clipper.DisplayEnd; ++i)
+                CoverElements(Clipper.DisplayStart, Clipper.DisplayEnd);
+                for (int32 i = Clipper.DisplayStart; i < Clipper.DisplayEnd; ++i)
                 {
-                    Children[i]->DrawRow(ChildOffset, Args);
+                    Children[i - WindowBegin]->DrawRow(ChildOffset, Args);
                 }
+                if (Clipper.DisplayEnd - Clipper.DisplayStart > Widest)
+                {
+                    Widest = Clipper.DisplayEnd - Clipper.DisplayStart;
+                    LastVisibleBegin = Clipper.DisplayStart;
+                    LastVisibleEnd = Clipper.DisplayEnd;
+                }
+            }
+            if (Clipper.ItemsHeight > 0.0f)
+            {
+                ElementRowHeight = Clipper.ItemsHeight;
             }
             return;
         }
-        
-        const int DisplayCount = bShowAllElements ? ChildCount : Math::Min(ChildCount, ComplexArrayDisplayLimit);
-        for (int i = 0; i < DisplayCount; ++i)
+
+        const int32 DisplayCount = bShowAllElements ? Count : Math::Min(Count, ComplexArrayDisplayLimit);
+        CoverElements(0, DisplayCount);
+        for (int32 i = 0; i < DisplayCount; ++i)
         {
-            Children[i]->DrawRow(ChildOffset, Args);
+            Children[i - WindowBegin]->DrawRow(ChildOffset, Args);
         }
 
-        if (DisplayCount < ChildCount)
+        if (DisplayCount < Count)
         {
-            DrawTruncationRow(ChildOffset, ChildCount - DisplayCount);
+            DrawTruncationRow(ChildOffset, Count - DisplayCount);
         }
     }
 
@@ -1316,27 +1344,61 @@ namespace Lumina
     void FArrayPropertyRow::RebuildChildren()
     {
         DestroyChildren();
-
-        void* ContainerPtr = GetPropertyHandle()->GetValuePtr();
-        void* DefaultContainerPtr = GetPropertyHandle()->GetDefaultValuePtr();
-        const size_t ElementCount = ArrayProperty->GetNum(ContainerPtr);
-        
+        WindowBegin = 0;
         bShowAllElements = false;
+        SetWindow(0, Math::Min(GetElementCount(), ComplexArrayDisplayLimit));
+    }
 
-        Children.reserve(ElementCount);
-        FProperty* InnerProperty = ArrayProperty->GetInternalProperty();
-        for (size_t i = 0; i < ElementCount; ++i)
+    int32 FArrayPropertyRow::GetElementCount() const
+    {
+        return (int32)ArrayProperty->GetNum(GetPropertyHandle()->GetValuePtr());
+    }
+
+    TUniquePtr<FPropertyRow> FArrayPropertyRow::CreateElementRow(int32 Index)
+    {
+        TSharedPtr<FPropertyHandle> ElementPropHandle = MakeShared<FPropertyHandle>(
+            ArrayProperty,
+            GetPropertyHandle()->GetValuePtr(),
+            GetPropertyHandle()->GetDefaultValuePtr(),
+            ArrayProperty->GetInternalProperty(),
+            static_cast<int64>(Index));
+        TUniquePtr<FPropertyRow> NewRow = CreatePropertyRow(ElementPropHandle, this, Callbacks);
+        NewRow->SetIsArrayElement(true);
+        return NewRow;
+    }
+
+    void FArrayPropertyRow::SetWindow(int32 Begin, int32 End)
+    {
+        const int32 OldBegin = WindowBegin;
+        const int32 OldEnd = WindowBegin + (int32)Children.size();
+
+        // Rows inside both windows move across, so one drawn earlier this frame stays alive.
+        TVector<TUniquePtr<FPropertyRow>> Rows;
+        Rows.reserve(Math::Max(0, End - Begin));
+        for (int32 i = Begin; i < End; ++i)
         {
-            TSharedPtr<FPropertyHandle> ElementPropHandle = MakeShared<FPropertyHandle>(
-                ArrayProperty,
-                ContainerPtr,
-                DefaultContainerPtr,
-                InnerProperty,
-                static_cast<int64>(i));
-            TUniquePtr<FPropertyRow> NewRow = CreatePropertyRow(ElementPropHandle, this, Callbacks);
-            NewRow->SetIsArrayElement(true);
-            Children.push_back(Move(NewRow));
+            Rows.push_back(i >= OldBegin && i < OldEnd ? Move(Children[i - OldBegin]) : CreateElementRow(i));
         }
+        Children = Move(Rows);
+        WindowBegin = Begin;
+    }
+
+    void FArrayPropertyRow::CoverElements(int32 Begin, int32 End)
+    {
+        const int32 WindowEnd = WindowBegin + (int32)Children.size();
+        if (Begin >= WindowBegin && End <= WindowEnd)
+        {
+            return;
+        }
+
+        int32 NewBegin = Math::Min(Begin, WindowBegin);
+        int32 NewEnd = Math::Max(End, WindowEnd);
+        if (Children.empty() || NewEnd - NewBegin > MaxLiveElementRows)
+        {
+            NewBegin = Begin;
+            NewEnd = End;
+        }
+        SetWindow(NewBegin, NewEnd);
     }
 
     bool FArrayPropertyRow::AllowResize() const

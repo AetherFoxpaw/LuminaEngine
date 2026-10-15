@@ -229,15 +229,20 @@ namespace LuminaSharp
             retCs = "void";
             nativeTypes.Add("void");
         }
+        else if (ComponentRefOf(method.ReturnType) is INamedTypeSymbol componentRet)
+        {
+            retCs = method.ReturnType.ToDisplayString(fq);
+            nativeRefReturn = true;
+            // A component tracks its owner like a registry fetch, so a kept reference never reads a moved slot.
+            handleReturnBuild = retCs + ".FromPointer(__p)";
+            nativeTypes.Add("global::System.IntPtr");
+        }
         else if (StructHandleOf(method.ReturnType) is INamedTypeSymbol handleRet)
         {
             string handleFq = handleRet.ToDisplayString(fq);
             retCs = method.ReturnType.ToDisplayString(fq);
             nativeRefReturn = true;
-            // A component tracks its owner like a registry fetch, so a kept handle never reads a moved slot.
-            handleReturnBuild = IsComponentHandle(handleRet)
-                ? "global::LuminaSharp.NativeStructs.FromComponentPointer<" + handleFq + ">(__p)"
-                : "global::LuminaSharp.NativeStructs.FromAddressOrNull<" + handleFq + ">(__p)";
+            handleReturnBuild = "global::LuminaSharp.NativeStructs.FromAddressOrNull<" + handleFq + ">(__p)";
             if (method.ReturnType.OriginalDefinition.SpecialType != SpecialType.System_Nullable_T)
             {
                 handleReturnBuild += ".GetValueOrDefault()";
@@ -611,7 +616,11 @@ namespace LuminaSharp
         return null;
     }
 
-    private static bool IsComponentHandle(INamedTypeSymbol type) => ImplementsLuminaInterface(type, "IComponent");
+    private static INamedTypeSymbol? ComponentRefOf(ITypeSymbol type)
+    {
+        return type is INamedTypeSymbol { IsGenericType: true } named && named.Name == "TComponentRef"
+            && named.ContainingNamespace?.ToDisplayString() == "LuminaSharp" ? named : null;
+    }
 
     private static bool ImplementsLuminaInterface(INamedTypeSymbol type, string name)
     {

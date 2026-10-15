@@ -126,9 +126,10 @@ public interface INativeStruct<TSelf> : INativeStruct where TSelf : struct, INat
     static abstract string NativeName { get; }
 }
 
-// A struct the ECS stores per entity, reached through the world rather than built in C#.
-public interface IComponent<TSelf> : INativeStruct<TSelf> where TSelf : struct, IComponent<TSelf>
+// A struct the ECS stores per entity, which C# only ever reaches in place through a ref or a TComponentRef.
+public interface IComponent<TSelf> where TSelf : struct, IComponent<TSelf>
 {
+    static abstract string NativeName { get; }
 }
 
 public static unsafe class NativeStructs
@@ -146,22 +147,6 @@ public static unsafe class NativeStructs
     public static T? FromAddressOrNull<T>(nint Address) where T : struct, INativeStruct
     {
         return Address == 0 ? null : FromRef<T>(new NativeRef(Address));
-    }
-
-    // A component handed back by pointer tracks its owner like a registry fetch, so a kept handle never reads a moved slot.
-    public static T? FromComponentPointer<T>(nint Pointer) where T : struct, IComponent<T>
-    {
-        if (Pointer == 0)
-        {
-            return null;
-        }
-
-        nint Ops = ComponentOps<T>.Token;
-        if (Ops != 0 && Native.TrackComponentPointer(Pointer, Ops, out ulong World, out uint Entity, out uint* Epoch))
-        {
-            return FromRef<T>(new NativeRef(Pointer, World, Entity, Ops, Epoch));
-        }
-        return FromRef<T>(new NativeRef(Pointer));
     }
 
     public static nint AddressOf<T>(T? Value) where T : struct, INativeStruct

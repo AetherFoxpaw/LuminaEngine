@@ -257,8 +257,19 @@ namespace Lumina
 
         void DrawTruncationRow(float Offset, int HiddenCount);
 
+        int32 GetElementCount() const;
+        TUniquePtr<FPropertyRow> CreateElementRow(int32 Index);
+
+        // Children hold rows for elements [WindowBegin, WindowBegin + Children.size()), so a million-element array keeps only what is on screen.
+        void SetWindow(int32 Begin, int32 End);
+        void CoverElements(int32 Begin, int32 End);
+
         TVector<TFunction<void()>>  PendingMutations;
         bool                        bShowAllElements = false;
+        int32                       WindowBegin = 0;
+        int32                       LastVisibleBegin = 0;
+        int32                       LastVisibleEnd = 0;
+        float                       ElementRowHeight = -1.0f;
     };
 
     // Editor row for THashMap<K,V> / a C# Dictionary: an Add/Clear header with one FMapEntryRow per entry.

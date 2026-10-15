@@ -242,6 +242,7 @@ internal static class ScriptCompiler
         "ScriptFunctionInvokerGenerator",   // [Function] -> the typed frame invoker
         "ContainerIndexerWriteGenerator",   // rejects a write through a TVector indexer that reads a held copy
         "ScriptStructGenerator",            // gives a [Reflect] script struct the handle it views native memory through
+        "ComponentStorageGenerator",        // rejects a component held or created as a C# value, since it only exists in storage
     };
 
     private static ImmutableArray<ISourceGenerator> SourceGenerators => CachedGenerators ??= LoadGenerators();

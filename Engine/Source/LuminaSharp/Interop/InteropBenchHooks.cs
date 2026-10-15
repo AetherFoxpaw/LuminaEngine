@@ -145,7 +145,7 @@ internal static unsafe partial class InteropBenchHooks
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static double Bench_PropertyOffsetRead(IntPtr Component, int Iterations)
     {
-        var View = new Lumina.STransformComponent(Component);
+        ref Lumina.STransformComponent View = ref Unsafe.AsRef<Lumina.STransformComponent>((void*)Component);
         float Total = 0.0f;
         long Start = Stopwatch.GetTimestamp();
         for (int i = 0; i < Iterations; ++i)
@@ -182,7 +182,7 @@ internal static unsafe partial class InteropBenchHooks
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static double Bench_PropertyAccessorRead(IntPtr Component, int Iterations)
     {
-        var View = new Lumina.STransformComponent(Component);
+        ref Lumina.STransformComponent View = ref Unsafe.AsRef<Lumina.STransformComponent>((void*)Component);
         float Total = 0.0f;
         long Start = Stopwatch.GetTimestamp();
         for (int i = 0; i < Iterations; ++i)
@@ -224,9 +224,9 @@ internal static unsafe partial class InteropBenchHooks
         for (int Tick = 0; Tick < Ticks; ++Tick)
         {
             Seen = 0;
-            foreach ((FEntity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
+            foreach (var Row in Registry.View<Lumina.STransformComponent>().Each())
             {
-                Total += Transform.LocalTransform.Location.X;
+                Total += Row.First.LocalTransform.Location.X;
                 ++Seen;
             }
         }
@@ -248,11 +248,9 @@ internal static unsafe partial class InteropBenchHooks
         for (int Tick = 0; Tick < Ticks; ++Tick)
         {
             Seen = 0;
-            foreach ((FEntity _, Lumina.STransformComponent Transform) in Registry.View<Lumina.STransformComponent>())
+            foreach (var Row in Registry.View<Lumina.STransformComponent>().Each())
             {
-                FTransform Local = Transform.LocalTransform;
-                Local.Location.X += 1.0f;
-                Transform.LocalTransform = Local;
+                Row.First.LocalTransform.Location.X += 1.0f;
                 ++Seen;
             }
         }
@@ -298,9 +296,9 @@ internal static unsafe partial class InteropBenchHooks
         {
             for (int Index = 0; Index < Count; ++Index)
             {
-                if (Registry.TryGetComponent<Lumina.STransformComponent>(new FEntity(Entities[Index])) is { } Transform)
+                if (Registry.TryGetComponent(new FEntity(Entities[Index]), out TComponentRef<Lumina.STransformComponent> Transform))
                 {
-                    Total += Transform.LocalTransform.Location.X;
+                    Total += Transform.Get().LocalTransform.Location.X;
                 }
             }
         }

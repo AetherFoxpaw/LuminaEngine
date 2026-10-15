@@ -1,42 +1,44 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using LuminaSharp;
 
 namespace Lumina;
 
 public unsafe partial class CWorld
 {
-    // A handle tracked through the component's pool, so one kept in a field stays valid when the pool moves.
-    public T? TryGetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
+    // Null when there is none, like FRegistry::TryGet, and tracked through the pool so one kept in a field stays valid when the pool moves.
+    public TComponentRef<T>? TryGetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
-        IntPtr Ops = ComponentOps<T>.Token;
         uint* Epoch = null;
-        IntPtr Pointer = Native.GetComponentTracked(WorldHandle, Entity.Id, Ops, &Epoch);
-        return Pointer == IntPtr.Zero ? null : NativeStructs.FromRef<T>(new NativeRef(Pointer, WorldHandle, Entity.Id, Ops, Epoch));
+        IntPtr Pointer = Native.GetComponentTracked(WorldHandle, Entity.Id, ComponentOps<T>.Token, &Epoch);
+        return Pointer == IntPtr.Zero ? null : new TComponentRef<T>(Pointer, WorldHandle, Entity.Id, Epoch);
     }
 
-    public bool TryGetComponent<T>(FEntity Entity, out T Component) where T : struct, IComponent<T>
+    public bool TryGetComponent<T>(FEntity Entity, out TComponentRef<T> Component) where T : struct, IComponent<T>
     {
-        T? Found = TryGetComponent<T>(Entity);
+        TComponentRef<T>? Found = TryGetComponent<T>(Entity);
         Component = Found.GetValueOrDefault();
         return Found.HasValue;
     }
 
-    public T GetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
+    // In place like FRegistry::Get, so the ref is only good until the next structural change to this type.
+    public ref T GetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
-        return TryGetComponent<T>(Entity) ?? throw new InvalidOperationException($"Entity {Entity.Id} has no {T.NativeName}.");
+        IntPtr Pointer = Native.GetComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
+        if (Pointer == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"Entity {Entity.Id} has no {T.NativeName}.");
+        }
+        return ref Unsafe.AsRef<T>((void*)Pointer);
     }
 
-    // A tag has no storage to view, so its handle comes back empty.
-    public T GetOrEmplaceComponent<T>(FEntity Entity) where T : struct, IComponent<T>
+    // A tag has no storage, so its ref is null and only good for discarding.
+    public ref T GetOrEmplaceComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
-        Native.EmplaceComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
-        return TryGetComponent<T>(Entity) ?? default;
+        IntPtr Pointer = Native.EmplaceComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
+        return ref Pointer == IntPtr.Zero ? ref Unsafe.NullRef<T>() : ref Unsafe.AsRef<T>((void*)Pointer);
     }
-
-    // The pointer is invalid after pool relocation, component removal, or world destruction.
-    public IntPtr TryGetComponentPointer<T>(FEntity Entity) where T : struct, IComponent<T>
-        => Native.GetComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
 
     public bool HasComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {

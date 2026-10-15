@@ -27,6 +27,12 @@ internal static class ScriptPropertyClassifier
     /// <see cref="FScriptPropertyClassification.Rejection"/> explaining what to write instead.</summary>
     public static FScriptPropertyClassification Classify(ITypeSymbol Type)
     {
+        if (IsComponent(Type))
+        {
+            return FScriptPropertyClassification.Reject(
+                $"'{Display(Type)}' is a component, which lives in its entity's storage rather than in a field. "
+                + $"Hold a TComponentRef<{Display(Type)}> marked [Property(Component = ...)].");
+        }
         if (Type.TypeKind == TypeKind.Enum)
         {
             return HasMirrorAttribute(Type) || IsReflected(Type)
@@ -148,11 +154,18 @@ internal static class ScriptPropertyClassifier
         {
             return Classify(Type);
         }
-        bool bComponent = IsStructHandle(Type)
-            && Type.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.Component);
-        return bComponent
+        bool bComponentRef = Type is INamedTypeSymbol { IsGenericType: true } Named
+            && Named.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.ComponentRef
+            && IsComponent(Named.TypeArguments[0]);
+        return bComponentRef
             ? FScriptPropertyClassification.Of(EScriptAccess.ComponentRef)
-            : FScriptPropertyClassification.Reject($"'{Display(Type)}' is not a component, and Component binds a reference to one of the entity's components.");
+            : FScriptPropertyClassification.Reject($"'{Display(Type)}' is not a TComponentRef<T> of a component, and Component binds a reference to one of the entity's components.");
+    }
+
+    public static bool IsComponent(ITypeSymbol Type)
+    {
+        return Type.TypeKind == TypeKind.Struct
+            && Type.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.Component);
     }
 
     private static bool BindsComponent(ISymbol Member)
@@ -577,6 +590,7 @@ internal static class ScriptPropertyTypeNames
     public const string NativeObject = "LuminaSharp.NativeObject";
     public const string NativeStruct = "LuminaSharp.INativeStruct";
     public const string Component = "LuminaSharp.IComponent<TSelf>";
+    public const string ComponentRef = "LuminaSharp.TComponentRef<T>";
     public const string SoftObjectReference = "LuminaSharp.ISoftObjectReference";
     public const string InputBinding = "LuminaSharp.SInputBinding";
 

@@ -14,4 +14,6 @@ LUM0102 | LuminaSharp | Error    | [Property] container initialized; it is a vie
 LUM0103 | LuminaSharp | Error    | [Property] declared as a partial property; declare it as a field.
 LUM0104 | LuminaSharp | Error    | Stored property on an engine object is not an auto-property, so native storage would never back it.
 LUM0112 | LuminaSharp | Warning  | Class derives from an engine class without [Reflect], so the engine never registers it.
+LUM0120 | LuminaSharp | Error    | Component held by value; it only exists in its entity's storage, so reach it through a ref or a TComponentRef.
+LUM0121 | LuminaSharp | Error    | Component created as a value; add it to an entity instead.
 LUM0201 | LuminaSharp | Error    | Write through the indexer of a TVector whose element is marshalled.

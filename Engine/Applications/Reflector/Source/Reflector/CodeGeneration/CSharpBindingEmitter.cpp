@@ -344,6 +344,25 @@ namespace Lumina::Reflection
         }
 
         // A class, or a struct that is not a blittable value mirror, becomes an opaque handle wrapper.
+        std::vector<const FReflectedStruct*> ReflectedAncestors(const FReflectedStruct& Type, const FReflectionDatabase& Db);
+
+        // A component, or a struct deriving one, which C# only ever reaches in place.
+        bool IsComponentStruct(const FReflectedStruct& Struct, const FReflectionDatabase& Db)
+        {
+            if (Struct.HasMetadata("Component"))
+            {
+                return true;
+            }
+            const std::vector<const FReflectedStruct*> Ancestors = ReflectedAncestors(Struct, Db);
+            return std::any_of(Ancestors.begin(), Ancestors.end(), [](const FReflectedStruct* Ancestor) { return Ancestor->HasMetadata("Component"); });
+        }
+
+        bool IsComponentType(const FReflectionDatabase& Db, const std::string& Qualified)
+        {
+            const FReflectedType* T = Db.GetReflectedType<FReflectedType>(FStringHash(Qualified));
+            return T != nullptr && T->Type == FReflectedType::EType::Structure && IsComponentStruct(*static_cast<const FReflectedStruct*>(T), Db);
+        }
+
         bool IsOpaqueWrapperType(const FReflectionDatabase& Db, const std::string& Qualified)
         {
             const FReflectedType* T = Db.GetReflectedType<FReflectedType>(FStringHash(Qualified));
@@ -1468,7 +1487,10 @@ namespace Lumina::Reflection
                     B.Kind = EBind::Object;
                     B.bCObject = (F.Flags == EPropertyTypeFlags::Object);
                     B.TargetCpp = F.TypeName;
-                    B.CSharp = GlobalCSharp(F.TypeName) + (B.bCObject ? "" : "?");
+                    // A returned component pointer is a tracked reference, invalid where the native call returned null.
+                    B.CSharp = !bIsArg && IsComponentType(Db, F.TypeName)
+                        ? "global::LuminaSharp.TComponentRef<" + GlobalCSharp(F.TypeName) + ">"
+                        : GlobalCSharp(F.TypeName) + (B.bCObject ? "" : "?");
                     return true;
                 }
                 // CObject never enters the database, so without this the whole function would be dropped.
@@ -2542,15 +2564,26 @@ namespace Lumina::Reflection
             Writer.Linef("public readonly unsafe partial struct %s : global::LuminaSharp.%s<%s>", Name,
                 bComponent ? "IComponent" : "INativeStruct", Name);
             Writer.BeginBlock();
-            Writer.Line("private readonly global::LuminaSharp.NativeRef __Ref;");
-            Writer.Linef("public %s(global::LuminaSharp.NativeRef Ref) { __Ref = Ref; }", Name);
-            Writer.Linef("public %s(System.IntPtr Address) { __Ref = new global::LuminaSharp.NativeRef(Address); }", Name);
-            Writer.Line("public global::LuminaSharp.NativeRef Ref => __Ref;");
-            Writer.Linef("public static string NativeName => \"%s\";", Name);
-            Writer.Line("public bool IsValid => __Ref.IsValid;");
-            Writer.Line("internal System.IntPtr Handle => __Ref.Address;");
-            Writer.Line("private System.IntPtr Self => __Ref.Address;");
-            Writer.Line("private global::LuminaSharp.NativeRef SelfRef => __Ref;");
+            if (bComponent)
+            {
+                // C# only reaches a component in place through a ref, so its own address is the storage every member reads.
+                Writer.Linef("public static string NativeName => \"%s\";", Name);
+                Writer.Line("private System.IntPtr Self => (System.IntPtr)global::System.Runtime.CompilerServices.Unsafe.AsPointer(ref global::System.Runtime.CompilerServices.Unsafe.AsRef(in this));");
+                Writer.Line("internal System.IntPtr Handle => Self;");
+                Writer.Line("private global::LuminaSharp.NativeRef SelfRef => new global::LuminaSharp.NativeRef(Self);");
+            }
+            else
+            {
+                Writer.Line("private readonly global::LuminaSharp.NativeRef __Ref;");
+                Writer.Linef("public %s(global::LuminaSharp.NativeRef Ref) { __Ref = Ref; }", Name);
+                Writer.Linef("public %s(System.IntPtr Address) { __Ref = new global::LuminaSharp.NativeRef(Address); }", Name);
+                Writer.Line("public global::LuminaSharp.NativeRef Ref => __Ref;");
+                Writer.Linef("public static string NativeName => \"%s\";", Name);
+                Writer.Line("public bool IsValid => __Ref.IsValid;");
+                Writer.Line("internal System.IntPtr Handle => __Ref.Address;");
+                Writer.Line("private System.IntPtr Self => __Ref.Address;");
+                Writer.Line("private global::LuminaSharp.NativeRef SelfRef => __Ref;");
+            }
             // Copies the value through the struct's own ops, so a heap member is duplicated rather than aliased.
             auto DeclaresCopyFrom = [](const FReflectedStruct& Owner)
             {
@@ -2565,7 +2598,8 @@ namespace Lumina::Reflection
             }
             if (!bDeclaresCopyFrom)
             {
-                Writer.Linef("public void CopyFrom(%s Source) => global::LuminaSharp.Native.StructAssign(Handle, Source.Handle, NativeName);", Name);
+                Writer.Linef("public void CopyFrom(%s%s Source) => global::LuminaSharp.Native.StructAssign(Handle, Source.Handle, NativeName);",
+                    bComponent ? "in " : "", Name);
             }
             for (const FReflectedStruct* Ancestor : Ancestors)
             {
@@ -2576,8 +2610,15 @@ namespace Lumina::Reflection
                 {
                     continue;
                 }
+                const std::string AncestorCSharp = GlobalCSharp(Ancestor->QualifiedName);
+                if (bComponent)
+                {
+                    // A conversion would take the component by value, so the base is a view of the same storage instead.
+                    Writer.Linef("public %s As%s => new %s(SelfRef);", AncestorCSharp.c_str(), Ancestor->DisplayName.c_str(), AncestorCSharp.c_str());
+                    continue;
+                }
                 Writer.Linef("public static implicit operator %s(%s Value) => new %s(Value.__Ref);",
-                    GlobalCSharp(Ancestor->QualifiedName).c_str(), Name, GlobalCSharp(Ancestor->QualifiedName).c_str());
+                    AncestorCSharp.c_str(), Name, AncestorCSharp.c_str());
             }
 
             std::set<std::string> EmittedProperties;

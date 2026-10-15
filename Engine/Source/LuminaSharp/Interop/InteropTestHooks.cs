@@ -907,7 +907,7 @@ internal static unsafe class InteropTestHooks
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static void Test_WriteStaticMeshComponent(IntPtr Component)
     {
-        SStaticMeshComponent View = new(Component);
+        ref SStaticMeshComponent View = ref Unsafe.AsRef<SStaticMeshComponent>((void*)Component);
         View.StaticMesh = null!;
         View.bCastShadow = false;
     }

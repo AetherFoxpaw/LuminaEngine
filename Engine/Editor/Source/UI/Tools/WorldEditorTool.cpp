@@ -208,32 +208,15 @@ namespace Lumina
         return bAnyInFront;
     }
 
-    // Slab ray-vs-AABB; OutT is along (possibly unnormalized) Dir. Returns true on hit in front of origin.
-    static bool RayVsAABB(const FVector3& Origin, const FVector3& Dir, const SAABB& Box, float& OutT)
+    // Distance straight down from Origin to the box's top, zero when Origin is already inside it.
+    static bool CastDownToAABB(const FVector3& Origin, const SAABB& Box, float& OutT)
     {
-        float TMin = 0.0f;
-        float TMax = FLT_MAX;
-        for (int Axis = 0; Axis < 3; ++Axis)
+        const bool bOverXZ = Origin.x >= Box.Min.x && Origin.x <= Box.Max.x && Origin.z >= Box.Min.z && Origin.z <= Box.Max.z;
+        if (!bOverXZ || Origin.y < Box.Min.y)
         {
-            if (Math::Abs(Dir[Axis]) < 1e-6f)
-            {
-                if (Origin[Axis] < Box.Min[Axis] || Origin[Axis] > Box.Max[Axis])
-                {
-                    return false;
-                }
-                continue;
-            }
-            float T1 = (Box.Min[Axis] - Origin[Axis]) / Dir[Axis];
-            float T2 = (Box.Max[Axis] - Origin[Axis]) / Dir[Axis];
-            if (T1 > T2) { std::swap(T1, T2); }
-            TMin = Math::Max(TMin, T1);
-            TMax = Math::Min(TMax, T2);
-            if (TMin > TMax)
-            {
-                return false;
-            }
+            return false;
         }
-        OutT = TMin;
+        OutT = Math::Max(0.0f, Origin.y - Box.Max.y);
         return true;
     }
 
@@ -5345,7 +5328,6 @@ namespace Lumina
         BeginTransformTransaction(TransactionTargets);
 
         bool bAnyMoved = false;
-        const FVector3 Down(0.0f, -1.0f, 0.0f);
 
         for (ECS::FEntity Entity : Targets)
         {
@@ -5357,7 +5339,7 @@ namespace Lumina
             for (const FCandidate& C : Candidates)
             {
                 float T;
-                if (RayVsAABB(Origin, Down, C.Box, T) && T < BestT)
+                if (CastDownToAABB(Origin, C.Box, T) && T < BestT)
                 {
                     BestT = T;
                 }
@@ -5367,7 +5349,7 @@ namespace Lumina
             float NewY;
             if (BestT < FLT_MAX)
             {
-                NewY = (Origin + Down * BestT).y;
+                NewY = Origin.y - BestT;
             }
             else
             {

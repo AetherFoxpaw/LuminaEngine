@@ -496,13 +496,13 @@ internal sealed class TypeLibrary
         return Members;
     }
 
-    // A reference names the component it binds, which only a component handle can say.
+    // A reference names the component it binds, the T of the TComponentRef<T> it is declared as.
     private ScriptType ResolveComponentRef(Type Type)
     {
-        ScriptType Value = ResolveType(Type);
-        bool bComponent = Type.GetInterfaces().Any(Interface => Interface.IsGenericType && Interface.GetGenericTypeDefinition() == typeof(IComponent<>));
-        return bComponent && Value.Kind == EPropertyType.Struct
-            ? new ScriptType { Kind = EPropertyType.ComponentRef, Clr = Type, NativeName = Value.NativeName }
+        Type? Component = Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(TComponentRef<>) ? Type.GetGenericArguments()[0] : null;
+        ScriptType? Value = Component != null ? ResolveType(Component) : null;
+        return Value is { Kind: EPropertyType.Struct }
+            ? new ScriptType { Kind = EPropertyType.ComponentRef, Clr = Component, NativeName = Value.NativeName }
             : new ScriptType { Kind = EPropertyType.None, Clr = Type };
     }
 
