@@ -10,6 +10,7 @@
 #include "Core/Reflection/Type/LuminaTypes.h"
 #include "Core/Math/Math.h"
 #include "Input/Key.h"
+#include "Tools/UI/ImGui/ImGuiX.h"
 #include "Tools/UI/ImGui/Widgets/TreeListView.h"
 #include "UI/Properties/NamePicker.h"
 #include "Tools/UI/ImGui/ImGuiXNumeric.h"
