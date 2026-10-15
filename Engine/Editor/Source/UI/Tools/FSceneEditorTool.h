@@ -312,6 +312,11 @@ namespace Lumina
         TVector<ECS::FEntity>               PendingOutlinerAdds;
         TVector<ECS::FEntity>               PendingExpanderRefresh;
 
+        // Destroyed rows, removed in one batch at the next flush since a streaming burst destroys thousands.
+        TVector<ECS::FEntity>               PendingOutlinerRemovals;
+        TVector<ECS::FEntity>               PendingFolderRemovals;
+        void                                FlushOutlinerRemovals();
+
         struct FComponentDestroyRequest
         {
             const CStruct* Type = nullptr;

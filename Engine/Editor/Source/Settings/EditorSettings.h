@@ -155,7 +155,7 @@ namespace Lumina
         bool bRestoreOpenTabs = true;
 
         /** Open tabs, oldest first. Maintained by the editor; not meant to be hand-edited. */
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<FString> OpenTabs;
     };
 

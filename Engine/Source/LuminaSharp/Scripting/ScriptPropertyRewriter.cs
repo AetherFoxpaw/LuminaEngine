@@ -34,27 +34,21 @@ internal static class ScriptPropertyRewriter
         return CSharpSyntaxTree.Create((CSharpSyntaxNode)Rewritten, (CSharpParseOptions?)Tree.Options, Tree.FilePath, Encoding.UTF8);
     }
 
-    // A syntax-only screen, so a file with no storage attribute anywhere costs no semantic model. ScriptMemberRules decides.
+    // A syntax-only screen, so a file with no [Property] anywhere costs no semantic model. ScriptMemberRules decides.
     private static bool MayNeedNativeStorage(SyntaxList<AttributeListSyntax> AttributeLists)
     {
-        return AttributeLists
-            .SelectMany(List => List.Attributes)
-            .Any(Attribute => ScriptMemberRules.BareName(Attribute.Name.ToString()) is ScriptMemberRules.Property
-                or ScriptMemberRules.Serialize or ScriptMemberRules.Sync or ScriptMemberRules.SaveGame or ScriptMemberRules.Bind);
-    }
-
-    private static bool HasAttributeNamed(SyntaxList<AttributeListSyntax> Lists, string Wanted)
-    {
-        return Lists.SelectMany(List => List.Attributes).Any(Attribute =>
+        return AttributeLists.SelectMany(List => List.Attributes).Any(Attribute =>
         {
             string Name = Attribute.Name.ToString();
             int Dot = Name.LastIndexOf('.');
-            if (Dot >= 0)
-            {
-                Name = Name.Substring(Dot + 1);
-            }
-            return Name == Wanted || Name == Wanted + "Attribute";
+            Name = Dot >= 0 ? Name.Substring(Dot + 1) : Name;
+            return Name is "Property" or ScriptMemberRules.PropertyAttribute;
         });
+    }
+
+    private static bool HasSpecifier(ISymbol Member, string Specifier)
+    {
+        return ScriptPropertyClassifier.SpecifiersOf(Member, ScriptPropertyTypeNames.PropertyAttribute)?.Contains(Specifier) == true;
     }
 
     // Syntax only, so the cheap pre-check costs no semantic model. The semantic pass confirms each one.
@@ -191,9 +185,9 @@ internal static class ScriptPropertyRewriter
                     Errors.Add($"{FilePath}({Line(Member.At)}): [Property(Component)] '{MemberName}' is on a script struct, which has no entity to find the component on.");
                     continue;
                 }
-                if (HasAttributeNamed(Member.Declaration.AttributeLists, "Sync"))
+                if (HasSpecifier(Member.Symbol, ScriptMemberRules.Sync))
                 {
-                    Errors.Add($"{FilePath}({Line(Member.At)}): [Sync] '{MemberName}' is on a script struct, which has no entity to replicate through.");
+                    Errors.Add($"{FilePath}({Line(Member.At)}): [Property(Sync)] '{MemberName}' is on a script struct, which has no entity to replicate through.");
                     continue;
                 }
                 if (Classification.IsView && Member.Initializer != null)
@@ -655,10 +649,10 @@ internal static class ScriptPropertyRewriter
             Body.AppendLine("{");
             // Gated, since the schema pass describes each type through an unbound instance whose handle is null.
             Body.Append("    get => HasNativeStorage ? ").Append(Get).Append(" : ").Append(Unbound).AppendLine(";");
-            bool bSync = HasAttributeNamed(Member.Declaration.AttributeLists, "Sync");
+            bool bSync = HasSpecifier(Member.Symbol, ScriptMemberRules.Sync);
             if (bSync && Classification.IsView)
             {
-                Errors.Add($"{FilePath}({Line(Declarator)}): [Sync] '{Name}' is a container, and only whole values replicate. "
+                Errors.Add($"{FilePath}({Line(Declarator)}): [Property(Sync)] '{Name}' is a container, and only whole values replicate. "
                          + "Sync a count or an id instead, or send the contents through an RPC.");
                 return System.Array.Empty<MemberDeclarationSyntax>();
             }
@@ -735,30 +729,15 @@ internal static class ScriptPropertyRewriter
         private bool BuildSyncSetter(StringBuilder Body, FStoredMember Member, string Type, string Get, string Set)
         {
             ISymbol Symbol = Member.Symbol;
-            string Where = $"{FilePath}({Line(Member.At)}): [Sync] '{Symbol.Name}'";
-            AttributeData? Sync = Symbol.GetAttributes().FirstOrDefault(Data => Data.AttributeClass?.Name == "SyncAttribute");
-            AttributeData? Change = Symbol.GetAttributes().FirstOrDefault(Data => Data.AttributeClass?.Name == "ChangeAttribute");
+            string Where = $"{FilePath}({Line(Member.At)}): [Property(Sync)] '{Symbol.Name}'";
+            AttributeData Property = ScriptPropertyClassifier.FindAttribute(Symbol, ScriptPropertyTypeNames.PropertyAttribute)!;
 
             // An enum constant arrives as its underlying integer, whatever width the native enum chose.
-            uint Flags = Sync != null && Sync.ConstructorArguments.Length > 0 && Sync.ConstructorArguments[0].Value is System.IConvertible Raw
-                ? System.Convert.ToUInt32(Raw) : 0u;
+            uint Flags = ScriptPropertyClassifier.NamedArgument(Property, "Sync") is System.IConvertible Raw ? System.Convert.ToUInt32(Raw) : 0u;
             bool bFromOwner = (Flags & 1u) != 0;
-            double Quantize = 0.0;
-            string? Validate = null;
-            if (Sync != null)
-            {
-                foreach (KeyValuePair<string, TypedConstant> Named in Sync.NamedArguments)
-                {
-                    if (Named.Key == "Quantize" && Named.Value.Value is double Snap)
-                    {
-                        Quantize = Snap;
-                    }
-                    else if (Named.Key == "Validate" && Named.Value.Value is string Method)
-                    {
-                        Validate = Method;
-                    }
-                }
-            }
+            double Quantize = ScriptPropertyClassifier.NamedArgument(Property, "Quantize") is double Snap ? Snap : 0.0;
+            string? Validate = ScriptPropertyClassifier.NamedArgument(Property, "Validate") as string;
+            string? Change = ScriptPropertyClassifier.NamedArgument(Property, "Change") as string;
 
             if (Quantize > 0.0 && !IsNumber(Member.Type))
             {
@@ -772,7 +751,7 @@ internal static class ScriptPropertyRewriter
             }
             if (Validate != null && !bFromOwner)
             {
-                Errors.Add($"{Where} names Validate without Lumina.ESyncFlags.FromOwner, and only an owner's write is validated.");
+                Errors.Add($"{Where} names Validate without Sync = ESyncFlags.FromOwner, and only an owner's write is validated.");
                 return false;
             }
             if (Validate != null && !HasValidator(Symbol.ContainingType, Validate, Member.Type))

@@ -195,6 +195,22 @@ public unsafe partial class CWorld
     public View<T1, T2, T3, T4> View<T1, T2, T3, T4>(Exclude Filter = default)
         where T1 : struct, IComponent<T1> where T2 : struct, IComponent<T2> where T3 : struct, IComponent<T3> where T4 : struct, IComponent<T4>
         => new(WorldHandle, Filter);
+
+    public View<T1, T2, T3, T4, T5> View<T1, T2, T3, T4, T5>(Exclude Filter = default)
+        where T1 : struct, IComponent<T1> where T2 : struct, IComponent<T2> where T3 : struct, IComponent<T3> where T4 : struct, IComponent<T4> where T5 : struct, IComponent<T5>
+        => new(WorldHandle, Filter);
+
+    public View<T1, T2, T3, T4, T5, T6> View<T1, T2, T3, T4, T5, T6>(Exclude Filter = default)
+        where T1 : struct, IComponent<T1> where T2 : struct, IComponent<T2> where T3 : struct, IComponent<T3> where T4 : struct, IComponent<T4> where T5 : struct, IComponent<T5> where T6 : struct, IComponent<T6>
+        => new(WorldHandle, Filter);
+
+    public View<T1, T2, T3, T4, T5, T6, T7> View<T1, T2, T3, T4, T5, T6, T7>(Exclude Filter = default)
+        where T1 : struct, IComponent<T1> where T2 : struct, IComponent<T2> where T3 : struct, IComponent<T3> where T4 : struct, IComponent<T4> where T5 : struct, IComponent<T5> where T6 : struct, IComponent<T6> where T7 : struct, IComponent<T7>
+        => new(WorldHandle, Filter);
+
+    public View<T1, T2, T3, T4, T5, T6, T7, T8> View<T1, T2, T3, T4, T5, T6, T7, T8>(Exclude Filter = default)
+        where T1 : struct, IComponent<T1> where T2 : struct, IComponent<T2> where T3 : struct, IComponent<T3> where T4 : struct, IComponent<T4> where T5 : struct, IComponent<T5> where T6 : struct, IComponent<T6> where T7 : struct, IComponent<T7> where T8 : struct, IComponent<T8>
+        => new(WorldHandle, Filter);
 }
 
 // Which registry signal a subscription listens to, in the order the native connect export numbers them.

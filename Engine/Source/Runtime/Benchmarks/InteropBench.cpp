@@ -230,7 +230,7 @@ namespace LuminaInteropBench
         SUCCEED();
     }
 
-    // The reflection dispatcher every [ScriptFunction] goes through, which is the one path that boxes.
+    // The reflection dispatcher every [Function] goes through, which is the one path that boxes.
     TEST_F(FInteropBench, ScriptFunctionDispatch)
     {
         auto* MakeTarget = (FMakeTargetFn)DotNet::ResolveManagedExport("Test_MakeMarshalTarget");

@@ -1403,17 +1403,12 @@ namespace Lumina
             ParentEntity = GetSceneRegistry().GetHierarchy().GetParent(Entity);
         }
 
-        RemoveEntityFromOutliner(Entity);
-        PendingOutlinerAdds.erase(Algo::Remove(PendingOutlinerAdds, Entity), PendingOutlinerAdds.end());
+        PendingOutlinerRemovals.push_back(Entity);
 
         // Skipped during a restore, which recreates every entity and reloads the table from the snapshot.
         if (!bRestoringTransaction)
         {
-            if (SSceneFolderComponent* Folders = GetEditableSceneFolders())
-            {
-                Folders->RemoveEntity(Entity);
-            }
-            EntityFolderCache.erase(Entity);
+            PendingFolderRemovals.push_back(Entity);
         }
 
         if (ParentEntity != ECS::NullEntity)
@@ -1422,8 +1417,52 @@ namespace Lumina
         }
     }
 
+    void FSceneEditorTool::FlushOutlinerRemovals()
+    {
+        if (PendingOutlinerRemovals.empty())
+        {
+            return;
+        }
+
+        THashSet<ECS::FEntity> Removed;
+        Removed.reserve(PendingOutlinerRemovals.size());
+        TVector<FTreeNodeID> Nodes;
+        Nodes.reserve(PendingOutlinerRemovals.size());
+        for (ECS::FEntity Entity : PendingOutlinerRemovals)
+        {
+            Removed.insert(Entity);
+            if (auto It = EntityToTreeNode.find(Entity); It != EntityToTreeNode.end())
+            {
+                Nodes.push_back(It->second);
+                EntityToTreeNode.erase(It);
+            }
+        }
+        OutlinerListView.RemoveNodes(Nodes);
+
+        const auto IsRemoved = [&Removed](ECS::FEntity Entity) { return Removed.find(Entity) != Removed.end(); };
+        PendingOutlinerAdds.erase(Algo::RemoveIf(PendingOutlinerAdds, IsRemoved), PendingOutlinerAdds.end());
+
+        if (!PendingFolderRemovals.empty())
+        {
+            if (SSceneFolderComponent* Folders = GetEditableSceneFolders())
+            {
+                Folders->RemoveEntitiesIf(IsRemoved);
+            }
+            for (ECS::FEntity Entity : PendingFolderRemovals)
+            {
+                EntityFolderCache.erase(Entity);
+            }
+        }
+
+        PendingOutlinerRemovals.clear();
+        PendingFolderRemovals.clear();
+    }
+
     void FSceneEditorTool::FlushOutlinerPending()
     {
+        // Before the adds, so an entity destroyed after it was queued never gets a row.
+        FlushOutlinerRemovals();
+
         // Iterate by index; AddEntityToOutliner could grow the queue.
         for (int32 i = 0; i < static_cast<int32>(PendingOutlinerAdds.size()); ++i)
         {

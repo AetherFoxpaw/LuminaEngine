@@ -63,7 +63,7 @@ internal sealed unsafe class UIDataEventClosure : ScriptClosure
     }
 }
 
-// Binds a ViewModel's or CUIScript's [Bind] members to a named RmlUi data model, comparing them once a frame so plain assignments reach the view.
+// Binds a ViewModel's or CUIScript's Bind members to a named RmlUi data model, comparing them once a frame so plain assignments reach the view.
 public sealed unsafe class UIDataModel : IDisposable
 {
     private static readonly Dictionary<(ulong World, string Name), UIDataModel> Registry = new();

@@ -158,16 +158,18 @@ void ComputeMain(uint3 GlobalID : SV_DispatchThreadID, uint3 GroupID : SV_GroupI
     const bool bSkinned = Cull.HasFlag(EInstanceFlags::Skinned);
 
     FSkinnedFrameData Skin = (FSkinnedFrameData)0;
+    uint SkinnedIndex = kNoSkinnedIndex;
     if (bSkinned)
     {
-        if (!Pass().SkinnedFrameData.Contains(SlotIdx))
+        SkinnedIndex = Pass().RetainedStatic.At(SlotIdx).SkinnedIndex;
+        if (!Pass().SkinnedFrameData.Contains(SkinnedIndex))
         {
             return;
         }
 
-        // The array is never cleared, so the tag separates this frame's gather from stale ranges.
-        Skin = Pass().SkinnedFrameData.Get(SlotIdx);
-        if (!Skin.IsFromFrame(Pass().SkinFrameTag))
+        // The array is never cleared and its indices are reused, so the tag and the owner reject stale entries.
+        Skin = Pass().SkinnedFrameData.Get(SkinnedIndex);
+        if (!Skin.IsFromFrame(Pass().SkinFrameTag) || Skin.RetainedSlot != SlotIdx)
         {
             return;
         }
@@ -363,8 +365,8 @@ void ComputeMain(uint3 GlobalID : SV_DispatchThreadID, uint3 GroupID : SV_GroupI
             SkinBase = ClaimPreSkinSlice(Static.MeshletHeader, SurfaceMeshletOffset, SurfaceMeshletCount, MeshletTotal);
         }
 
-        // Written back so the skinning passes, keyed by retained slot, see the base the draw path reads off the compacted instance.
-        Pass().SkinnedFrameData.At(SlotIdx).SkinnedVertexBase = SkinBase;
+        // Written back so the skinning passes see the base the draw path reads off the compacted instance.
+        Pass().SkinnedFrameData.At(SkinnedIndex).SkinnedVertexBase = SkinBase;
     }
 
     // Safe to assemble in a local because FGPUInstance holds a header slot, not an address.
@@ -379,8 +381,9 @@ void ComputeMain(uint3 GlobalID : SV_DispatchThreadID, uint3 GroupID : SV_GroupI
     Inst.MaterialIndex           = Static.MaterialIndex;
     Inst.EntityID                = Static.EntityID;
     // Per frame for skinned, since the compacted arena base cannot live in the retained payload.
-    Inst.BoneOffset              = bSkinned ? Skin.BoneOffset : Static.BoneOffset;
+    Inst.BoneOffset              = bSkinned ? Skin.BoneOffset : 0u;
     Inst.SkinnedVertexBase       = bSkinned ? SkinBase : Static.SkinnedVertexBase;
+    Inst.SkinnedBoundsBase       = bSkinned ? Skin.SkinnedBoundsBase : kNoSkinnedBounds;
     Inst.SurfaceMeshletOffset    = SurfaceMeshletOffset;
     Inst.SurfaceMeshletCount     = SurfaceMeshletCount;
     Inst.SurfaceDescIndex        = bSelectPerView ? Cull.SurfaceDescIndex : kNoSurfaceDesc;

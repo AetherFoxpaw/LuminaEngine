@@ -69,16 +69,16 @@ namespace Lumina
         ~FDefaultSceneRenderer() override;
         LE_NO_COPYMOVE(FDefaultSceneRenderer);
 
-        // A skinned slot past the frame data's current size, written by the merge once it has grown the array.
+        // A skinned index past the frame data's current size, written by the merge once it has grown the array.
         struct FDeferredSkinnedSlot
         {
-            uint32              InstanceSlot;
+            uint32              SkinnedIndex;
             FSkinnedFrameData   Data;
         };
 
         struct CACHE_ALIGN FThreadLocalDrawData
         {
-            TVector<uint32>                     SkinnedSlots;
+            TVector<uint32>                     SkinnedIndices;
             TVector<FDeferredSkinnedSlot>       DeferredSlots;
             TVector<FUIntVector2>               BoneUploadRanges;
 
@@ -95,7 +95,7 @@ namespace Lumina
 
             void ResetForFrame()
             {
-                SkinnedSlots.clear();
+                SkinnedIndices.clear();
                 DeferredSlots.clear();
                 BoneUploadRanges.clear();
                 Stats = {};
@@ -317,10 +317,9 @@ namespace Lumina
                 uint32                           BoneCount = 0;
                 // Slices whose pose or base moved this frame. Everything else is already resident.
                 TVector<FUIntVector2>            BoneUploadRanges;
-                // Per-frame skinned data indexed by RETAINED slot; only gathered slots are written, and
-                // SkinnedSlots lists which. Stale entries are rejected by their frame tag, not cleared.
+                // Indexed by skinned index, only gathered entries are written, and stale ones fail their frame tag.
                 TVector<FSkinnedFrameData>       SkinnedFrameData;
-                TVector<uint32>                  SkinnedSlots;
+                TVector<uint32>                  SkinnedIndices;
                 TVector<FMeshDrawCommand>        DrawCommands;
                 TVector<uint32>                  OpaqueDrawList;
                 TVector<uint32>                  TranslucentDrawList;
@@ -335,6 +334,7 @@ namespace Lumina
 
                     TVector<uint32>             DirtySlots;
                     TVector<uint32>             DirtyStaticSlots;
+                    TVector<uint32>             DeactivatedSlots;
 
                     bool                        bSurfaceDescsChanged = false;
                     uint32                      SurfaceDescCount = 0;
@@ -1014,6 +1014,10 @@ namespace Lumina
 
         uint32 LastResolvedPendingGeneration = 0;
         uint32 LastDynamicResolveGeneration = 0;
+        TVector<uint8> DynamicResolveFlags;
+
+        // DependencyBits of the materials invalidated since the last dynamic resolve, filled by FMeshResolveCache.
+        std::atomic<uint64> DynamicMaterialInvalidations{ ~0ull };
 
         // Dirty-slot runs for the partial retained upload; keeps capacity.
         TVector<FUIntVector2> RetainedRunScratch;
@@ -1294,6 +1298,9 @@ namespace Lumina
                              const TVector<FUIntVector2>& Runs, bool bFillBeforeSubmit = false);
 
         // Stages each listed element compactly and scatters it to its slot on the GPU, for a fragmented dirty set.
+        // Clears the active bit of each listed slot in the retained cull entries on the GPU.
+        void DeactivateRetainedSlots(RHI::FCmdListH CL, const TVector<uint32>& Slots);
+
         void WriteBufferScatter(RHI::FCmdListH CL, RHI::GPUPtr Dst, uint64 DstBytes, const void* Src, uint64 Stride,
                                 RHI::FGPURange Slots, const TVector<uint32>& SlotList, bool bFillBeforeSubmit = false);
 
@@ -1349,7 +1356,9 @@ namespace Lumina
         uint8                                              InstanceVisibilityWriteIndex = 0;
         // Stamped by the late cull; starts past zero so a never-written slot can never read as visible.
         uint32                                             InstanceVisibilityTag = 1;
-        uint32                                             LastStaleValidationGeneration = 0;
+        uint32                                             StaleValidationCursor = 0;
+        uint32                                             StaleValidationSurfaces = 0;
+        uint32                                             StaleValidationEntities = 0;
         TArray<FSceneImage, (int)ENamedImage::Num>          NamedImages = {};
 
         /** Reconcile cached sample count with the world setting; reallocates every view's MS images when it changes. */

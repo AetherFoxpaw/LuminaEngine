@@ -92,7 +92,7 @@ namespace Lumina
 
         // Per-instance overrides for asset-declared parameters; only diverging entries live here, reads
         // fall back to the asset.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SParticleParameter> ParameterOverrides;
 
         /** Per-emitter sprite material overrides applied on top of the asset's, indexed by emitter. */

@@ -574,7 +574,7 @@ namespace Lumina
         void GetSystemSchedule(TVector<FSystemScheduleEntry>& Out) const;
 
         // One instance of every enabled system class; the per-stage FStageSlots only point into it.
-        PROPERTY(NoSerialize)
+        PROPERTY(Hidden, NoSerialize)
         TVector<TStrongObjectPtr<CEntitySystem>>           Systems;
 
         //~ Subsystems. One CObject per subsystem class per world, so a C++ and a C# one are the same
@@ -595,7 +595,7 @@ namespace Lumina
         NODISCARD const TVector<TStrongObjectPtr<CWorldSubsystem>>& GetSubsystems() const { return Subsystems; }
 
         // Runtime state rather than map data, but reflected so the hot reload reinstancer reaches it.
-        PROPERTY(NoSerialize)
+        PROPERTY(Hidden, NoSerialize)
         TVector<TStrongObjectPtr<CWorldSubsystem>>         Subsystems;
 
 

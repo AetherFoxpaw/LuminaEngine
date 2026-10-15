@@ -30,10 +30,10 @@ namespace Lumina
     {
         GENERATED_BODY()
 
-        PROPERTY()
+        PROPERTY(Hidden)
         uint8 Stage = 0;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<uint32> Spirv;
     };
 
@@ -43,10 +43,10 @@ namespace Lumina
     {
         GENERATED_BODY()
 
-        PROPERTY()
+        PROPERTY(Hidden)
         uint64 Key = 0;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SMaterialStageBlob> Stages;
 
         // Library entries minted from Stages, so never serialized.
@@ -193,39 +193,39 @@ namespace Lumina
         bool bWriteDepth = false;
 
         // Declared by the graph, in the slot order the shader compiled.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SMaterialParameter> Parameters;
 
         // The default texture per texture parameter slot.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<TSoftObjectPtr<CTexture>> Textures;
 
         // Collections the graph reads, in slot order. Hard refs, since a material sampling one is useless without it.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<TStrongObjectPtr<CMaterialParameterCollection>> ParameterCollections;
 
         // Named compile-time branches, ordered by name with their key bits assigned.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SMaterialStaticSwitch> StaticSwitches;
 
         // Grass species a terrain graph scatters, from its GrassOutput node. Empty for everything but terrain.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SGrassOutput> GrassOutputs;
 
         // The default shader set, compiled with every switch at its authored default.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SMaterialStageBlob> Stages;
 
         // Every other switch combination an instance has asked for.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SMaterialShaderPermutation> Permutations;
 
         // GetShaderTemplateHash for the bytecode in memory, saved only by a cook or a legacy asset that still embeds its bytecode.
-        PROPERTY()
+        PROPERTY(Hidden)
         uint64 CompiledTemplateHash = 0;
 
         // The graph's generated code and settings, which change only when the material is edited, so a template edit never dirties the asset.
-        PROPERTY()
+        PROPERTY(Hidden)
         uint64 SourceHash = 0;
 
         // Publishes the default set, or one permutation, under this material's source and the current templates.

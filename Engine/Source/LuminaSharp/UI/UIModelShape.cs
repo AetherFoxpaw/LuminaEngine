@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace LuminaSharp;
 
-// What a type exposes to RML through [Bind], found once per type and shared by every binding of it and by the editor's preview.
+// What a type exposes to RML through Bind, found once per type and shared by every binding of it and by the editor's preview.
 internal sealed class UIModelShape
 {
     internal sealed class FScalar
@@ -54,7 +54,7 @@ internal sealed class UIModelShape
 
     public bool IsEmpty => Scalars.Count == 0 && Lists.Count == 0 && Commands.Count == 0;
 
-    // The engine's own base classes carry no [Bind] members, so the walk stops where the user's types end.
+    // The engine's own base classes carry no Bind members, so the walk stops where the user's types end.
     private static IEnumerable<Type> UserHierarchy(Type Type)
     {
         Assembly Engine = typeof(UIModelShape).Assembly;
@@ -73,33 +73,32 @@ internal sealed class UIModelShape
         {
             foreach (PropertyInfo Property in Level.GetProperties(Declared))
             {
-                if (Property.GetCustomAttribute<BindAttribute>() is not { } Attribute || Property.GetMethod == null)
+                if (BoundName(Property) is not { } Name || Property.GetMethod == null)
                 {
                     continue;
                 }
-                Shape.AddValue(Type, Attribute.Name ?? Property.Name, Property.Name, Property.PropertyType,
+                Shape.AddValue(Type, Name, Property.Name, Property.PropertyType,
                     PropertyAccessor.Getter(Property), Property.SetMethod != null ? PropertyAccessor.Setter(Property) : null, Taken);
             }
 
             foreach (FieldInfo Field in Level.GetFields(Declared))
             {
-                if (Field.GetCustomAttribute<BindAttribute>() is not { } Attribute || Field.IsStatic)
+                if (BoundName(Field) is not { } Name || Field.IsStatic)
                 {
                     continue;
                 }
                 Action<object, object?>? Setter = Field.IsInitOnly ? null : Field.SetValue;
-                Shape.AddValue(Type, Attribute.Name ?? Field.Name, Field.Name, Field.FieldType, Field.GetValue, Setter, Taken);
+                Shape.AddValue(Type, Name, Field.Name, Field.FieldType, Field.GetValue, Setter, Taken);
             }
 
             foreach (MethodInfo Method in Level.GetMethods(Declared))
             {
-                BindCommandAttribute? Command = Method.GetCustomAttribute<BindCommandAttribute>();
-                BindAttribute? Bind = Method.GetCustomAttribute<BindAttribute>();
-                if ((Command == null && Bind == null) || Method.IsStatic || Method.IsGenericMethodDefinition)
+                FunctionAttribute? Function = Method.GetCustomAttribute<FunctionAttribute>();
+                if (Function == null || !Function.Has(ESpecifier.Bind) || Method.IsStatic || Method.IsGenericMethodDefinition)
                 {
                     continue;
                 }
-                string CommandName = Command?.Name ?? Bind?.Name ?? Method.Name;
+                string CommandName = Function.Bind ?? Method.Name;
                 if (!Taken.Add(CommandName))
                 {
                     Debug.LogWarning($"[UI] {Type.Name}.{Method.Name}: the name '{CommandName}' is bound twice; this one is skipped.");
@@ -132,8 +131,14 @@ internal sealed class UIModelShape
             return;
         }
 
-        Debug.LogWarning($"[UI] {Owner.Name}.{MemberName}: [Bind] type '{ValueType.Name}' is not bindable. Use a number, bool, enum, "
-            + "string, or a collection of a type with [Bind] members.");
+        Debug.LogWarning($"[UI] {Owner.Name}.{MemberName}: [Property(Bind)] type '{ValueType.Name}' is not bindable. Use a number, bool, enum, "
+            + "string, or a collection of a type with [Property(Bind)] members.");
+    }
+
+    private static string? BoundName(MemberInfo Member)
+    {
+        PropertyAttribute? Property = Member.GetCustomAttribute<PropertyAttribute>();
+        return Property != null && Property.Has(ESpecifier.Bind) ? Property.Bind ?? Member.Name : null;
     }
 
     private static FListItem[] BuildItems(Type ItemType)
@@ -143,16 +148,16 @@ internal sealed class UIModelShape
         {
             foreach (PropertyInfo Property in Level.GetProperties(Declared))
             {
-                if (Property.GetCustomAttribute<BindAttribute>() is { } Attribute && Property.GetMethod != null)
+                if (BoundName(Property) is { } Name && Property.GetMethod != null)
                 {
-                    Items.Add(new FListItem { Name = Attribute.Name ?? Property.Name, Get = PropertyAccessor.Getter(Property) });
+                    Items.Add(new FListItem { Name = Name, Get = PropertyAccessor.Getter(Property) });
                 }
             }
             foreach (FieldInfo Field in Level.GetFields(Declared))
             {
-                if (Field.GetCustomAttribute<BindAttribute>() is { } Attribute && !Field.IsStatic)
+                if (BoundName(Field) is { } Name && !Field.IsStatic)
                 {
-                    Items.Add(new FListItem { Name = Attribute.Name ?? Field.Name, Get = Field.GetValue });
+                    Items.Add(new FListItem { Name = Name, Get = Field.GetValue });
                 }
             }
         }

@@ -38,15 +38,15 @@ namespace Lumina
         GENERATED_BODY()
 
         /** Pixel coordinates, origin top-left, +Y down. Meaningless unless bOnScreen. */
-        PROPERTY()
+        PROPERTY(Hidden)
         FVector2 Position;
 
         /** View-space forward distance in world units, positive in front. Valid even when off screen. */
-        PROPERTY()
+        PROPERTY(Hidden)
         float Depth = 0.0f;
 
         /** False when the point is at or behind the near plane, where a projected point mirrors. */
-        PROPERTY()
+        PROPERTY(Hidden)
         bool bOnScreen = false;
     };
 
@@ -57,15 +57,15 @@ namespace Lumina
         GENERATED_BODY()
 
         /** On the near plane, not at the camera position. */
-        PROPERTY()
+        PROPERTY(Hidden)
         FVector3 Origin;
 
         /** Normalized. */
-        PROPERTY()
+        PROPERTY(Hidden)
         FVector3 Direction;
 
         /** False when the world has no rendered view to deproject through. */
-        PROPERTY()
+        PROPERTY(Hidden)
         bool bValid = false;
     };
 

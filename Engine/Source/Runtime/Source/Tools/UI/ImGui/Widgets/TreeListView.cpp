@@ -846,6 +846,44 @@ namespace Lumina
         bVisibleListDirty = true;
     }
 
+    void FTreeListView::RemoveNodes(const TVector<FTreeNodeID>& Handles)
+    {
+        TVector<int32> Parents;
+        Parents.reserve(Handles.size());
+        for (FTreeNodeID Handle : Handles)
+        {
+            if (IsValid(Handle) && !Nodes[Handle.Index].bPendingRemoval)
+            {
+                Nodes[Handle.Index].bPendingRemoval = true;
+                Parents.push_back(Nodes[Handle.Index].ParentIdx);
+            }
+        }
+        if (Parents.empty())
+        {
+            return;
+        }
+
+        Algo::Sort(Parents);
+        Parents.erase(Algo::Unique(Parents), Parents.end());
+        const auto IsRemoved = [this](int32 Child) { return Nodes[Child].bPendingRemoval; };
+        for (int32 ParentIdx : Parents)
+        {
+            TVector<int32>& Siblings = ParentIdx >= 0 ? Nodes[ParentIdx].Children : Roots;
+            Siblings.erase(Algo::RemoveIf(Siblings, IsRemoved), Siblings.end());
+        }
+
+        // A handle inside another's subtree died with it, which the alive check skips.
+        for (FTreeNodeID Handle : Handles)
+        {
+            if (IsValid(Handle) && Nodes[Handle.Index].bPendingRemoval)
+            {
+                RemoveSubtree(Handle.Index);
+            }
+        }
+
+        bVisibleListDirty = true;
+    }
+
     void FTreeListView::UnlinkFromParent(int32 Idx)
     {
         const int32 ParentIdx = Nodes[Idx].ParentIdx;
@@ -892,6 +930,7 @@ namespace Lumina
         Node.bAlive = false;
         Node.bChildrenBuilt = false;
         Node.bHasLazyChildren = false;
+        Node.bPendingRemoval = false;
         FreeList.push_back(Idx);
         --AliveCount;
         ++StructureVersion;

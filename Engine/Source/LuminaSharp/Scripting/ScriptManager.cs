@@ -531,7 +531,7 @@ internal sealed class ScriptManager
         Interop.ResetExceptionThrottle();     // the reloaded code earns a full stack on its first throw
         ScriptCallback.PurgeAll();            // every closure handed to native, callbacks, listeners and loads alike
         PropertyAccessor.ClearScriptCaches(); // cached get/set delegates over user property types
-        ScriptFunctionDispatch.Reset();        // [ScriptFunction] bindings, which root user MethodInfos
+        ScriptFunctionDispatch.Reset();        // [Function] bindings, which root user MethodInfos
         ScriptInvokerRegistry.Clear();         // generated invokers, which are delegates over user methods
         NativeObjectMarshal.ClearTypeCache();  // wrapper instantiations keyed by user parameter types
 

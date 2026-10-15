@@ -23,26 +23,26 @@ namespace Lumina
     {
         GENERATED_BODY()
 
-        PROPERTY()
+        PROPERTY(Hidden)
         FName Label;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         float Value = 0.0f;
 
         /** A key whose managed form is not its native bytes, which the map binder used to refuse. */
-        PROPERTY()
+        PROPERTY(Hidden)
         THashMap<FString, float> Weights;
 
         /** The same on the value side. */
-        PROPERTY()
+        PROPERTY(Hidden)
         THashMap<int32, FString> Labels;
 
         /** Both sides plain values, so a benchmark can show the marshalled branch folding away. */
-        PROPERTY()
+        PROPERTY(Hidden)
         THashMap<int32, float> Scores;
 
         /** A payload a Nullable cannot spell, which the optional binder used to refuse. */
-        PROPERTY()
+        PROPERTY(Hidden)
         TOptional<FString> Note;
     };
 

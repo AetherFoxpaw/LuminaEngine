@@ -1075,6 +1075,7 @@ namespace Lumina::Reflection::Visitor
 		{
 			LRT_ERROR(Cursor, EDiagId::ConflictingSpecifiers, "%s", ConflictMessage.c_str());
 		}
+		NewProperty->ApplyDefaultVisibility();
 
 		std::string Comment = GetCursorComment(Cursor);
 		if (!Comment.empty())

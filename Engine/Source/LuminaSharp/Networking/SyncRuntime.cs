@@ -10,13 +10,13 @@ namespace LuminaSharp;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class SyncRuntime
 {
-    // Emitted into a [Sync] setter after the value actually changed. Native ignores it everywhere but on the host.
+    // Emitted into a Sync setter after the value actually changed. Native ignores it everywhere but on the host.
     public static void MarkDirty(Lumina.CEntityScript Script)
     {
         Script.MarkNetDirty();
     }
 
-    // Emitted into a [Sync] setter carrying [Change], so the writer's own change runs the handler the same as an arriving one.
+    // Emitted into a Sync setter that names a Change handler, so the writer's own change runs the handler the same as an arriving one.
     public static void Changed<T>(object Owner, string Member, T Old, T New)
     {
         if (Owner is Lumina.CEntityScript Script && !Script.Entity.IsNull)
@@ -63,7 +63,7 @@ public static class SyncRuntime
     }
 }
 
-// Runs [Change] handlers. Built per type on first use and keyed weakly, so a hot reload's old types are not pinned.
+// Runs Change handlers. Built per type on first use and keyed weakly, so a hot reload's old types are not pinned.
 internal static class SyncChanges
 {
     private sealed class FHandler
@@ -160,16 +160,16 @@ internal static class SyncChanges
         const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;
         foreach (PropertyInfo Property in Type.GetProperties(Flags))
         {
-            ChangeAttribute? Change = Property.GetCustomAttribute<ChangeAttribute>();
+            string? Change = Property.GetCustomAttribute<PropertyAttribute>()?.Change;
             if (Change == null)
             {
                 continue;
             }
 
-            MethodInfo? Method = FindHandler(Type, Change.Method, Property.PropertyType, out bool bTakesValues);
+            MethodInfo? Method = FindHandler(Type, Change, Property.PropertyType, out bool bTakesValues);
             if (Method == null)
             {
-                Native.Log(ELogLevel.Warn, $"[Net] {Type.Name}.{Property.Name} names change handler '{Change.Method}', which must take nothing or ({Property.PropertyType.Name} Old, {Property.PropertyType.Name} New).");
+                Native.Log(ELogLevel.Warn, $"[Net] {Type.Name}.{Property.Name} names change handler '{Change}', which must take nothing or ({Property.PropertyType.Name} Old, {Property.PropertyType.Name} New).");
                 continue;
             }
 

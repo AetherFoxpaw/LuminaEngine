@@ -1532,6 +1532,12 @@ namespace Lumina
         }
     }
 
+    struct FPolledVersion
+    {
+        ECS::FEntity Entity;
+        uint32       Version = 0;
+    };
+
     // Every nav source in the world in a loose octree, so a tile gathers what lies under it and a change touches only what moved.
     struct FNavSourceTracker
     {
@@ -1548,6 +1554,11 @@ namespace Lumina
         THashSet<ECS::FEntity>                  Pending;
 
         TVector<ECS::FEntity>                   MovedScratch;
+        TVector<TVector<ECS::FEntity>>          PollBuckets;
+        // Last version polled per dense slot of each pool, so an unchanged source costs no record lookup.
+        TVector<FPolledVersion>                 PolledTerrain;
+        TVector<FPolledVersion>                 PolledDynamicMeshes;
+        TVector<FPolledVersion>                 PolledFoliage;
         TVector<FNavSourceEntry>                EntryScratch;
         TVector<ECS::FEntity>                   SweepOrder;
         size_t                                  SweepCursor = 0;
@@ -1731,42 +1742,107 @@ namespace Lumina
             Sources.KeysOfEntity[Entity] = std::move(Kept);
         }
 
-        // Content that changes without a move or a signal, a sculpted heightmap or a re-committed dynamic mesh, polled by version since there are few of them.
+        // Spread over the workers since a streamed world carries tens of thousands, and only a version not seen last poll reaches IsStale.
+        template<typename T, typename FnVersion, typename FnStale>
+        void QueueStaleSources(const FSystemContext& Context, FNavSourceTracker& Sources, TVector<FPolledVersion>& Polled, THashSet<ECS::FEntity>& Work,
+                               FnVersion&& Version, FnStale&& IsStale)
+        {
+            const ECS::TComponentStorage<T> Storage = Context.GetRegistry().FindStorage<T>();
+            if (!Storage)
+            {
+                Polled.clear();
+                return;
+            }
+
+            const uint32 Num = (uint32)Storage.GetDenseSize();
+            Polled.resize(Num);
+
+            const uint32 NumBuckets = Math::Max(1u, GTaskSystem != nullptr ? GTaskSystem->GetNumTaskThreads() : 1u);
+            if ((uint32)Sources.PollBuckets.size() < NumBuckets)
+            {
+                Sources.PollBuckets.resize(NumBuckets);
+            }
+
+            constexpr uint32 MinSlotsToSplit = 4096;
+            Task::ParallelForOrSerial(Num, MinSlotsToSplit, [&](const Task::FParallelRange& Range)
+            {
+                TVector<ECS::FEntity>& Bucket = Sources.PollBuckets[Range.Thread];
+                const ECS::FEntity* Dense = Storage.GetDenseData();
+                for (uint32 i = Range.Start; i < Range.End; ++i)
+                {
+                    const ECS::FEntity E = Dense[i];
+                    uint32 Current = 0;
+                    if (E.IsTombstone() || !Version(E, Storage.GetAtDense(i), Current))
+                    {
+                        continue;
+                    }
+
+                    FPolledVersion& Seen = Polled[i];
+                    if (Seen.Entity == E && Seen.Version == Current)
+                    {
+                        continue;
+                    }
+                    if (IsStale(E, Storage.GetAtDense(i), Current))
+                    {
+                        Bucket.push_back(E);
+                    }
+                    Seen = FPolledVersion{ E, Current };
+                }
+            }, 1024);
+
+            for (TVector<ECS::FEntity>& Bucket : Sources.PollBuckets)
+            {
+                Work.insert(Bucket.begin(), Bucket.end());
+                Bucket.clear();
+            }
+        }
+
+        // Content that changes without a move or a signal, a sculpted heightmap or a re-committed dynamic mesh, polled by version.
         void QueueVersionedSources(const FSystemContext& Context, FNavSourceTracker& Sources, THashSet<ECS::FEntity>& Work)
         {
+            const ECS::FRegistry& Registry = Context.GetRegistry();
             auto RecordedContent = [&Sources](uint64 Key, uint64 ContentId)
             {
                 auto Found = Sources.RecordOfKey.find(Key);
                 return Found == Sources.RecordOfKey.end() || Sources.Records[Found->second].ContentId != ContentId;
             };
 
-            auto Terrains = Context.CreateView<STerrainColliderComponent, STerrainComponent>();
-            for (ECS::FEntity E : Terrains)
-            {
-                if (RecordedContent(PackSourceKey(E, ENavColliderType::Terrain), Terrains.Get<STerrainComponent>(E).CPUState.HeightmapVersion))
+            QueueStaleSources<STerrainColliderComponent>(Context, Sources, Sources.PolledTerrain, Work,
+                [&](ECS::FEntity E, const STerrainColliderComponent&, uint32& Out)
                 {
-                    Work.insert(E);
-                }
-            }
+                    const STerrainComponent* Terrain = Registry.TryGet<STerrainComponent>(E);
+                    Out = Terrain != nullptr ? Terrain->CPUState.HeightmapVersion : 0u;
+                    return Terrain != nullptr;
+                },
+                [&](ECS::FEntity E, const STerrainColliderComponent&, uint32 Current)
+                {
+                    return RecordedContent(PackSourceKey(E, ENavColliderType::Terrain), Current);
+                });
 
-            auto DynamicMeshes = Context.CreateView<SDynamicMeshColliderComponent, SDynamicMeshComponent>();
-            for (ECS::FEntity E : DynamicMeshes)
-            {
-                if (RecordedContent(PackSourceKey(E, ENavColliderType::DynamicMesh), DynamicMeshes.Get<SDynamicMeshComponent>(E).LoadRenderDataVersion()))
+            QueueStaleSources<SDynamicMeshColliderComponent>(Context, Sources, Sources.PolledDynamicMeshes, Work,
+                [&](ECS::FEntity E, const SDynamicMeshColliderComponent&, uint32& Out)
                 {
-                    Work.insert(E);
-                }
-            }
+                    const SDynamicMeshComponent* Mesh = Registry.TryGet<SDynamicMeshComponent>(E);
+                    Out = Mesh != nullptr ? Mesh->LoadRenderDataVersion() : 0u;
+                    return Mesh != nullptr;
+                },
+                [&](ECS::FEntity E, const SDynamicMeshColliderComponent&, uint32 Current)
+                {
+                    return RecordedContent(PackSourceKey(E, ENavColliderType::DynamicMesh), Current);
+                });
 
-            auto FoliageView = Context.CreateView<SFoliageComponent>();
-            for (ECS::FEntity E : FoliageView)
-            {
-                auto Cached = Sources.Foliage.Entities.find((uint32)E);
-                if (Cached == Sources.Foliage.Entities.end() || Cached->second.Signature != FoliageNavSignature(FoliageView.Get<SFoliageComponent>(E)))
+            // Gated on the instance version, so a re-imported species shape with no instance edit waits for the sweep.
+            QueueStaleSources<SFoliageComponent>(Context, Sources, Sources.PolledFoliage, Work,
+                [](ECS::FEntity, const SFoliageComponent& Foliage, uint32& Out)
                 {
-                    Work.insert(E);
-                }
-            }
+                    Out = Foliage.InstancesVersion;
+                    return true;
+                },
+                [&](ECS::FEntity E, const SFoliageComponent& Foliage, uint32)
+                {
+                    auto Cached = Sources.Foliage.Entities.find((uint32)E);
+                    return Cached == Sources.Foliage.Entities.end() || Cached->second.Signature != FoliageNavSignature(Foliage);
+                });
         }
 
         void UpdateSources(const FSystemContext& Context, FNavSourceTracker& Sources)
@@ -1806,15 +1882,23 @@ namespace Lumina
 
             QueueVersionedSources(Context, Sources, Work);
 
-            // A component written in place raises no signal, so a slice of the world is checked every tick to catch it.
-            const int32 Budget = Math::Max(0, NavSettings().SourceVerifyBudget);
-            for (int32 i = 0; i < Budget && !Sources.SweepOrder.empty(); ++i)
+            // A collider written in place raises no signal, so a slice is checked each tick, counted in sources since one foliage entity carries thousands.
+            int32 Remaining = Math::Max(0, NavSettings().SourceVerifyBudget);
+            while (Remaining > 0 && !Sources.SweepOrder.empty())
             {
                 if (Sources.SweepCursor >= Sources.SweepOrder.size())
                 {
                     RebuildSweepOrder(Sources);
+                    // Every source may have unloaded since the last pass, which leaves nothing to sweep.
+                    if (Sources.SweepOrder.empty())
+                    {
+                        break;
+                    }
                 }
-                Work.insert(Sources.SweepOrder[Sources.SweepCursor++]);
+                const ECS::FEntity Entity = Sources.SweepOrder[Sources.SweepCursor++];
+                auto Keys = Sources.KeysOfEntity.find(Entity);
+                Remaining -= Keys != Sources.KeysOfEntity.end() ? Math::Max(1, (int32)Keys->second.size()) : 1;
+                Work.insert(Entity);
             }
 
             for (ECS::FEntity Entity : Work)

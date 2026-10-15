@@ -504,7 +504,8 @@ struct FInstanceStatic
     FCustomPrimitiveData CustomData;
     uint            MaterialIndex;
     uint            EntityID;
-    uint            BoneOffset;
+    // Into the skinned frame data for a skinned slot, kNoSkinnedIndex otherwise.
+    uint            SkinnedIndex;
     uint            SkinnedVertexBase;
     // One visibility word per block of its camera LOD, kNoMeshletVisibility for none.
     uint            MeshletVisibilityBase;
@@ -520,8 +521,9 @@ static const uint kNoPreSkinBase = 0xFFFFFFFFu;
 static const uint kNoBoneSlice   = 0xFFFFFFFFu;
 // No per-frame skinned meshlet bounds, so the cull falls back to bind-pose spheres and stops trusting them.
 static const uint kNoSkinnedBounds = 0xFFFFFFFFu;
+static const uint kNoSkinnedIndex  = 0xFFFFFFFFu;
 
-// Mirror of Lumina::FSkinnedFrameData, indexed by retained slot, with LOD ranges pinned to the pick the pre-skin slice used.
+// Mirror of Lumina::FSkinnedFrameData, indexed by FInstanceStatic::SkinnedIndex, with LOD ranges pinned to the pick the pre-skin slice used.
 struct FSkinnedFrameData
 {
     // The array is never cleared, so a mismatched tag means the slot was not gathered this frame.
@@ -534,6 +536,8 @@ struct FSkinnedFrameData
     uint BoneOffset;
     // Folds in the range start, so SkinnedMeshletBounds() is indexed by a mesh-global meshlet index.
     uint SkinnedBoundsBase;
+    // The instance this entry belongs to, since the array is indexed by skinned index rather than by slot.
+    uint RetainedSlot;
 
     bool IsFromFrame(uint ExpectedTag) { return FrameTag == ExpectedTag && ExpectedTag != 0u; }
 };
@@ -657,7 +661,9 @@ struct FGPUInstance
     // Into InstanceVisibility, keyed by the retained slot since the compacted slot changes every frame.
     uint                    RetainedSlot;
     uint                    RenderLayers;
-    uint                    _Pad0[2];
+    // Copied from the skinned frame data, so the meshlet cull reads it without that array.
+    uint                    SkinnedBoundsBase;
+    uint                    _Pad0;
 
     property float4x4 ModelMatrix { get { return Transform.ToMatrix(); } }
 

@@ -56,12 +56,8 @@ FMeshletCullContext MakeMeshletCullContext(FGPUInstance* Inst)
     const float SqScaleZ = dot(Ctx.Model[2].xyz, Ctx.Model[2].xyz);
     Ctx.MaxScale = sqrt(max(SqScaleX, max(SqScaleY, SqScaleZ)));
 
-    Ctx.SkinnedBoundsBase = kNoSkinnedBounds;
-    if (Ctx.bSkinned && SkinnedFrameData().Contains(I.RetainedSlot))
-    {
-        // CullInstances already rejected any skinned slot whose frame tag was stale, so this is current.
-        Ctx.SkinnedBoundsBase = SkinnedFrameData().At(I.RetainedSlot).SkinnedBoundsBase;
-    }
+    // CullInstances copied it from a skinned entry it had already checked against this frame's tag.
+    Ctx.SkinnedBoundsBase = Ctx.bSkinned ? I.SkinnedBoundsBase : kNoSkinnedBounds;
 
     Ctx.bPosedBounds = !Ctx.bSkinned || (Ctx.SkinnedBoundsBase != kNoSkinnedBounds);
 

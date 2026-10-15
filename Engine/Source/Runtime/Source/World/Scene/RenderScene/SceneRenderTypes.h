@@ -979,7 +979,8 @@ namespace Lumina
         uint32      CustomData;
         uint32      MaterialIndex;
         uint32      EntityID;
-        uint32      BoneOffset;
+        // Into the skinned frame data for a skinned slot, kNoSkinnedIndex otherwise.
+        uint32      SkinnedIndex;
         uint32      SkinnedVertexBase;
         // Assigned by FScenePrimitiveSet::AssignMeshletVisibility; kNoMeshletVisibility for none.
         uint32      MeshletVisibilityBase;
@@ -1013,7 +1014,8 @@ namespace Lumina
         uint32          MeshletTotalCount;      //        108
         uint32          RetainedSlot;           //        112
         uint32          RenderLayers;           //        116
-        uint32          _Pad0[2];               //        120
+        uint32          SkinnedBoundsBase;      //        120
+        uint32          _Pad0;                  //        124
     };
 
     static_assert(sizeof(FGPUInstance) == 128, "FGPUInstance layout must match shader");
@@ -1070,8 +1072,13 @@ namespace Lumina
         uint32      BoneOffset;
         // Folds in the range start, so it indexes the bounds arena by a mesh-global meshlet index.
         uint32      SkinnedBoundsBase;
+        // The instance this entry belongs to, since the array is indexed by skinned index rather than by slot.
+        uint32      RetainedSlot;
     };
-    static_assert(sizeof(FSkinnedFrameData) == 28, "FSkinnedFrameData must match shader");
+    static_assert(sizeof(FSkinnedFrameData) == 32, "FSkinnedFrameData must match shader");
+
+    // Handed out per skinned binding, so the skinned frame data is as long as the live skinned instances.
+    constexpr uint32 kNoSkinnedIndex = Constants::kIndexNoneU32;
 
     // The forced LOD plus one in the low byte (0 is automatic), the custom layer bit, and the foliage thinning start distance as a half float in the high half.
     inline uint32 PackLODAndThinning(int32 ForcedLODIndex, float ThinningStartDistance, uint32 RenderLayers = RENDER_LAYER_DEFAULT_MASK)
@@ -1337,8 +1344,6 @@ namespace Lumina
         RHI::TGPUSpan<uint32>               StreamingFeedback;
         // Object-space meshlet spheres for this frame's poses, written by SkinnedMeshletBounds.slang.
         RHI::TGPUSpan<FMeshletSphere>       SkinnedMeshletBounds;
-        // Indexed by retained slot, and the cull reads only SkinnedBoundsBase out of it.
-        RHI::TGPUSpan<FSkinnedFrameData>    SkinnedFrameData;
         // Same index space as SkinnedMeshletBounds, so one base addresses both.
         RHI::TGPUSpan<FMeshletCone>         SkinnedMeshletCones;
         // Parallel to PreSkinnedVertices, and empty when no view wants motion vectors.
@@ -1353,7 +1358,7 @@ namespace Lumina
         uint32 ProbeCubeArrayIndex   = 0;
         uint32 _Pad0                 = 0;
     };
-    static_assert(sizeof(FSceneRoot) == 416, "FSceneRoot must match SceneGlobals.slang");
+    static_assert(sizeof(FSceneRoot) == 400, "FSceneRoot must match SceneGlobals.slang");
 
     struct FParallaxSettings
     {

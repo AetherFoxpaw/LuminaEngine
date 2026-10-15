@@ -130,7 +130,7 @@ namespace Lumina
             }
         }
 
-        // The author's [Property(Flags)] set, added to rather than replacing what the property's kind decided.
+        // The flags the author's [Property] specifiers set, added to rather than replacing what the property's kind decided.
         void ApplyDeclaredFlags(FProperty* Property, uint32 Flags)
         {
             if (Flags != 0)

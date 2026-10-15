@@ -384,23 +384,23 @@ namespace Lumina
         int64 GenerateUniqueNodeID(int64 PreferredID) const;
 
         // All nodes currently in this graph.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<TStrongObjectPtr<CEdGraphNode>>         Nodes;
 
         // Pin-to-pin links, stored as pairs of 32-bit pin ids.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<uint32>                                 Connections;
 
         // Node editor layout state, meaning node positions and group sizes.
-        PROPERTY()
+        PROPERTY(Hidden)
         FString GraphSaveData;
 
         // Bumped by NotifyContentChanged. See GetContentVersion.
-        PROPERTY()
+        PROPERTY(Hidden)
         uint64 ContentVersion = 0;
 
         // ContentVersion at the last compile. A legacy graph loads 0 for both and so reads as compiled.
-        PROPERTY()
+        PROPERTY(Hidden)
         uint64 CompiledContentVersion = 0;
         
         // Reach this through GetSupportedNodes(), which fills it from reflection on first use.

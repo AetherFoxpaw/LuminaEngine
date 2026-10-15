@@ -25,7 +25,7 @@ namespace Lumina
     public:
 
         // A native property, so a test proves one appended to a minted subclass coexists with it.
-        PROPERTY()
+        PROPERTY(Hidden)
         float NativeValue = 1.5f;
 
         FUNCTION()
@@ -66,7 +66,7 @@ namespace Lumina
         void* HookContext = nullptr;
 
         // A container property, so a duplicate test proves the copy gets this member's address rather than the object base.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<FName> Values;
 
         int32 AttachCount = 0;
@@ -86,10 +86,10 @@ namespace Lumina
 
         void OnAttach() override { bTransformAtAttach = Transform.Get() != nullptr; }
 
-        PROPERTY(Component)
+        PROPERTY(Hidden, Component)
         TComponentRef<STransformComponent> Transform;
 
-        PROPERTY(Component = Get)
+        PROPERTY(Hidden, Component = Get)
         TComponentRef<SNameComponent> Name;
 
         bool bTransformAtAttach = false;

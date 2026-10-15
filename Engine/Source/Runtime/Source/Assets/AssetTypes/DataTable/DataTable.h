@@ -58,10 +58,10 @@ namespace Lumina
          *  Stored as a name rather than a struct reference: a CStruct is a reflection object created
          *  at module init, not a serializable asset, so a pointer to one cannot be written to a
          *  package. Read it through GetRowStruct(), which resolves and caches. */
-        PROPERTY()
+        PROPERTY(Hidden)
         FName RowStructName;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SDataTableRow> Rows;
 
         /** The resolved row type, or null if unset or its module is not loaded. */

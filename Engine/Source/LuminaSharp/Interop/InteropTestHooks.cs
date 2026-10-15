@@ -18,34 +18,34 @@ internal enum ETestFrameChannel : byte
 // Stands in for a script type, so a native test can drive the real dispatcher over a minted frame.
 internal sealed class FrameMarshalTarget
 {
-    [ScriptFunction]
+    [Function]
     public void MarshalOut(int In, out int Out)
     {
         Out = In * 2;
     }
 
-    [ScriptFunction]
+    [Function]
     public void MarshalRef(ref int Value)
     {
         Value += 5;
     }
 
     // A string parameter, which used to have no generated invoker and fell to the boxing reflection path.
-    [ScriptFunction]
+    [Function]
     public void MarshalText(string In, out int Length)
     {
         Length = In == null ? -1 : In.Length;
     }
 
     // An opaque struct wrapper, which stays on the reflection path and is read through a view over the slot.
-    [ScriptFunction]
+    [Function]
     public void MarshalStructView(Lumina.SAnimGraphBoneMaskBone Bone, out float Weight)
     {
         Weight = Bone.Ref.IsNull ? -1.0f : Bone.Weight;
     }
 
     // An async body that yields once, so the token is observably running before the tick completes it.
-    [ScriptFunction]
+    [Function]
     public async System.Threading.Tasks.Task MarshalAsync(int Value)
     {
         AsyncGate = new System.Threading.Tasks.TaskCompletionSource();
@@ -57,7 +57,7 @@ internal sealed class FrameMarshalTarget
     internal static int AsyncSeen;
 
     // A delegate and an instanced struct name the slot they view, which the frame binder used to refuse.
-    [ScriptFunction]
+    [Function]
     public void MarshalSlotViews(ScriptDelegate Event, Lumina.FInstancedStruct Instanced, out int Seen)
     {
         Seen = (Event.IsValid ? 1 : 0) | (Instanced.IsBound ? 2 : 0);
@@ -107,17 +107,17 @@ internal sealed class FrameMarshalTarget
 // Kept off FrameMarshalTarget so the overload refusal cannot cost the dispatcher tests their own methods.
 internal sealed class OverloadedFunctionTarget
 {
-    [ScriptFunction]
+    [Function]
     public void Ambiguous(int Value)
     {
     }
 
-    [ScriptFunction]
+    [Function]
     public void Ambiguous(float Value)
     {
     }
 
-    [ScriptFunction]
+    [Function]
     public void Unambiguous()
     {
     }
@@ -502,7 +502,7 @@ internal static unsafe class InteropTestHooks
         return ScriptInvokerRegistry.Find(typeof(FrameMarshalTarget), Name) != 0 ? 1 : 0;
     }
 
-    // How many functions survive describing a type whose [ScriptFunction] names are not all distinct.
+    // How many functions survive describing a type whose [Function] names are not all distinct.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static int Test_DescribedFunctionCount(byte* OutAmbiguousDescribed)

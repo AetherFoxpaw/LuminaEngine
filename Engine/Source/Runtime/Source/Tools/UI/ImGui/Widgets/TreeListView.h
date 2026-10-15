@@ -120,6 +120,8 @@ namespace Lumina
         // Tree mutation
         FTreeNodeID CreateNode(FTreeNodeID Parent, FStringView Name, uint64 Hash = 0);
         void RemoveNode(FTreeNodeID Handle);
+        // Rebuilds each affected sibling list once, since removing one at a time scans a big folder per row.
+        void RemoveNodes(const TVector<FTreeNodeID>& Handles);
         void ClearTree();
 
         // Dirty state
@@ -212,6 +214,7 @@ namespace Lumina
             uint8                       bChildrenBuilt:1 = false;
             uint8                       bHasLazyChildren:1 = false;
             uint8                       bWasExpanded:1 = false;
+            uint8                       bPendingRemoval:1 = false;
         };
 
         void DestroyNodeData(int32 Idx);

@@ -177,19 +177,19 @@ namespace Lumina
 
         // The ledger. Public because the reflector's generated code takes offsetof on every PROPERTY;
         // nothing outside the variant paths should write these.
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SPrefabPropertyOverride> VariantOverriddenProperties;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SPrefabComponentRef> VariantAddedComponents;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SPrefabComponentRef> VariantRemovedComponents;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<SPrefabVariantNode> VariantStructuralNodes;
 
-        PROPERTY()
+        PROPERTY(Hidden)
         TVector<FName> VariantRemovedEntities;
 
     private:
