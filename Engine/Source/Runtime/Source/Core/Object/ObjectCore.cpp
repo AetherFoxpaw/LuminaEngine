@@ -4,6 +4,7 @@
 #include <atomic>
 
 #include "ObjectCore.h"
+#include "FileSystem/FileSystem.h"
 #include "Class.h"
 #include "Object.h"
 #include "Cast.h"
@@ -172,10 +173,11 @@ namespace Lumina
 
     FFixedString SanitizeObjectName(FStringView Name)
     {
-        const size_t ExtPos = Name.find_last_of('.');
-        if (ExtPos != FString::npos)
+        // Only the package extension, since a dot in a folder or file name is part of the name and a second pass must change nothing.
+        constexpr FStringView PackageExt = ".lasset";
+        if (VFS::HasExtension(Name, PackageExt))
         {
-            Name = Name.substr(0, ExtPos);
+            Name = Name.substr(0, Name.size() - PackageExt.size());
         }
 
         FFixedString Result;

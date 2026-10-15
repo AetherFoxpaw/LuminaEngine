@@ -1,4 +1,5 @@
 ﻿#include <string>
+#include "Tools/Import/ImportPaths.h"
 #include "Animation/SkeletalMeshLibrary.h"
 #include "World/ECS/Registry.h"
 #include "WorldEditorTool.h"
@@ -2931,17 +2932,16 @@ namespace Lumina
                 ErrorMessage = "Folder must resolve to a virtual path under a mounted alias (e.g. /Game).";
                 return false;
             }
-            CPackage::AddPackageExt(Path);
-            Path = VFS::MakeUniqueFilePath(Path);
-
-            FFixedString SafePath = SanitizeObjectName(Path);
-            if (FindObject<CPackage>(SafePath) != nullptr)
+            // Free of loaded packages and in-flight imports as well as files, since CreatePackage refuses all three.
+            Path = Import::PathReservations::FindFree(Path);
+            if (Path.empty())
             {
-                ErrorMessage = "A package with that name is already loaded.";
+                ErrorMessage = "No free name in that folder.";
                 return false;
             }
+            CPackage::AddPackageExt(Path);
 
-            CPackage* NewPackage = CPackage::CreatePackage(SafePath);
+            CPackage* NewPackage = CPackage::CreatePackage(Path);
             if (NewPackage == nullptr)
             {
                 ErrorMessage = "Failed to create package.";
@@ -3161,17 +3161,16 @@ namespace Lumina
             OutError = "Folder must resolve to a virtual path under a mounted alias (e.g. /Game).";
             return nullptr;
         }
-        CPackage::AddPackageExt(Path);
-        Path = VFS::MakeUniqueFilePath(Path);
-
-        FFixedString SafePath = SanitizeObjectName(Path);
-        if (FindObject<CPackage>(SafePath) != nullptr)
+        // Free of loaded packages and in-flight imports as well as files, since CreatePackage refuses all three.
+        Path = Import::PathReservations::FindFree(Path);
+        if (Path.empty())
         {
-            OutError = "A package with that name is already loaded.";
+            OutError = "No free name in that folder.";
             return nullptr;
         }
+        CPackage::AddPackageExt(Path);
 
-        CPackage* NewPackage = CPackage::CreatePackage(SafePath);
+        CPackage* NewPackage = CPackage::CreatePackage(Path);
         if (NewPackage == nullptr) { OutError = "Failed to create package."; return nullptr; }
 
         const FStringView FileName = VFS::FileName(Path, true);

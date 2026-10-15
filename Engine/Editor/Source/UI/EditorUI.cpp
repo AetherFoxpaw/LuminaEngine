@@ -715,6 +715,7 @@ namespace Lumina
 
         // Shutting down is not the user closing their tabs; see bTearingDownTools.
         bTearingDownTools = true;
+        ModalManager.Dismiss();
 
         while (!EditorTools.empty())
         {

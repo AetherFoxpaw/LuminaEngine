@@ -273,6 +273,8 @@ namespace Lumina
         // Do NOT call ClearSelections, since a structural rebuild is not user intent.
         ClearTree();
 
+        // Cleared first, so a refresh requested while the tree rebuilds runs again next frame.
+        bDirty = false;
         Context.RebuildTreeFunction(*this);
 
         // Top-down, so an expanded lazy node rebuilds its children before the arrow shows open.
@@ -298,7 +300,6 @@ namespace Lumina
             }
         }
 
-        bDirty = false;
         bVisibleListDirty = true;
     }
 
