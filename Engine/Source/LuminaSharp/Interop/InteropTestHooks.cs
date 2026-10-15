@@ -1003,12 +1003,13 @@ internal static unsafe class InteropTestHooks
     {
         var Instanced = new Lumina.FInstancedStruct(Address);
         int Failures = 0;
-        if (!Instanced.TryGet(out Lumina.SInteropOpaqueStruct Held) || !Held.IsValid)
+        if (Instanced.TryGet<Lumina.SInteropOpaqueStruct>() is not { IsValid: true })
         {
             Failures |= 1;
         }
-        Instanced.Get<Lumina.SInteropOpaqueStruct>().Value = NewValue;
-        if (Instanced.TryGet(out Lumina.SDataTableRowBase Wrong) || Wrong.IsValid)
+        Instanced.Get<Lumina.SInteropOpaqueStruct>().Value = NewValue / 2;
+        Instanced.TryGet<Lumina.SInteropOpaqueStruct>()?.Value = NewValue;
+        if (Instanced.TryGet<Lumina.SDataTableRowBase>() != null)
         {
             Failures |= 2;
         }
@@ -1017,7 +1018,7 @@ internal static unsafe class InteropTestHooks
             Failures |= 4;
         }
         var Unbound = new Lumina.FInstancedStruct(0);
-        if (Unbound.TryGet(out Lumina.SInteropOpaqueStruct _) || !Throws(() => Unbound.Get<Lumina.SInteropOpaqueStruct>()))
+        if (Unbound.TryGet<Lumina.SInteropOpaqueStruct>() != null || !Throws(() => Unbound.Get<Lumina.SInteropOpaqueStruct>()))
         {
             Failures |= 8;
         }

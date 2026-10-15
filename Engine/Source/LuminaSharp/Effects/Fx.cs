@@ -49,7 +49,7 @@ public static class Fx
     /// Stops an effect entity emitting and lets its live particles finish, rather than cutting them off.
     public static void Stop(FEntity Effect)
     {
-        if (Engine.World.TryGetComponent(Effect, out TComponentRef<SParticleSystemComponent> System))
+        if (Engine.World.TryGetComponent<SParticleSystemComponent>(Effect) is { } System)
         {
             System.Get().Deactivate();
         }

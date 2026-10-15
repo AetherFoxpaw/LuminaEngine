@@ -11,17 +11,10 @@ public unsafe partial class CWorld
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public TComponentRef<T>? TryGetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
-        return TryGetComponent(Entity, out TComponentRef<T> Component) ? Component : null;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetComponent<T>(FEntity Entity, out TComponentRef<T> Component) where T : struct, IComponent<T>
-    {
         uint* Epoch = null;
         ulong World = WorldHandle;
         IntPtr Pointer = Native.GetComponentTracked(World, Entity.Id, ComponentOps<T>.Token, &Epoch);
-        Component = Pointer == IntPtr.Zero ? default : new TComponentRef<T>(Pointer, World, Entity.Id, Epoch);
-        return Pointer != IntPtr.Zero;
+        return Pointer == IntPtr.Zero ? null : new TComponentRef<T>(Pointer, World, Entity.Id, Epoch);
     }
 
     // In place like FRegistry::Get, so the ref is only good until the next structural change to this type.

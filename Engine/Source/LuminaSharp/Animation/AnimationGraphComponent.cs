@@ -8,19 +8,8 @@ public readonly unsafe partial struct SAnimationGraphComponent
 {
     // Goes through the native accessor rather than Parameters, since it initializes the block from the graph first.
     public T GetParameters<T>() where T : struct, INativeStruct<T>
-    {
-        if (!TryGetParameters(out T Value))
-        {
-            throw new InvalidOperationException($"Animation graph parameter block is not a {T.NativeName}.");
-        }
-        return Value;
-    }
+        => TryGetParameters<T>() ?? throw new InvalidOperationException($"Animation graph parameter block is not a {T.NativeName}.");
 
-    // False with an empty handle when the graph's parameter block is not a T.
-    public bool TryGetParameters<T>(out T Value) where T : struct, INativeStruct<T>
-    {
-        nint Memory = GetParameterMemoryAs(T.NativeName);
-        Value = NativeStructs.FromAddress<T>(Memory);
-        return Memory != 0;
-    }
+    public T? TryGetParameters<T>() where T : struct, INativeStruct<T>
+        => NativeStructs.FromAddressOrNull<T>(GetParameterMemoryAs(T.NativeName));
 }

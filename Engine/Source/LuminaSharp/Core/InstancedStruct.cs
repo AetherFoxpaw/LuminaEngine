@@ -27,28 +27,18 @@ public readonly unsafe struct FInstancedStruct
         => IsBound && Native.InstancedStructIsA(Address, T.NativeName) != 0;
 
     // A handle on the stored value whose writes edit in place, throwing when it holds something other than a T.
-    public T Get<T>() where T : struct, INativeStruct<T>
+    public T Get<T>() where T : struct, INativeStruct<T> => TryGet<T>() ?? throw NotA(T.NativeName);
+
+    // Null when it holds something other than a T, so a write reads as Instanced.TryGet<T>()?.Field = Value.
+    public T? TryGet<T>() where T : struct, INativeStruct<T>
     {
-        if (!TryGet(out T Value))
-        {
-            ThrowNotA(T.NativeName);
-        }
-        return Value;
+        return Is<T>() ? NativeStructs.FromAddressOrNull<T>(Native.InstancedStructGetMemory(Address)) : null;
     }
 
-    // False with an empty handle when it holds something other than a T.
-    public bool TryGet<T>(out T Value) where T : struct, INativeStruct<T>
-    {
-        nint Memory = Is<T>() ? Native.InstancedStructGetMemory(Address) : 0;
-        Value = NativeStructs.FromAddress<T>(Memory);
-        return Memory != 0;
-    }
-
-    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
-    private void ThrowNotA(string Expected)
+    private InvalidOperationException NotA(string Expected)
     {
         string Held = TypeName;
-        throw new InvalidOperationException($"Instanced struct holds {(Held.Length == 0 ? "nothing" : Held)}, not a {Expected}.");
+        return new InvalidOperationException($"Instanced struct holds {(Held.Length == 0 ? "nothing" : Held)}, not a {Expected}.");
     }
 
     /// Replaces the value with a fresh default-constructed T and returns the view of it.
@@ -98,11 +88,11 @@ public readonly unsafe struct TInstancedStruct<TBase> where TBase : struct, INat
 
     public TBase Get() => Inner.Get<TBase>();
 
-    public bool TryGet(out TBase Value) => Inner.TryGet(out Value);
+    public TBase? TryGet() => Inner.TryGet<TBase>();
 
     public T Get<T>() where T : struct, INativeStruct<T> => Inner.Get<T>();
 
-    public bool TryGet<T>(out T Value) where T : struct, INativeStruct<T> => Inner.TryGet(out Value);
+    public T? TryGet<T>() where T : struct, INativeStruct<T> => Inner.TryGet<T>();
 
     public bool Is<T>() where T : struct, INativeStruct<T> => Inner.Is<T>();
 

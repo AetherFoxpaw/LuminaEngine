@@ -32,7 +32,7 @@ public class MaterialApiExample : CEntityScript
 
     public override void OnReady()
     {
-        if (!World.TryGetComponent(Entity, out TComponentRef<SStaticMeshComponent> Mesh))
+        if (World.TryGetComponent<SStaticMeshComponent>(Entity) is not { } Mesh)
         {
             Debug.Log("MaterialApiExample: no static mesh component on this entity.");
             return;

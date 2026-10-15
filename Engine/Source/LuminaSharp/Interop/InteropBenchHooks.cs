@@ -296,7 +296,7 @@ internal static unsafe partial class InteropBenchHooks
         {
             for (int Index = 0; Index < Count; ++Index)
             {
-                if (Registry.TryGetComponent(new FEntity(Entities[Index]), out TComponentRef<Lumina.STransformComponent> Transform))
+                if (Registry.TryGetComponent<Lumina.STransformComponent>(new FEntity(Entities[Index])) is { } Transform)
                 {
                     Total += Transform.Get().LocalTransform.Location.X;
                 }

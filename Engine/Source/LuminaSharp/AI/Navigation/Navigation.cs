@@ -58,7 +58,7 @@ public static class Navigation
     /// Clears the agent's goal and cached path. A no-op when it has none.
     public static void StopMoving(CWorld World, FEntity Agent)
     {
-        if (World.TryGetComponent(Agent, out TComponentRef<SPathFollowComponent> Follow))
+        if (World.TryGetComponent<SPathFollowComponent>(Agent) is { } Follow)
         {
             Follow.Get().Stop();
         }
