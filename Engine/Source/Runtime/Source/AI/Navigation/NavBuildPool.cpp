@@ -8,12 +8,7 @@ namespace Lumina
         Threads.reserve(NumThreads);
         for (uint32 i = 0; i < NumThreads; ++i)
         {
-            Threads.emplace_back([this]
-            {
-                Threading::SetThreadName("NavBuild", Threading::ThreadGroup_Other);
-                Threading::SetThreadBackgroundPriority();
-                ThreadLoop();
-            });
+            Threads.emplace_back(FThreadOptions{ "NavBuild", Threading::ThreadGroup_Other, EThreadPriority::Background }, [this] { ThreadLoop(); });
         }
     }
 

@@ -413,12 +413,12 @@ namespace Lumina
     void FNavMesh::RelabelClusters()
     {
         // Normal priority while it holds the topology, or a swap could wait on a thread the scheduler is starving.
-        Threading::SetThreadBackgroundPriority(false);
+        Threading::SetCurrentThreadPriority(EThreadPriority::Normal);
         {
             FQueryScope Topology(*this);
             Clusters.PrepareExactLabels(PendingSwaps);
         }
-        Threading::SetThreadBackgroundPriority(true);
+        Threading::SetCurrentThreadPriority(EThreadPriority::Background);
         RelabelsInFlight.store(0, std::memory_order_release);
     }
 
