@@ -731,6 +731,7 @@ namespace Lumina::DotNet
         EntityScripts::NotifyScriptsReloaded(
             PreviousGeneration == 0 ? EScriptReloadReason::InitialLoad : EScriptReloadReason::Requested,
             GCachedGeneration);
+        Scripting::FManagedTypeRegistry::Get().BroadcastReload(GCachedGeneration, Definitions);
 
         // Idempotent and editor-only, so an absent project self-heals on any reload.
         if (bEditorFollowups)

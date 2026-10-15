@@ -377,19 +377,13 @@ namespace Lumina::Platform
                 if (errno != EINTR)
                 {
                     Watchdog.RequestStop();
-                    if (Watchdog.Joinable())
-                    {
-                        Watchdog.Join();
-                    }
+                    Watchdog.Join();
                     return -1;
                 }
             }
 
             Watchdog.RequestStop();
-            if (Watchdog.Joinable())
-            {
-                Watchdog.Join();
-            }
+            Watchdog.Join();
             if (bTimedOut.load())
             {
                 return ProcessTimedOutExitCode;

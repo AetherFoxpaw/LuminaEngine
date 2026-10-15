@@ -2,7 +2,6 @@
 #include "FSceneEditorTool.h"
 #include "World/ECS/Registry.h"
 #include <algorithm>
-#include "Scripting/DotNet/DotNetHost.h"
 
 
 #include "Assets/AssetRegistry/AssetRegistry.h"
@@ -3384,12 +3383,11 @@ namespace Lumina
 
         ImGui::BeginChild("Property Editor", ImVec2(0, 0), true);
 
-        // A C# reload or a prefab refresh frees what a built table points at, and nothing broadcasts it.
-        const int32  ScriptGeneration = DotNet::GetScriptGeneration();
+        // A C# reload or a prefab refresh frees what a built table points at.
         const uint32 PrefabGeneration = CPrefab::GetDataGeneration();
-        if (ScriptGeneration != DetailsScriptGeneration || PrefabGeneration != DetailsPrefabGeneration)
+        if (bDetailsScriptsReloaded || PrefabGeneration != DetailsPrefabGeneration)
         {
-            DetailsScriptGeneration = ScriptGeneration;
+            bDetailsScriptsReloaded = false;
             DetailsPrefabGeneration = PrefabGeneration;
 
             // Dropped rather than rebuilt, since the old tables must not be touched again.

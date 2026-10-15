@@ -6,6 +6,7 @@
 #include "Core/Reflection/PropertyChangedEvent.h"
 #include "Core/Reflection/PropertyCustomization/PropertyCustomization.h"
 #include "Memory/SmartPtr.h"
+#include "Scripting/ManagedTypeRegistry.h"
 #include "imgui.h"
 
 namespace Lumina
@@ -420,9 +421,12 @@ namespace Lumina
         FName Category;
     };
     
-    class EDITOR_API FPropertyTable
+    // A script reload rebinds it onto a reinstanced object and drops its rows, since they point into the layouts the reload rebuilt.
+    class EDITOR_API FPropertyTable : public Scripting::IScriptReloadListener
     {
     public:
+
+        void OnScriptsReloaded(const Scripting::FScriptReload& Reload) override;
 
         FPropertyTable() = default;
         ~FPropertyTable() = default;
@@ -505,11 +509,12 @@ namespace Lumina
         void ApplyFilterState();
 
     private:
-        
+
+        // Points the table at an object without touching its rows, which the caller rebuilds or drops.
+        void Bind(void* InObject, CStruct* StructType, void* InDefaultObject);
+
         bool                                                bDirty = true;
 
-        // A C# reload rebuilds a minted class's property block, so rows built against the old one must go.
-        int32                                               BuiltScriptGeneration = -1;
         TSharedPtr<IPropertyTypeCustomization>              Customization;
         TSharedPtr<FPropertyHandle>                         PropertyHandle;
         CStruct*                                            Struct = nullptr;

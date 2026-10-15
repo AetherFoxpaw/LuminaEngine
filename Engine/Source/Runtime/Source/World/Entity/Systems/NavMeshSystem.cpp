@@ -2294,7 +2294,7 @@ namespace Lumina
                     return Math::Max(Math::Abs(X - SeedX), Math::Abs(Y - SeedY));
                 };
                 size_t Take = Math::Min((size_t)Capacity, Candidates.size());
-                std::partial_sort(Candidates.begin(), Candidates.begin() + Take, Candidates.end(),
+                Algo::PartialSort(Candidates.begin(), Candidates.begin() + Take, Candidates.end(),
                     [&SeedDistance](uint64 A, uint64 B) { return SeedDistance(A) < SeedDistance(B); });
 
                 // Tiles past this radius wait for a batch seeded near them, since one far tile widens the gather to everything in between.

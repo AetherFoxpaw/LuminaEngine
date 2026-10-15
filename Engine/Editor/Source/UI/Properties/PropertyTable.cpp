@@ -9,7 +9,6 @@
 #include "Core/Object/ObjectIterator.h"
 #include "Core/Reflection/PropertyCustomization/PropertyCustomization.h"
 #include "Core/Reflection/Type/LuminaTypes.h"
-#include "Scripting/DotNet/DotNetHost.h"
 #include "Scripting/ScriptTypeRegistry.h"
 #include "Core/Reflection/Type/Properties/ArrayProperty.h"
 #include "Core/Reflection/Type/Properties/EnumProperty.h"
@@ -2189,50 +2188,29 @@ namespace Lumina
         return ImGui::GetTreeNodeToLabelSpacing() + ImGui::CalcTextSize(Category.c_str()).x;
     }
 
-    FPropertyTable::FPropertyTable(void* InObject, CStruct* InType)
-        : ChangeEventCallbacks()
-        , Struct(InType)
-        , Object(InObject)
+    namespace
     {
-        ChangeEventCallbacks.Type = InType;
-        ChangeEventCallbacks.Instance = InObject;
-        if (InType != nullptr && InObject != nullptr)
+        // The type's default instance to diff against, unless the object is that default itself.
+        void* DefaultInstanceFor(void* InObject, CStruct* InType)
         {
-            void* MaybeDefault = InType->GetDefaultInstance();
-            if (MaybeDefault != InObject)
-            {
-                DefaultObject = MaybeDefault;
-            }
+            void* Default = InType != nullptr && InObject != nullptr ? InType->GetDefaultInstance() : nullptr;
+            return Default != InObject ? Default : nullptr;
         }
+    }
+
+    FPropertyTable::FPropertyTable(void* InObject, CStruct* InType)
+    {
+        Bind(InObject, InType, DefaultInstanceFor(InObject, InType));
     }
 
     FPropertyTable::FPropertyTable(void* InObject, CStruct* InType, void* InDefaultObject)
-        : ChangeEventCallbacks()
-        , Struct(InType)
-        , Object(InObject)
-        , DefaultObject(InDefaultObject)
     {
-        ChangeEventCallbacks.Type = InType;
-        ChangeEventCallbacks.Instance = InObject;
+        Bind(InObject, InType, InDefaultObject);
     }
 
     FPropertyTable::FPropertyTable(CObject* InObject)
-        : ChangeEventCallbacks()
-        , Object(InObject)
+        : FPropertyTable(InObject, InObject != nullptr ? InObject->GetClass() : nullptr)
     {
-        if (InObject != nullptr)
-        {
-            CClass* Class = InObject->GetClass();
-            Struct = Class;
-            ChangeEventCallbacks.Type = Class;
-            ChangeEventCallbacks.Instance = InObject;
-
-            // Avoids a misleading modified indicator on the rare CDO-edit flow.
-            if (Class != nullptr && !InObject->HasAnyFlag(OF_DefaultObject))
-            {
-                DefaultObject = Class->GetDefaultObject();
-            }
-        }
     }
 
     void FPropertyTable::RebuildTree()
@@ -2426,18 +2404,27 @@ namespace Lumina
         }
     }
 
-    void FPropertyTable::EnsureTreeBuilt()
+    void FPropertyTable::OnScriptsReloaded(const Scripting::FScriptReload& Reload)
     {
-        // Dropped rather than reused, since the properties the old rows point at belong to the previous block.
-        const int32 ScriptGeneration = DotNet::GetScriptGeneration();
-        if (ScriptGeneration != BuiltScriptGeneration)
+        // Only an object table can be reinstanced, so a struct table's value pointer is never looked up as one.
+        const bool bObjectTable = Struct != nullptr && Struct->IsA<CClass>();
+        if (CObject* Replacement = bObjectTable ? Reload.FindReplacement(Object) : nullptr)
         {
-            BuiltScriptGeneration = ScriptGeneration;
-            CategoryMap.clear();
-            Customization = nullptr;
-            bDirty = true;
+            Bind(Replacement, Replacement->GetClass(), DefaultInstanceFor(Replacement, Replacement->GetClass()));
+        }
+        else if (CObject* ReplacedType = Reload.FindReplacement(Struct))
+        {
+            Bind(Object, static_cast<CStruct*>(ReplacedType), DefaultObject);
         }
 
+        // Dropped rather than reused, since the properties the old rows point at belong to the previous block.
+        CategoryMap.clear();
+        Customization = nullptr;
+        bDirty = true;
+    }
+
+    void FPropertyTable::EnsureTreeBuilt()
+    {
         if (!bDirty)
         {
             return;
@@ -2526,45 +2513,31 @@ namespace Lumina
 
     void FPropertyTable::SetObject(void* InObject, CStruct* StructType)
     {
-        // RebuildTree drops every row, its expansion state and its customization, so repointing the table
-        // at what it already holds is a visible rebuild rather than a no-op.
-        if (Object == InObject && Struct == StructType)
+        if (Object != InObject || Struct != StructType)
+        {
+            SetObject(InObject, StructType, DefaultInstanceFor(InObject, StructType));
+        }
+    }
+
+    void FPropertyTable::SetObject(void* InObject, CStruct* StructType, void* InDefaultObject)
+    {
+        // A rebuild drops every row and its expansion state, so repointing at what the table already holds is skipped.
+        if (Object == InObject && Struct == StructType && DefaultObject == InDefaultObject)
         {
             return;
         }
+        Bind(InObject, StructType, InDefaultObject);
+        RebuildTree();
+    }
 
+    void FPropertyTable::Bind(void* InObject, CStruct* StructType, void* InDefaultObject)
+    {
         Object = InObject;
         Struct = StructType;
         // Kept in lockstep with the object; a stale Type here would type-pun the edit hooks.
         ChangeEventCallbacks.Type = StructType;
         ChangeEventCallbacks.Instance = InObject;
-        DefaultObject = nullptr;
-        if (StructType != nullptr && InObject != nullptr)
-        {
-            void* MaybeDefault = StructType->GetDefaultInstance();
-            if (MaybeDefault != InObject)
-            {
-                DefaultObject = MaybeDefault;
-            }
-        }
-
-        RebuildTree();
-    }
-
-    void FPropertyTable::SetObject(void* InObject, CStruct* StructType, void* InDefaultObject)
-    {
-        if (Object == InObject && Struct == StructType && DefaultObject == InDefaultObject)
-        {
-            return;
-        }
-
-        Object = InObject;
-        Struct = StructType;
-        ChangeEventCallbacks.Type = StructType;
-        ChangeEventCallbacks.Instance = InObject;
         DefaultObject = InDefaultObject;
-
-        RebuildTree();
     }
 
     void FPropertyTable::SetPreEditCallback(const FPropertyChangedEventFn& Callback)

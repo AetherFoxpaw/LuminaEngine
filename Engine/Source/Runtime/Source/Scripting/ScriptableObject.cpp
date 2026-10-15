@@ -653,6 +653,7 @@ namespace Lumina
             if (!Reinstancer.IsEmpty())
             {
                 const FReinstanceResult Result = Reinstancer.Commit();
+                Scripting::FManagedTypeRegistry::Get().NoteReplaced(Result.Replaced);
                 LOG_DISPLAY("Scriptable: reinstanced {} object(s), repointed {} reference(s) across {} object(s) "
                             "and {} provider(s).", Result.InstancesReplaced, Result.ReferencesPatched,
                             Result.ObjectsScanned, Result.ProvidersVisited);

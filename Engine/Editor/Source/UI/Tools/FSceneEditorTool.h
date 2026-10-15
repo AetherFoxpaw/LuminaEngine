@@ -28,6 +28,12 @@ namespace Lumina
 
     public:
 
+        void OnScriptsReloaded(const Scripting::FScriptReload& Reload) override
+        {
+            Super::OnScriptsReloaded(Reload);
+            bDetailsScriptsReloaded = true;
+        }
+
         // Prefab path: a distinct asset (e.g. CPrefab) edited through a separate preview world.
         FSceneEditorTool(IEditorToolContext* Context, const FString& DisplayName, CObject* InAsset, CWorld* InWorld);
 
@@ -486,10 +492,8 @@ namespace Lumina
         // consuming site in WorldEditorTool.
         bool                             bSelectionTransformRefreshPending = false;
 
-        // Script generation the cached tables were built against. A table holds a raw pointer into a
-        // component's value buffer and a CStruct* layout; a C# reload frees that buffer and destroys the
-        // layout, so every table built before the bump describes memory that no longer exists.
-        int32                            DetailsScriptGeneration = -1;
+        // A component table points into a value buffer and a layout that a script reload frees, so the next draw drops them all.
+        bool                             bDetailsScriptsReloaded = false;
 
         // Same contract for prefab data: a refresh rewrites an instance's component set and a re-capture
         // replaces the prefab registry the reset-to-prefab baselines point into.
