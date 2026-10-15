@@ -26,24 +26,38 @@ public readonly unsafe struct FInstancedStruct
     public bool Is<T>() where T : struct, INativeStruct<T>
         => IsBound && Native.InstancedStructIsA(Address, T.NativeName) != 0;
 
-    /// A handle on the stored value, or null when it is not a T. Writes through it edit in place.
-    public T? Get<T>() where T : struct, INativeStruct<T>
+    // A handle on the stored value whose writes edit in place, throwing when it holds something other than a T.
+    public T Get<T>() where T : struct, INativeStruct<T>
     {
-        if (!Is<T>())
+        if (!TryGet(out T Value))
         {
-            return null;
+            ThrowNotA(T.NativeName);
         }
-        return NativeStructs.FromAddressOrNull<T>(Native.InstancedStructGetMemory(Address));
+        return Value;
+    }
+
+    // False with an empty handle when it holds something other than a T.
+    public bool TryGet<T>(out T Value) where T : struct, INativeStruct<T>
+    {
+        nint Memory = Is<T>() ? Native.InstancedStructGetMemory(Address) : 0;
+        Value = NativeStructs.FromAddress<T>(Memory);
+        return Memory != 0;
+    }
+
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+    private void ThrowNotA(string Expected)
+    {
+        string Held = TypeName;
+        throw new InvalidOperationException($"Instanced struct holds {(Held.Length == 0 ? "nothing" : Held)}, not a {Expected}.");
     }
 
     /// Replaces the value with a fresh default-constructed T and returns the view of it.
-    public T? InitializeAs<T>() where T : struct, INativeStruct<T>
+    public T InitializeAs<T>() where T : struct, INativeStruct<T>
     {
-        if (!IsBound)
+        if (IsBound)
         {
-            return null;
+            Native.InstancedStructInitializeAs(Address, T.NativeName);
         }
-        Native.InstancedStructInitializeAs(Address, T.NativeName);
         return Get<T>();
     }
 
@@ -82,15 +96,17 @@ public readonly unsafe struct TInstancedStruct<TBase> where TBase : struct, INat
 
     public string TypeName => Inner.TypeName;
 
-    /// The stored value viewed as the base type, or null when the slot is empty.
-    public TBase? Get() => Inner.Get<TBase>();
+    public TBase Get() => Inner.Get<TBase>();
 
-    /// The stored value viewed as a derived type, or null when it is something else.
-    public T? Get<T>() where T : struct, INativeStruct<T> => Inner.Get<T>();
+    public bool TryGet(out TBase Value) => Inner.TryGet(out Value);
+
+    public T Get<T>() where T : struct, INativeStruct<T> => Inner.Get<T>();
+
+    public bool TryGet<T>(out T Value) where T : struct, INativeStruct<T> => Inner.TryGet(out Value);
 
     public bool Is<T>() where T : struct, INativeStruct<T> => Inner.Is<T>();
 
-    public T? InitializeAs<T>() where T : struct, INativeStruct<T> => Inner.InitializeAs<T>();
+    public T InitializeAs<T>() where T : struct, INativeStruct<T> => Inner.InitializeAs<T>();
 
     public void InitializeAs(string StructName) => Inner.InitializeAs(StructName);
 

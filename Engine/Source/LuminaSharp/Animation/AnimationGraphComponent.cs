@@ -6,15 +6,21 @@ namespace Lumina;
 // Typed access to an animation graph's parameter block, which the graph asset names as a reflected struct.
 public readonly unsafe partial struct SAnimationGraphComponent
 {
-    // Named for the C++ accessor, since the reflected Parameters field now binds under its own name.
-    public T? GetParameters<T>() where T : struct, INativeStruct<T>
+    // Goes through the native accessor rather than Parameters, since it initializes the block from the graph first.
+    public T GetParameters<T>() where T : struct, INativeStruct<T>
     {
-        return NativeStructs.FromAddressOrNull<T>(GetParameterMemoryAs(T.NativeName));
+        if (!TryGetParameters(out T Value))
+        {
+            throw new InvalidOperationException($"Animation graph parameter block is not a {T.NativeName}.");
+        }
+        return Value;
     }
 
-    public T RequireParameters<T>() where T : struct, INativeStruct<T>
+    // False with an empty handle when the graph's parameter block is not a T.
+    public bool TryGetParameters<T>(out T Value) where T : struct, INativeStruct<T>
     {
-        return GetParameters<T>() ?? throw new InvalidOperationException(
-            $"Animation graph parameter block is not a {T.NativeName}.");
+        nint Memory = GetParameterMemoryAs(T.NativeName);
+        Value = NativeStructs.FromAddress<T>(Memory);
+        return Memory != 0;
     }
 }

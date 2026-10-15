@@ -995,4 +995,45 @@ internal static unsafe class InteropTestHooks
             Context.Unload();
         }
     }
+
+    // Failure bits for Get and TryGet on an instanced struct holding an SInteropOpaqueStruct, and on an unbound one.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_InstancedStructGetTryGet(IntPtr Address, float NewValue)
+    {
+        var Instanced = new Lumina.FInstancedStruct(Address);
+        int Failures = 0;
+        if (!Instanced.TryGet(out Lumina.SInteropOpaqueStruct Held) || !Held.IsValid)
+        {
+            Failures |= 1;
+        }
+        Instanced.Get<Lumina.SInteropOpaqueStruct>().Value = NewValue;
+        if (Instanced.TryGet(out Lumina.SDataTableRowBase Wrong) || Wrong.IsValid)
+        {
+            Failures |= 2;
+        }
+        if (!Throws(() => Instanced.Get<Lumina.SDataTableRowBase>()))
+        {
+            Failures |= 4;
+        }
+        var Unbound = new Lumina.FInstancedStruct(0);
+        if (Unbound.TryGet(out Lumina.SInteropOpaqueStruct _) || !Throws(() => Unbound.Get<Lumina.SInteropOpaqueStruct>()))
+        {
+            Failures |= 8;
+        }
+        return Failures;
+
+        static bool Throws(Action Call)
+        {
+            try
+            {
+                Call();
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+        }
+    }
 }
