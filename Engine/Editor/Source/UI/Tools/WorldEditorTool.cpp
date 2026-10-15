@@ -4130,6 +4130,12 @@ namespace Lumina
 
         if (bShouldPlay)
         {
+            // Before StartPIE, which logs the session's first lines.
+            if (GetDefault<CWorldEditorSettings>()->bClearConsoleOnPIE)
+            {
+                Logging::ClearLogQueue();
+            }
+
             bGamePreviewRunning = true;
             bGameViewMode = true; // default to a clean game view on play; toggle off to see editor/debug overlays
             PropertyTables.clear();
