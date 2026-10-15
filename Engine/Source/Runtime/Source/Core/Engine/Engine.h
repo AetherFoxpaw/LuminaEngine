@@ -91,6 +91,7 @@ namespace Lumina
         
         NODISCARD RUNTIME_API FStringView GetProjectName() const { return ProjectName; }
         NODISCARD RUNTIME_API FStringView GetProjectPath() const { return ProjectPath; }
+        NODISCARD RUNTIME_API FStringView GetProjectFile() const { return ProjectFile; }
         NODISCARD RUNTIME_API FArtifactCache& GetArtifactCache() { return ArtifactCache; }
         NODISCARD RUNTIME_API FFixedString GetProjectContentDirectory() const;
         NODISCARD RUNTIME_API FFixedString GetProjectScriptsDirectory() const;
@@ -155,6 +156,9 @@ namespace Lumina
         // The half of opening a project that needs no engine subsystem, so a startup project runs it before any starts.
         RUNTIME_API bool MountProject(FStringView Path);
 
+        // False refuses the mount, which the editor does for a project another editor already has open.
+        virtual bool ClaimProject(FStringView /*ProjectDirectory*/) { return true; }
+
         // Settings, the project module, assets, scripts and the game instance, once the engine is up.
         RUNTIME_API void StartProject();
 
@@ -215,6 +219,7 @@ namespace Lumina
         
         FString                     ProjectName;
         FFixedString                ProjectPath;
+        FFixedString                ProjectFile;
         FArtifactCache              ArtifactCache;
 
         // Read by MountProject, applied by StartProject once project settings are writable.

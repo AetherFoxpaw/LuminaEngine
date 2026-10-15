@@ -27,7 +27,7 @@ Modes:
 
 | Mode | Purpose |
 | --- | --- |
-| `Setup` | Fetch and verify the external dependency bundle, persist LUMINA_DIR, set git hooks |
+| `Setup` | Fetch and verify the external dependency bundle, set git hooks, register file types |
 | `Build <Target>` | Compile and link a target |
 | `Clean [Target]` | Delete a target's outputs, or every intermediate |
 | `Query [Target]` | List targets, modules and plugins, or describe one resolved target |
