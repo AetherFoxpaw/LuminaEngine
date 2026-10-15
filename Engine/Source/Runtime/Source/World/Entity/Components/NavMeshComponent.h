@@ -114,6 +114,7 @@ namespace Lumina
 
         SNavMeshComponent() = default;
 
+        ~SNavMeshComponent() = default;
         SNavMeshComponent(const SNavMeshComponent& Other)
             : Settings(Other.Settings)
             , bAutoBake(Other.bAutoBake)

@@ -27,6 +27,7 @@ namespace Lumina
         SParticleSystemComponent() = default;
         
         
+        ~SParticleSystemComponent() = default;
         SParticleSystemComponent(const SParticleSystemComponent& Other)
             : ParticleSystem(Other.ParticleSystem)
             , EmitterOffset(Other.EmitterOffset)

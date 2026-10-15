@@ -53,6 +53,10 @@ namespace Lumina
         
         CEdNodeGraph();
         ~CEdNodeGraph() override;
+        CEdNodeGraph(const CEdNodeGraph&) = delete;
+        CEdNodeGraph& operator=(const CEdNodeGraph&) = delete;
+        CEdNodeGraph(CEdNodeGraph&&) = delete;
+        CEdNodeGraph& operator=(CEdNodeGraph&&) = delete;
 
         virtual void Initialize();
         virtual void Shutdown();
@@ -443,6 +447,8 @@ namespace Lumina
 
         FNodeGraphEditScope(const FNodeGraphEditScope&) = delete;
         FNodeGraphEditScope& operator=(const FNodeGraphEditScope&) = delete;
+        FNodeGraphEditScope(FNodeGraphEditScope&&) = delete;
+        FNodeGraphEditScope& operator=(FNodeGraphEditScope&&) = delete;
 
     private:
 

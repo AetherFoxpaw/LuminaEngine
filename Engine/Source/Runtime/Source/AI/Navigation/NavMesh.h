@@ -40,6 +40,8 @@ namespace Lumina
 
         FNavMesh(const FNavMesh&) = delete;
         FNavMesh& operator=(const FNavMesh&) = delete;
+        FNavMesh(FNavMesh&&) = delete;
+        FNavMesh& operator=(FNavMesh&&) = delete;
 
         /** Empty mesh sized for MaxResidentTiles; tiles arrive through AddTile. */
         bool Initialize(const FVector3& Origin, float TileWorldSize, int32 MaxResidentTiles, int32 MaxPolysPerTile);
@@ -129,6 +131,9 @@ namespace Lumina
             std::atomic<bool>   Busy{ false };
 
             FQuerySlot() = default;
+            ~FQuerySlot() = default;
+            FQuerySlot(const FQuerySlot&) = delete;
+            FQuerySlot& operator=(const FQuerySlot&) = delete;
 
             // Relocating a pool slot has to carry the flag by hand, because an atomic is not movable.
             FQuerySlot(FQuerySlot&& Other) noexcept
@@ -150,7 +155,13 @@ namespace Lumina
         struct FAcquiredQuery
         {
             FQuerySlot* Slot = nullptr;
+            FAcquiredQuery() = default;
+            explicit FAcquiredQuery(FQuerySlot* InSlot) : Slot(InSlot) {}
             ~FAcquiredQuery() { if (Slot) Slot->Busy.store(false, std::memory_order_release); }
+            FAcquiredQuery(const FAcquiredQuery&) = delete;
+            FAcquiredQuery& operator=(const FAcquiredQuery&) = delete;
+            FAcquiredQuery(FAcquiredQuery&&) = delete;
+            FAcquiredQuery& operator=(FAcquiredQuery&&) = delete;
             dtNavMeshQuery* Get() const { return Slot ? Slot->Query : nullptr; }
             explicit operator bool() const { return Slot != nullptr; }
         };
@@ -163,6 +174,10 @@ namespace Lumina
             const FNavMesh& Mesh;
             explicit FQueryScope(const FNavMesh& InMesh);
             ~FQueryScope();
+            FQueryScope(const FQueryScope&) = delete;
+            FQueryScope& operator=(const FQueryScope&) = delete;
+            FQueryScope(FQueryScope&&) = delete;
+            FQueryScope& operator=(FQueryScope&&) = delete;
 
             // True when a swap ran while the query stood aside, so every ref it held is suspect.
             bool YieldToSwap(uint64 Epoch) const;
@@ -173,6 +188,10 @@ namespace Lumina
             FNavMesh& Mesh;
             explicit FSwapScope(FNavMesh& InMesh);
             ~FSwapScope();
+            FSwapScope(const FSwapScope&) = delete;
+            FSwapScope& operator=(const FSwapScope&) = delete;
+            FSwapScope(FSwapScope&&) = delete;
+            FSwapScope& operator=(FSwapScope&&) = delete;
         };
 
         void WaitForSwaps() const;

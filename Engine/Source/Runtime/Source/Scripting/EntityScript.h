@@ -48,6 +48,11 @@ namespace Lumina
     public:
 
         ~CEntityScript() override;
+        CEntityScript() = default;
+        CEntityScript(const CEntityScript&) = delete;
+        CEntityScript& operator=(const CEntityScript&) = delete;
+        CEntityScript(CEntityScript&&) = delete;
+        CEntityScript& operator=(CEntityScript&&) = delete;
 
         FUNCTION()
         virtual void OnAttach() {}

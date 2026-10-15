@@ -74,6 +74,11 @@ namespace Lumina
                 if (CCtx != nullptr) { ZSTD_freeCCtx(CCtx); }
                 if (DCtx != nullptr) { ZSTD_freeDCtx(DCtx); }
             }
+            FZstdContexts() = default;
+            FZstdContexts(const FZstdContexts&) = delete;
+            FZstdContexts& operator=(const FZstdContexts&) = delete;
+            FZstdContexts(FZstdContexts&&) = delete;
+            FZstdContexts& operator=(FZstdContexts&&) = delete;
 
             ZSTD_CCtx* Compress()
             {
@@ -1786,7 +1791,12 @@ namespace Lumina
         struct FClaimScope
         {
             CObject* Object;
+            explicit FClaimScope(CObject* InObject) : Object(InObject) {}
             ~FClaimScope() { ReleaseObjectLoad(Object); }
+            FClaimScope(const FClaimScope&) = delete;
+            FClaimScope& operator=(const FClaimScope&) = delete;
+            FClaimScope(FClaimScope&&) = delete;
+            FClaimScope& operator=(FClaimScope&&) = delete;
         } ClaimScope{ Object };
 
         int32 FoundLoaderIndex = FObjectPackageIndex(Object->LoaderIndex).GetArrayIndex();

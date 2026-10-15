@@ -569,7 +569,6 @@ namespace Lumina::DotNet
             // Loading the emitted DLL would resurrect every deleted class, so the marker identifies and deletes it.
             if (Bucket.Sources.empty() && !Unit.DiskDir.empty() && !Unit.AssemblyPath.empty())
             {
-                std::error_code Ec;
                 const FString Marker = CompiledMarkerPath(Unit.AssemblyPath);
                 if (Filesystem::Exists(Marker))
                 {

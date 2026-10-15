@@ -105,6 +105,8 @@ namespace Lumina::Scripting
 
         IScriptReloadListener(const IScriptReloadListener&) = delete;
         IScriptReloadListener& operator=(const IScriptReloadListener&) = delete;
+        IScriptReloadListener(IScriptReloadListener&&) = delete;
+        IScriptReloadListener& operator=(IScriptReloadListener&&) = delete;
 
         // On the game thread, after every stage compiled and every entity script heard OnReloaded.
         virtual void OnScriptsReloaded(const FScriptReload& Reload) = 0;

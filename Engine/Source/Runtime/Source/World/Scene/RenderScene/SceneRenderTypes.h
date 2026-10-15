@@ -371,6 +371,10 @@ namespace Lumina
         {
             RetireSceneImage(ShadowAtlas);
         }
+        FShadowAtlas(const FShadowAtlas&) = delete;
+        FShadowAtlas& operator=(const FShadowAtlas&) = delete;
+        FShadowAtlas(FShadowAtlas&&) = delete;
+        FShadowAtlas& operator=(FShadowAtlas&&) = delete;
 
         // GPU image created lazily: the atlas is a scene member constructed before scene Init.
         void InitImage()

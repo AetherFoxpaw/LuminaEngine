@@ -245,6 +245,7 @@ namespace Lumina
     public:
 
         FScenePrimitiveSet() = default;
+        ~FScenePrimitiveSet() = default;
         LE_NO_COPYMOVE(FScenePrimitiveSet);
 
         // Drains the dirty channel and applies it. O(changed), except on a requested full rescan.

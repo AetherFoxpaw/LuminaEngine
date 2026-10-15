@@ -236,6 +236,8 @@ namespace Lumina
 		~FScopedAssetRegistryBatch();
 		FScopedAssetRegistryBatch(const FScopedAssetRegistryBatch&) = delete;
 		FScopedAssetRegistryBatch& operator=(const FScopedAssetRegistryBatch&) = delete;
+		FScopedAssetRegistryBatch(FScopedAssetRegistryBatch&&) = delete;
+		FScopedAssetRegistryBatch& operator=(FScopedAssetRegistryBatch&&) = delete;
 	};
 
 }

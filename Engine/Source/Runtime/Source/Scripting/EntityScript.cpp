@@ -182,6 +182,10 @@ namespace Lumina
                 --GRpcDepth;
                 GRpcCaller = OuterCaller;
             }
+            FReceiveScope(const FReceiveScope&) = delete;
+            FReceiveScope& operator=(const FReceiveScope&) = delete;
+            FReceiveScope(FReceiveScope&&) = delete;
+            FReceiveScope& operator=(FReceiveScope&&) = delete;
 
             uint32 OuterCaller;
         };
@@ -228,6 +232,10 @@ namespace Lumina
             {
                 Function.DestructFrame(Data());
             }
+            FCallFrame(const FCallFrame&) = delete;
+            FCallFrame& operator=(const FCallFrame&) = delete;
+            FCallFrame(FCallFrame&&) = delete;
+            FCallFrame& operator=(FCallFrame&&) = delete;
 
             void* Data() { return Storage.data(); }
 
@@ -249,6 +257,10 @@ namespace Lumina
             {
                 Field.DestructValue(Data());
             }
+            FValueBuffer(const FValueBuffer&) = delete;
+            FValueBuffer& operator=(const FValueBuffer&) = delete;
+            FValueBuffer(FValueBuffer&&) = delete;
+            FValueBuffer& operator=(FValueBuffer&&) = delete;
 
             void* Data() { return Storage.data(); }
 

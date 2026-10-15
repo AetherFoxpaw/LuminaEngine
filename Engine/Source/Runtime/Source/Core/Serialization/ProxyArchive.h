@@ -25,6 +25,7 @@ namespace Lumina
 
         // Non-copyable
         FProxyArchive(FProxyArchive&&) = delete;
+        ~FProxyArchive() = default;
         FProxyArchive(const FProxyArchive&) = delete;
         FProxyArchive& operator=(FProxyArchive&&) = delete;
         FProxyArchive& operator=(const FProxyArchive&) = delete;

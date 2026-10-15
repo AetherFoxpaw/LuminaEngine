@@ -430,6 +430,10 @@ namespace Private
 
             FMapSlot() noexcept {}
             ~FMapSlot() noexcept {}
+            FMapSlot(const FMapSlot&) = delete;
+            FMapSlot& operator=(const FMapSlot&) = delete;
+            FMapSlot(FMapSlot&&) = delete;
+            FMapSlot& operator=(FMapSlot&&) = delete;
         };
 
         using slot_type   = FMapSlot;

@@ -197,6 +197,11 @@ namespace Lumina::Jobs
 
             // A worker index is claimed LAZILY by any thread completing a job inline, so exits would leak one.
             ~FThreadState();
+            FThreadState() = default;
+            FThreadState(const FThreadState&) = delete;
+            FThreadState& operator=(const FThreadState&) = delete;
+            FThreadState(FThreadState&&) = delete;
+            FThreadState& operator=(FThreadState&&) = delete;
         };
         thread_local FThreadState TLS;
 
@@ -487,6 +492,10 @@ namespace Lumina::Jobs
                     G->PoppersInFlight.fetch_sub(1, std::memory_order_relaxed);
                 }
             }
+            FPopperScope(const FPopperScope&) = delete;
+            FPopperScope& operator=(const FPopperScope&) = delete;
+            FPopperScope(FPopperScope&&) = delete;
+            FPopperScope& operator=(FPopperScope&&) = delete;
         };
         #define POPPER_SCOPE() FPopperScope LE_PopperScope_
 #else

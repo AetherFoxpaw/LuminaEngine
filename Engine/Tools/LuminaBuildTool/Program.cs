@@ -56,6 +56,7 @@ public static class Program
                 "includes" => AnalyzeMode.RunIncludes(Arguments, Directories),
                 "deps" => AnalyzeMode.RunDependencies(Arguments, Directories),
                 "unityconflicts" => AnalyzeMode.RunUnityConflicts(Arguments, Directories),
+                "tidy" => await TidyMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "setup" => await SetupMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "package" => await PackageMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "generateprojectfiles" or "genprojects" => ProjectFilesMode.Run(Arguments, Directories),
@@ -107,6 +108,8 @@ public static class Program
               Includes <Target>         Rank headers by how many translation units include them
               Deps <Target>             Compare declared module dependencies against reached ones
               UnityConflicts <Target>   Find file-scope names that collide when unity merges two sources
+              Tidy [PathFilter]         Run clang-tidy with the workspace .clang-tidy over first-party sources
+                                        (-Checks=<list>, -Jobs=<n>, -WarningsAsErrors, -ClangTidy=<path>)
               GenerateProjectFiles      Write IDE project and solution files
               Package                   Build and zip a prebuilt editor that runs without sources or a toolchain
 

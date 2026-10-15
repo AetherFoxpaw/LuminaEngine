@@ -19,6 +19,7 @@ namespace Lumina
         TSharedPtr<FPhysicsCharacterHandle> Handle;
 
         FCharacterHandleRef() = default;
+        ~FCharacterHandleRef() = default;
         FCharacterHandleRef(const FCharacterHandleRef&) {}
         FCharacterHandleRef(FCharacterHandleRef&&) noexcept = default;
         FCharacterHandleRef& operator=(const FCharacterHandleRef&) { Handle.reset(); return *this; }

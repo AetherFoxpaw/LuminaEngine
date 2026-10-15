@@ -29,6 +29,8 @@ namespace Lumina::Import::PathReservations
 
         FScopedReservation(const FScopedReservation&) = delete;
         FScopedReservation& operator=(const FScopedReservation&) = delete;
+        FScopedReservation(FScopedReservation&&) = delete;
+        FScopedReservation& operator=(FScopedReservation&&) = delete;
 
         const FFixedString& Get() const { return Reserved; }
         bool IsValid() const { return !Reserved.empty(); }

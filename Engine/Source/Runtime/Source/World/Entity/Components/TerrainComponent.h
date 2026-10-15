@@ -81,6 +81,7 @@ namespace Lumina
 
         STerrainComponent() = default;
 
+        ~STerrainComponent() = default;
         STerrainComponent(const STerrainComponent& Other)
             : Heightmap(Other.Heightmap)
             , LayerWeights(Other.LayerWeights)

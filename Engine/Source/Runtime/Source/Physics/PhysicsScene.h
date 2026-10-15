@@ -173,6 +173,11 @@ namespace Lumina::Physics
     public:
 
         virtual ~IPhysicsScene() { }
+        IPhysicsScene() = default;
+        IPhysicsScene(const IPhysicsScene&) = delete;
+        IPhysicsScene& operator=(const IPhysicsScene&) = delete;
+        IPhysicsScene(IPhysicsScene&&) = delete;
+        IPhysicsScene& operator=(IPhysicsScene&&) = delete;
         virtual void PreUpdate() = 0;
         virtual void Update(double DeltaTime) = 0;
 

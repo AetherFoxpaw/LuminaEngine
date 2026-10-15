@@ -298,6 +298,10 @@ namespace Lumina
 
         FMapEntryRow(FMapPropertyRow* InMapRow, int64 InIndex, const FPropertyChangedEventCallbacks& InCallbacks);
         ~FMapEntryRow() override;
+        FMapEntryRow(const FMapEntryRow&) = delete;
+        FMapEntryRow& operator=(const FMapEntryRow&) = delete;
+        FMapEntryRow(FMapEntryRow&&) = delete;
+        FMapEntryRow& operator=(FMapEntryRow&&) = delete;
         void Update() override;
         void DrawHeader(float Offset, const FPropertyDrawArgs& Args) override;
         void DrawEditor(const FPropertyDrawArgs& Args) override;

@@ -87,6 +87,8 @@ namespace Lumina
 
         FGameplayProfileScopeRAII(const FGameplayProfileScopeRAII&) = delete;
         FGameplayProfileScopeRAII& operator=(const FGameplayProfileScopeRAII&) = delete;
+        FGameplayProfileScopeRAII(FGameplayProfileScopeRAII&&) = delete;
+        FGameplayProfileScopeRAII& operator=(FGameplayProfileScopeRAII&&) = delete;
     };
 }
 

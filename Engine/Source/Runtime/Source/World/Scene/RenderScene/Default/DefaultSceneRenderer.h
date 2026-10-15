@@ -86,7 +86,9 @@ namespace Lumina
             bool                                bTouched = false;
 
             FThreadLocalDrawData() = default;
+            ~FThreadLocalDrawData() = default;
             FThreadLocalDrawData(const FThreadLocalDrawData&) = delete;
+            FThreadLocalDrawData& operator=(const FThreadLocalDrawData&) = delete;
 
             FThreadLocalDrawData(FThreadLocalDrawData&&) = default;
             FThreadLocalDrawData& operator=(FThreadLocalDrawData&&) noexcept = default;
