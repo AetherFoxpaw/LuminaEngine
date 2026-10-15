@@ -120,7 +120,36 @@ internal unsafe struct ViewCursor : IDisposable
         }
     }
 
+    // The common row stays inside the gathered chunk with every pool unchanged, and only that much is inlined.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
+    {
+        int Next = Index + 1;
+        if (Next < Count && State != IntPtr.Zero && PoolsUnchanged())
+        {
+            Index = Next;
+            return true;
+        }
+        return MoveNextSlow();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool PoolsUnchanged()
+    {
+        int Includes = Header->Includes;
+        for (int i = 0; i < Includes; ++i)
+        {
+            uint* Slot = (uint*)Header->EpochSlots[i];
+            if (Slot != null && *Slot != Header->ChunkEpochs[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private bool MoveNextSlow()
     {
         while (State != IntPtr.Zero)
         {

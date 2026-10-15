@@ -52,7 +52,11 @@ public readonly unsafe struct NativeRef : IEquatable<NativeRef>
     public bool IsNull => Base == 0;
 
     // False once the component this views was removed or its world destroyed, or for an empty handle.
-    public bool IsValid => EpochSlot == null ? Base != 0 : *EpochSlot == Epoch || Resolve(false) != 0;
+    public bool IsValid
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => EpochSlot == null ? Base != 0 : *EpochSlot == Epoch || Resolve(false) != 0;
+    }
 
     public bool IsTracked => EpochSlot != null;
 

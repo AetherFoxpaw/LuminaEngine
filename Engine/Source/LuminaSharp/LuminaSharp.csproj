@@ -67,6 +67,11 @@
     </Compile>
   </ItemGroup>
 
+  <!-- Only the native tests and benchmarks call these hooks, so a shipped game carries none of them. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Shipping'">
+    <Compile Remove="Interop\InteropTestHooks.cs;Interop\InteropBenchHooks.cs" />
+  </ItemGroup>
+
   <!-- The runtime script compiler loads the generator itself, so it has to sit beside this assembly. -->
   <Target Name="CopyGeneratorForRuntime" AfterTargets="Build">
     <Copy SourceFiles="@(Analyzer)"

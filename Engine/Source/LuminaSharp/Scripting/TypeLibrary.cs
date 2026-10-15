@@ -237,14 +237,17 @@ internal sealed class TypeLibrary
     public static bool IsReflectedType(Type Type) =>
         Type.IsDefined(typeof(ReflectAttribute), inherit: false) || Type.IsDefined(typeof(NativeTypeAttribute), inherit: false);
 
-    // A struct living in native memory, extending a native struct or stored as a component, joins reflection only through [Reflect].
+    // A struct living in native memory, as a root, an extension of a native struct or a component, joins reflection only through [Reflect].
     public static bool IsNativeBackedStruct(Type Type)
     {
-        return Type.IsDefined(typeof(ReflectAttribute), inherit: false) && (NativeStructBaseOf(Type) != null || IsComponentStruct(Type));
+        return Type.IsDefined(typeof(ReflectAttribute), inherit: false)
+            && (NativeStructBaseOf(Type) != null || IsComponentStruct(Type) || ImplementsSelf(Type, typeof(INativeStruct<>)));
     }
 
     // A C# struct the ECS stores per entity, which it declares as REFLECT(Component) does in C++ by implementing IComponent.
-    public static bool IsComponentStruct(Type Type)
+    public static bool IsComponentStruct(Type Type) => ImplementsSelf(Type, typeof(IComponent<>));
+
+    private static bool ImplementsSelf(Type Type, Type SelfInterface)
     {
         if (!Type.IsValueType || Type.IsDefined(typeof(NativeTypeAttribute), inherit: false))
         {
@@ -252,7 +255,7 @@ internal sealed class TypeLibrary
         }
         foreach (Type Interface in Type.GetInterfaces())
         {
-            if (Interface.IsGenericType && Interface.GetGenericTypeDefinition() == typeof(IComponent<>) && Interface.GetGenericArguments()[0] == Type)
+            if (Interface.IsGenericType && Interface.GetGenericTypeDefinition() == SelfInterface && Interface.GetGenericArguments()[0] == Type)
             {
                 return true;
             }

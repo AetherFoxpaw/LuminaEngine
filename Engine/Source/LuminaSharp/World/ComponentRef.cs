@@ -19,11 +19,16 @@ public readonly unsafe struct TComponentRef<T> : IEquatable<TComponentRef<T>> wh
     }
 
     // False when unbound, once the component is removed, or once its world is destroyed.
-    public bool IsValid => Tracked.IsValid;
+    public bool IsValid
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Tracked.IsValid;
+    }
 
     public FEntity Entity => Tracked.Entity;
 
     // The component in its pool, re-found first when the pool has moved, and a throw when it is gone.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T Get() => ref Unsafe.AsRef<T>((void*)Tracked.Address);
 
     // The tracked reference to a component already reached in place, such as the ref GetOrEmplaceComponent returns.

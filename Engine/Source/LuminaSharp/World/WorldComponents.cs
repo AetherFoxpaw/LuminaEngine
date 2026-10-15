@@ -8,38 +8,50 @@ namespace Lumina;
 public unsafe partial class CWorld
 {
     // Null when there is none, like FRegistry::TryGet, and tracked through the pool so one kept in a field stays valid when the pool moves.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public TComponentRef<T>? TryGetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
-        uint* Epoch = null;
-        IntPtr Pointer = Native.GetComponentTracked(WorldHandle, Entity.Id, ComponentOps<T>.Token, &Epoch);
-        return Pointer == IntPtr.Zero ? null : new TComponentRef<T>(Pointer, WorldHandle, Entity.Id, Epoch);
+        return TryGetComponent(Entity, out TComponentRef<T> Component) ? Component : null;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetComponent<T>(FEntity Entity, out TComponentRef<T> Component) where T : struct, IComponent<T>
     {
-        TComponentRef<T>? Found = TryGetComponent<T>(Entity);
-        Component = Found.GetValueOrDefault();
-        return Found.HasValue;
+        uint* Epoch = null;
+        ulong World = WorldHandle;
+        IntPtr Pointer = Native.GetComponentTracked(World, Entity.Id, ComponentOps<T>.Token, &Epoch);
+        Component = Pointer == IntPtr.Zero ? default : new TComponentRef<T>(Pointer, World, Entity.Id, Epoch);
+        return Pointer != IntPtr.Zero;
     }
 
     // In place like FRegistry::Get, so the ref is only good until the next structural change to this type.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T GetComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
         IntPtr Pointer = Native.GetComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
         if (Pointer == IntPtr.Zero)
         {
-            throw new InvalidOperationException($"Entity {Entity.Id} has no {T.NativeName}.");
+            ThrowMissingComponent(Entity, T.NativeName);
         }
         return ref Unsafe.AsRef<T>((void*)Pointer);
     }
 
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowMissingComponent(FEntity Entity, string Component)
+    {
+        throw new InvalidOperationException($"Entity {Entity.Id} has no {Component}.");
+    }
+
     // A tag has no storage, so its ref is null and only good for discarding.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T GetOrEmplaceComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
         IntPtr Pointer = Native.EmplaceComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token);
         return ref Pointer == IntPtr.Zero ? ref Unsafe.NullRef<T>() : ref Unsafe.AsRef<T>((void*)Pointer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool HasComponent<T>(FEntity Entity) where T : struct, IComponent<T>
     {
         return Native.HasComponent(WorldHandle, Entity.Id, ComponentOps<T>.Token) != 0;
@@ -93,11 +105,24 @@ public unsafe partial class CWorld
     }
 
     private static TSubclassOf<CEntityScript> ClassOf<T>() where T : CEntityScript => NativeClass<T>.Of.AsBase<CEntityScript>();
-    private static TSubclassOf<CEntityScript> ScriptClassOf<T>() where T : class
+    private static TSubclassOf<CEntityScript> ScriptClassOf<T>() where T : class => ScriptClass<T>.Of;
+
+    // The class per script type, kept like NativeClass<T> so a miss resolves again once the class is minted.
+    private static class ScriptClass<T> where T : class
     {
-        return typeof(CEntityScript).IsAssignableFrom(typeof(T))
-            ? TSubclassOf<CEntityScript>.FromName(NativeTypeName.Of(typeof(T)))
-            : default;
+        private static TSubclassOf<CEntityScript> Resolved;
+
+        public static TSubclassOf<CEntityScript> Of
+        {
+            get
+            {
+                if (!Resolved.IsValid && typeof(CEntityScript).IsAssignableFrom(typeof(T)))
+                {
+                    Resolved = TSubclassOf<CEntityScript>.FromName(NativeTypeName.Of<T>());
+                }
+                return Resolved;
+            }
+        }
     }
 
     public T? GetScript<T>(FEntity Entity) where T : class

@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
 namespace LuminaSharp;
@@ -15,7 +17,10 @@ internal sealed class UIModelShape
         public required string MemberName;
         public required Type ValueType;
         public required Lumina.EUIVarType VarType;
-        public required Func<object, object?> Get;
+
+        // Exactly one is set, compiled to the value the view stores so a frame's poll neither reflects nor boxes.
+        public Func<object, double>? ReadNumber;
+        public Func<object, string?>? ReadText;
         public Action<object, object?>? Set;
     }
 
@@ -31,6 +36,7 @@ internal sealed class UIModelShape
         public required string MemberName;
         public required Type ItemType;
         public required Func<object, object?> Get;
+        public required Func<object?, long> Signature;
         public required FListItem[] Items;
     }
 
@@ -77,7 +83,7 @@ internal sealed class UIModelShape
                 {
                     continue;
                 }
-                Shape.AddValue(Type, Name, Property.Name, Property.PropertyType,
+                Shape.AddValue(Type, Property, Name, Property.PropertyType,
                     PropertyAccessor.Getter(Property), Property.SetMethod != null ? PropertyAccessor.Setter(Property) : null, Taken);
             }
 
@@ -88,7 +94,7 @@ internal sealed class UIModelShape
                     continue;
                 }
                 Action<object, object?>? Setter = Field.IsInitOnly ? null : Field.SetValue;
-                Shape.AddValue(Type, Name, Field.Name, Field.FieldType, Field.GetValue, Setter, Taken);
+                Shape.AddValue(Type, Field, Name, Field.FieldType, Field.GetValue, Setter, Taken);
             }
 
             foreach (MethodInfo Method in Level.GetMethods(Declared))
@@ -110,9 +116,10 @@ internal sealed class UIModelShape
         return Shape;
     }
 
-    private void AddValue(Type Owner, string Name, string MemberName, Type ValueType, Func<object, object?> Get,
+    private void AddValue(Type Owner, MemberInfo Member, string Name, Type ValueType, Func<object, object?> Get,
         Action<object, object?>? Set, HashSet<string> Taken)
     {
+        string MemberName = Member.Name;
         if (!Taken.Add(Name))
         {
             Debug.LogWarning($"[UI] {Owner.Name}.{MemberName}: the name '{Name}' is bound twice; this one is skipped.");
@@ -121,18 +128,51 @@ internal sealed class UIModelShape
 
         if (TryMapType(ValueType, out Lumina.EUIVarType VarType))
         {
-            Scalars.Add(new FScalar { Name = Name, MemberName = MemberName, ValueType = ValueType, VarType = VarType, Get = Get, Set = Set });
+            var Scalar = new FScalar { Name = Name, MemberName = MemberName, ValueType = ValueType, VarType = VarType, Set = Set };
+            if (VarType == Lumina.EUIVarType.String)
+            {
+                Scalar.ReadText = CompileReader<string?>(Member, Value => Value);
+            }
+            else
+            {
+                Scalar.ReadNumber = CompileReader<double>(Member, Value => ToDouble(Value, ValueType));
+            }
+            Scalars.Add(Scalar);
             return;
         }
 
         if (TryGetItemType(ValueType, out Type ItemType) && BuildItems(ItemType) is { Length: > 0 } Items)
         {
-            Lists.Add(new FList { Name = Name, MemberName = MemberName, ItemType = ItemType, Get = Get, Items = Items });
+            Lists.Add(new FList { Name = Name, MemberName = MemberName, ItemType = ItemType, Get = Get, Items = Items,
+                Signature = typeof(UIModelShape).GetMethod(nameof(SignatureOf), BindingFlags.NonPublic | BindingFlags.Static)!
+                    .MakeGenericMethod(ItemType).CreateDelegate<Func<object?, long>>() });
             return;
         }
 
         Debug.LogWarning($"[UI] {Owner.Name}.{MemberName}: [Property(Bind)] type '{ValueType.Name}' is not bindable. Use a number, bool, enum, "
             + "string, or a collection of a type with [Property(Bind)] members.");
+    }
+
+    // Target => Convert((Owner)Target.Member), compiled against the member's declaring type so a private base member still reads.
+    private static Func<object, TResult> CompileReader<TResult>(MemberInfo Member, Func<Expression, Expression> Convert)
+    {
+        ParameterExpression Target = Expression.Parameter(typeof(object), "Target");
+        Expression Owner = Expression.Convert(Target, Member.DeclaringType!);
+        Expression Value = Member is PropertyInfo Property ? Expression.Property(Owner, Property) : Expression.Field(Owner, (FieldInfo)Member);
+        return Expression.Lambda<Func<object, TResult>>(Convert(Value), Target).Compile();
+    }
+
+    private static Expression ToDouble(Expression Value, Type ValueType)
+    {
+        if (ValueType == typeof(bool))
+        {
+            return Expression.Condition(Value, Expression.Constant(1.0), Expression.Constant(0.0));
+        }
+        if (ValueType.IsEnum)
+        {
+            Value = Expression.Convert(Value, Enum.GetUnderlyingType(ValueType));
+        }
+        return Expression.Convert(Value, typeof(double));
     }
 
     private static string? BoundName(MemberInfo Member)
@@ -205,19 +245,44 @@ internal sealed class UIModelShape
     }
 
     // Changes when the collection is replaced, resized or reordered. An item edited in place needs NotifyChanged.
-    internal static long Signature(object? Collection)
+    private static long SignatureOf<T>(object? Collection)
     {
-        if (Collection is not IEnumerable Items)
+        if (Collection is not IEnumerable<T> Items)
         {
             return 0;
         }
+
         long Hash = RuntimeHelpers.GetHashCode(Collection);
-        foreach (object? Item in Items)
+        if (Collection is List<T> List)
         {
-            // A boxed struct is a fresh object each time, so a value item hashes by value instead.
-            int ItemHash = Item == null ? 7 : (Item.GetType().IsValueType ? Item.GetHashCode() : RuntimeHelpers.GetHashCode(Item));
-            Hash = Hash * 31 + ItemHash;
+            foreach (T Item in CollectionsMarshal.AsSpan(List))
+            {
+                Hash = Hash * 31 + ItemHash(Item);
+            }
+            return Hash;
+        }
+        if (Collection is T[] Array)
+        {
+            foreach (T Item in Array)
+            {
+                Hash = Hash * 31 + ItemHash(Item);
+            }
+            return Hash;
+        }
+        foreach (T Item in Items)
+        {
+            Hash = Hash * 31 + ItemHash(Item);
         }
         return Hash;
+    }
+
+    // A value item hashes by value, since the same struct read twice is never the same reference.
+    private static int ItemHash<T>(T Item)
+    {
+        if (Item is null)
+        {
+            return 7;
+        }
+        return typeof(T).IsValueType || Item.GetType().IsValueType ? EqualityComparer<T>.Default.GetHashCode(Item) : RuntimeHelpers.GetHashCode(Item);
     }
 }

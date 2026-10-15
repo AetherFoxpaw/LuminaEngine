@@ -90,11 +90,11 @@ namespace Lumina
 
         /** A string argument, which costs a UTF-8 encode into stack scratch on the managed side. */
         FUNCTION()
-        static int32 BenchMeasureName(const FName& Name);
+        static int32 BenchMeasureString(const FString& Text);
 
         /** A string return, which is the two-pass caller-buffer protocol. */
         FUNCTION()
-        static FName BenchGetName();
+        static const FString& BenchGetString();
 
         /** The one-uint64 handle shape a non-reflectable native pointer crosses in. */
         FUNCTION()

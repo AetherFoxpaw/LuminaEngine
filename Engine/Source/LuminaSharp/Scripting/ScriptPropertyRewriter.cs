@@ -95,7 +95,7 @@ internal static class ScriptPropertyRewriter
             return RewriteClass(Node, Stored, Rpcs);
         }
 
-        // A [Reflect] struct extending a native struct or stored as a component is a handle over memory native mints from its fields.
+        // A [Reflect] root, native struct extension or component is a handle over memory native mints from its fields.
         public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax Node)
         {
             if (Model.GetDeclaredSymbol(Node) is not INamedTypeSymbol Symbol || !IsNativeBackedStruct(Symbol))
@@ -170,7 +170,8 @@ internal static class ScriptPropertyRewriter
         private static bool IsNativeBackedStruct(INamedTypeSymbol Symbol)
         {
             bool bReflected = Symbol.GetAttributes().Any(Data => Data.AttributeClass?.ToDisplayString() == "LuminaSharp.ReflectAttribute");
-            bool bHandle = Symbol.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() is "LuminaSharp.IExtends<TBase>" or "LuminaSharp.IComponent<TSelf>");
+            bool bHandle = Symbol.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() is "LuminaSharp.IExtends<TBase>" or "LuminaSharp.IComponent<TSelf>"
+                || (Interface.OriginalDefinition.ToDisplayString() == "LuminaSharp.INativeStruct<TSelf>" && SymbolEqualityComparer.Default.Equals(Interface.TypeArguments[0], Symbol)));
             return bReflected && bHandle;
         }
 

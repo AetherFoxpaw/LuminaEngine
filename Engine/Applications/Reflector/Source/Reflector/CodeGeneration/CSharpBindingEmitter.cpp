@@ -448,7 +448,6 @@ namespace Lumina::Reflection
             std::string CSharp;     // C# property type (for Array, the element's C# type)
             std::string Cpp;        // by-value thunk C++ type for Number ("int32", "double", ...)
             std::string TargetCpp;  // qualified C++ type for Enum/Object/StructValue ("Lumina::CStaticMesh")
-            bool          bIsName = false;   // Str kind, FName rather than FString
             bool          bReadOnly = false;
             // Only a CObject has the managed instance slot, so a component pointer must not reach ForObject.
             bool          bCObject = false;
@@ -457,6 +456,15 @@ namespace Lumina::Reflection
         };
 
         static bool IsBlittableElementKind(EBind Kind);
+
+        // An FName is an 8-byte id, so it crosses and is stored as the blittable C# mirror rather than as text.
+        template <typename TBinding>
+        void BindName(TBinding& B)
+        {
+            B.Kind = EBind::StructValue;
+            B.CSharp = "global::Lumina.FName";
+            B.TargetCpp = "Lumina::FName";
+        }
         void EmitOffsetField(FCodeWriter& Writer, const std::string& OffName, const FReflectedProperty& Prop, const std::string& TypeName);
         bool FunctionHasMetadata(const FReflectedFunction& Fn, const char* Key);
 
@@ -495,7 +503,8 @@ namespace Lumina::Reflection
                 if (Bare == E.Name) { B.Kind = EBind::Number; B.CSharp = E.CSharp; B.Cpp = E.Cpp; return true; }
             }
             if (Bare == "bool") { B.Kind = EBind::Bool; B.CSharp = "bool"; return true; }
-            if (Bare == "FString" || Bare == "FName") { B.Kind = EBind::Str; B.CSharp = "string"; B.bIsName = (Bare == "FName"); return true; }
+            if (Bare == "FString") { B.Kind = EBind::Str; B.CSharp = "string"; return true; }
+            if (Bare == "FName") { BindName(B); return true; }
 
             // Every element here is one FSoftObjectPath natively, whatever the declared spelling.
             if (Bare == "FSoftObjectPath" || Bare.find("TSoftObjectPtr<") == 0)
@@ -692,11 +701,15 @@ namespace Lumina::Reflection
                 B.TargetCpp = Prop.TypeName;
                 return true;
             }
-            if (Kind == "FString" || Kind == "FName")
+            if (Kind == "FString")
             {
                 B.Kind = EBind::Str;
                 B.CSharp = "string";
-                B.bIsName = (Kind == "FName");
+                return true;
+            }
+            if (Kind == "FName")
+            {
+                BindName(B);
                 return true;
             }
             if (Kind == "Object")
@@ -966,28 +979,14 @@ namespace Lumina::Reflection
                 {
                     Writer.Linef("public string %s", PropName.c_str());
                     Writer.BeginBlock();
-                    if (B.bIsName)
+                    // The FString read decodes in place, while the set still assigns through the native allocator.
+                    Writer.Linef("get => global::LuminaSharp.NativeMarshal.ReadString(global::LuminaSharp.NativeBindings.FieldAt(Self, %s));", OffName.c_str());
+                    if (!bRO)
                     {
-                        // FName is an interned id, so resolving it to text still goes through the native name table.
-                        Writer.Linef("get => global::LuminaSharp.Native.NameToString(global::LuminaSharp.NativeBindings.FieldAt(Self, %s));", OffName.c_str());
-                        if (!bRO)
-                        {
-                            EmitSetter(Format("global::LuminaSharp.Native.NameFromString(value, global::LuminaSharp.NativeBindings.FieldAt(Self, %s))", OffName.c_str()));
-                        }
-                        Writer.EndBlock();
-                        EmitOffsetField(Writer, OffName, Prop, TypeName);
+                        EmitSetter(Format("global::LuminaSharp.Native.StringAssign(global::LuminaSharp.NativeBindings.FieldAt(Self, %s), value)", OffName.c_str()));
                     }
-                    else
-                    {
-                        // The FString read decodes in place, while the set still assigns through the native allocator.
-                        Writer.Linef("get => global::LuminaSharp.NativeMarshal.ReadString(global::LuminaSharp.NativeBindings.FieldAt(Self, %s));", OffName.c_str());
-                        if (!bRO)
-                        {
-                            EmitSetter(Format("global::LuminaSharp.Native.StringAssign(global::LuminaSharp.NativeBindings.FieldAt(Self, %s), value)", OffName.c_str()));
-                        }
-                        Writer.EndBlock();
-                        EmitOffsetField(Writer, OffName, Prop, TypeName);
-                    }
+                    Writer.EndBlock();
+                    EmitOffsetField(Writer, OffName, Prop, TypeName);
                     break;
                 }
                 case EBind::Object:
@@ -1241,7 +1240,6 @@ namespace Lumina::Reflection
             bool          bEntity = false; // An entity handle, ABI-marshalled as uint32 and surfaced as the C# FEntity.
             // Only a CObject has a managed-instance slot, so only a CObject may be rebuilt through ForObject.
             bool          bCObject = false;
-            bool          bIsName = false; // EBind::Str arg, FName (true) vs FString (false), for the native ctor.
             bool          bSoftPath = false; // EBind::Str arg, a soft reference (TargetCpp) built from the marshalled path.
             // A (T* ptr, int32 count) C++ pair maps to one C# Span, with bReadOnlySpan tracking constness.
             std::string SpanElemCpp;
@@ -1303,10 +1301,14 @@ namespace Lumina::Reflection
             }
             if (Arg.Kind == EBind::Str)
             {
-                // A default-constructed name or string is the empty one, which is what C# can express.
+                // A default-constructed string is the empty one, which is what C# can express.
                 if (Cpp == "nullptr") { return std::string("null"); }
-                if (Cpp == "FName()" || Cpp == "FString()" || Cpp == "\"\"") { return std::string("\"\""); }
+                if (Cpp == "FString()" || Cpp == "\"\"") { return std::string("\"\""); }
                 return std::string();
+            }
+            if (Arg.Kind == EBind::StructValue && Arg.TargetCpp == "Lumina::FName")
+            {
+                return (Cpp == "FName()" || Cpp == "NAME_None" || Cpp == "\"\"") ? std::string("default") : std::string();
             }
             if (Arg.Kind == EBind::Enum)
             {
@@ -1619,9 +1621,11 @@ namespace Lumina::Reflection
                     return false;
                 }
                 case EPropertyTypeFlags::Name:
+                    BindName(B);
+                    return true;
                 case EPropertyTypeFlags::String:
                     // An arg passes (UTF-8 byte*, len) while a return uses the engine two-pass caller-buffer protocol.
-                    B.Kind = EBind::Str; B.CSharp = "string"; B.bIsName = (F.Flags == EPropertyTypeFlags::Name);
+                    B.Kind = EBind::Str; B.CSharp = "string";
                     return true;
                 case EPropertyTypeFlags::Object:
                 {
@@ -1878,9 +1882,9 @@ namespace Lumina::Reflection
                 }
                 else if (A.Kind == EBind::Str)
                 {
-                    // (const char* utf8, int len) -> a temporary FName/FString/soft reference bound to the (const ref) param.
+                    // (const char* utf8, int len) -> a temporary FString or soft reference bound to the (const ref) param.
                     Params += "const char* " + An + ", int " + An + "Len";
-                    const std::string Ctor = A.bSoftPath ? A.TargetCpp : A.bIsName ? std::string("Lumina::FName") : std::string("Lumina::FString");
+                    const std::string Ctor = A.bSoftPath ? A.TargetCpp : std::string("Lumina::FString");
                     CallArgs += "((" + An + "Len > 0) ? " + Ctor + "(Lumina::FStringView(" + An + ", (size_t)" + An + "Len)) : " + Ctor + "())";
                 }
                 else if (A.Kind == EBind::Span)
@@ -1948,9 +1952,7 @@ namespace Lumina::Reflection
                         // Always returns the full byte length, so C# can size an exact buffer on its first call.
                         bStringReturn = true;
                         RetCpp = "int";
-                        Body = "auto __r = " + CallExpr + "; const char* __s = __r.c_str(); int __l = 0; if (__s) { while (__s[__l]) { ++__l; } } "
-                               "if (__s && Buffer && Capacity > 0) { const int __n = __l < Capacity ? __l : Capacity; for (int __i = 0; __i < __n; ++__i) { Buffer[__i] = __s[__i]; } } "
-                               "if (__s && Buffer && __l > Capacity) { Lumina::Scripting::StashCallOverflow(Buffer, __s, (size_t)__l); } return __l;";
+                        Body = "return Lumina::Scripting::ReturnStringToCaller(" + CallExpr + ", Buffer, Capacity);";
                         break;
                     default: break;
                     }
@@ -1971,7 +1973,9 @@ namespace Lumina::Reflection
                 Body = "Lumina::TVector<" + VectorOutElem + "> __vec; " + CallExpr + "; "
                      + "const int __n = (int)__vec.size(); "
                      + "if (Buffer && Capacity > 0) { const int __c = __n < Capacity ? __n : Capacity; "
-                     + "for (int __i = 0; __i < __c; ++__i) { Buffer[__i] = " + Read + "; } } "
+                     + (bObjectElem
+                         ? "for (int __i = 0; __i < __c; ++__i) { Buffer[__i] = " + Read + "; } } "
+                         : "Lumina::Memory::Memcpy(Buffer, __vec.data(), (size_t)__c * sizeof(" + BufferElem + ")); } ")
                      + "if (Buffer && __n > Capacity) { " + Stash + " } "
                      + "return __n;";
                 Params += (Params.empty() ? std::string() : std::string(", "))
@@ -2065,16 +2069,6 @@ namespace Lumina::Reflection
         {
             if (!ClassifyFunction(Fn, Type, Db, Out)) { return false; }
             if (!Out.bVoid && !ScriptEventArgSupported(Out.Ret)) { return false; }
-            for (FArg& A : Out.Args)
-            {
-                if (A.Kind == EBind::Str && A.bIsName)
-                {
-                    A.Kind      = EBind::StructValue; 
-                    A.CSharp    = "global::Lumina.FName"; 
-                    A.TargetCpp = "Lumina::FName"; 
-                    A.bIsName   = false;
-                }
-            }
             for (const FArg& A : Out.Args) { if (!ScriptEventArgSupported(A)) { return false; } }
             return true;
         }

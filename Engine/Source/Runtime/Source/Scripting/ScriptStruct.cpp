@@ -370,6 +370,10 @@ namespace Lumina
             };
             Ops.ContainerContext = Desc;
             Ops.ContainerSize = sizeof(FScriptDynamicArray);
+            // The storage counts bytes, so dividing by the element size is what turns it into elements.
+            Ops.DataOffset = static_cast<uint32>(offsetof(FScriptDynamicArray, Bytes)) + TVector<uint8>::GetDataOffsetForInterop();
+            Ops.CountOffset = static_cast<uint32>(offsetof(FScriptDynamicArray, Bytes)) + TVector<uint8>::GetCountOffsetForInterop();
+            Ops.CountDivisor = ElementSize > 0 ? ElementSize : 1;
         }
 
         // ---- Script dynamic optional (a heap payload, so an engaged optional is a non-null pointer) ----
@@ -571,6 +575,12 @@ namespace Lumina
             if (OutValue) { *OutValue = nullptr; }
         }
 
+        bool MapNext(void* InMap, SIZE_T* Cursor, const void** OutKey, void** OutValue)
+        {
+            MapAt(InMap, (*Cursor)++, OutKey, OutValue);
+            return *OutKey != nullptr;
+        }
+
         void MapConstructKey(void* InMap, void* Dst)
         {
             const FScriptDynamicMap* Map = static_cast<const FScriptDynamicMap*>(InMap);
@@ -610,6 +620,7 @@ namespace Lumina
             };
             Ops.ContainerContext = Desc;
             Ops.ContainerSize = sizeof(FScriptDynamicMap);
+            Ops.Next = &MapNext;
         }
     }
 

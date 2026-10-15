@@ -261,6 +261,13 @@ namespace Lumina
         FUNCTION()
         bool IsPaused() const { return bPaused; }
 
+        // Whether a paused editor world still previews animation, which an asset or prefab preview may not want.
+        FUNCTION()
+        void SetAnimatesWhilePaused(bool bAnimate) { bAnimatesWhilePaused = bAnimate; }
+
+        FUNCTION()
+        bool AnimatesWhilePaused() const { return bAnimatesWhilePaused; }
+
         // True from the start of teardown, so an OnDetach can tell the whole world going away from its own entity being removed.
         FUNCTION()
         bool IsTearingDown() const { return bTearingDown; }
@@ -825,6 +832,7 @@ namespace Lumina
         void AdvanceThrottle(double NowSeconds);
 
         uint32                                              bPaused:1 = true;
+        uint32                                              bAnimatesWhilePaused:1 = true;
         uint32                                              bActive:1 = true;
         uint32                                              bThrottledThisFrame:1 = false;
         

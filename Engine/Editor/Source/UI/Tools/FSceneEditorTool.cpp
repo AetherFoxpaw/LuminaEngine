@@ -2953,6 +2953,18 @@ namespace Lumina
         }
         ImGuiX::TextTooltip("Toggle Grid");
 
+        if (!IsViewportPlaying())
+        {
+            ImGui::SameLine();
+            const bool bAnimates = World->AnimatesWhilePaused();
+            const ImColor AnimColor = bAnimates ? ImColor(EditorColors::Accent()) : ImColor(EditorColors::TextDim());
+            if (ImGuiX::IconButton(LE_ICON_ANIMATION_PLAY, "##PreviewAnimation", AnimColor, BtnSize))
+            {
+                World->SetAnimatesWhilePaused(!bAnimates);
+            }
+            ImGuiX::TextTooltip("Preview Animation: {}", bAnimates ? "On" : "Off");
+        }
+
         ImGui::SameLine();
 
         const char* Icon = nullptr;

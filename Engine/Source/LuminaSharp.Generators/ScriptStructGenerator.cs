@@ -8,13 +8,14 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace LuminaSharp.Generators;
 
-// A [Reflect] struct extending a native struct is a handle over memory native mints from its fields, and a component is that memory itself.
+// A [Reflect] root or native struct extension is a handle over memory native mints from its fields, and a component is that memory itself.
 [Generator]
 public sealed class ScriptStructGenerator : IIncrementalGenerator
 {
     private const string ReflectAttribute = "LuminaSharp.ReflectAttribute";
     private const string ExtendsInterface = "LuminaSharp.IExtends<TBase>";
     private const string ComponentInterface = "LuminaSharp.IComponent<TSelf>";
+    private const string RootInterface = "LuminaSharp.INativeStruct<TSelf>";
 
     private static readonly DiagnosticDescriptor NotPartial = new(
         id: "LUM0110",
@@ -53,7 +54,8 @@ public sealed class ScriptStructGenerator : IIncrementalGenerator
     private static bool IsNativeBackedStruct(INamedTypeSymbol Symbol)
     {
         return Symbol.GetAttributes().Any(Data => Data.AttributeClass?.ToDisplayString() == ReflectAttribute)
-            && Symbol.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() is ExtendsInterface or ComponentInterface);
+            && Symbol.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() is ExtendsInterface or ComponentInterface
+                || (Interface.OriginalDefinition.ToDisplayString() == RootInterface && SymbolEqualityComparer.Default.Equals(Interface.TypeArguments[0], Symbol)));
     }
 
     private static void Emit(SourceProductionContext Output, INamedTypeSymbol Symbol)

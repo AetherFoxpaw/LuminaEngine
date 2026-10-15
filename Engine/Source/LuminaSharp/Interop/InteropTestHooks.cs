@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -16,7 +17,7 @@ internal enum ETestFrameChannel : byte
 }
 
 // Stands in for a script type, so a native test can drive the real dispatcher over a minted frame.
-internal sealed class FrameMarshalTarget
+internal sealed class FrameMarshalTarget : NativeObject
 {
     [Function]
     public void MarshalOut(int In, out int Out)
@@ -910,5 +911,88 @@ internal static unsafe class InteropTestHooks
         ref SStaticMeshComponent View = ref Unsafe.AsRef<SStaticMeshComponent>((void*)Component);
         View.StaticMesh = null!;
         View.bCastShadow = false;
+    }
+
+    // Failure bits, four per form, for a root, an extension and a component compiled together the way the editor compiles them.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_CompileScriptStructForms()
+    {
+        const string Source = """
+            using Lumina;
+            using LuminaSharp;
+            [Reflect]
+            public partial struct RootProbeData : INativeStruct<RootProbeData>
+            {
+                [Property] public float MoveSpeed = 2f;
+                public RootProbeData() { }
+            }
+            [Reflect]
+            public partial struct RowProbeData : IExtends<SDataTableRowBase>
+            {
+                [Property] public int Count;
+            }
+            [Reflect]
+            public partial struct ComponentProbeData : IComponent<ComponentProbeData>
+            {
+                [Property] public float Health;
+            }
+            """;
+        FScriptImage? Image = ScriptCompiler.Compile("StructFormProbe", new[] { ("StructFormProbe.cs", Source) });
+        if (Image is not { } Compiled)
+        {
+            return -1;
+        }
+
+        var Context = new ScriptLoadContext("StructFormProbe");
+        try
+        {
+            Type[] Types = Context.LoadScriptAssembly("StructFormProbe", Compiled).GetTypes();
+            var Registered = new TypeLibrary(Types).ScriptStructTypes.ToList();
+            int Failures = Registered.Count == 3 ? 0 : 1 << 12;
+            (string Name, string Base, bool bHandle)[] Forms =
+            {
+                ("RootProbeData", "", true),
+                ("RowProbeData", "SDataTableRowBase", true),
+                ("ComponentProbeData", "", false),
+            };
+            for (int i = 0; i < Forms.Length; ++i)
+            {
+                Type? Form = Types.FirstOrDefault(Candidate => Candidate.Name == Forms[i].Name);
+                if (Form == null)
+                {
+                    Failures |= 0xF << (i * 4);
+                    continue;
+                }
+                if (!TypeLibrary.IsNativeBackedStruct(Form))
+                {
+                    Failures |= 1 << (i * 4);
+                }
+                if (Registered.Count(Pair => Pair.Key == Forms[i].Name && Pair.Value.NativeBase == Forms[i].Base) != 1)
+                {
+                    Failures |= 2 << (i * 4);
+                }
+                bool bOneHandle = Form.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) is [{ FieldType: var Only }] && Only == typeof(NativeRef);
+                int SelfHandles = Form.GetInterfaces().Count(Interface => Interface.IsGenericType && Interface.GetGenericTypeDefinition() == typeof(INativeStruct<>) && Interface.GetGenericArguments()[0] == Form);
+                if (bOneHandle != Forms[i].bHandle || SelfHandles != (Forms[i].bHandle ? 1 : 0))
+                {
+                    Failures |= 4 << (i * 4);
+                }
+                if (Form.GetProperty("NativeName", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string != Forms[i].Name)
+                {
+                    Failures |= 8 << (i * 4);
+                }
+            }
+            return Failures;
+        }
+        catch (Exception Error)
+        {
+            Native.Log(ELogLevel.Error, "StructFormProbe threw " + Error);
+            return -2;
+        }
+        finally
+        {
+            Context.Unload();
+        }
     }
 }

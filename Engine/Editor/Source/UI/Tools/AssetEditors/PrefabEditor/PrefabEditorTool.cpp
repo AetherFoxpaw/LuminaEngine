@@ -311,6 +311,9 @@ namespace Lumina
     {
         FEditorTool::SetupWorldForTool();
 
+        // A prefab is edited in its authored pose, so animation preview starts off and the toolbar turns it on.
+        World->SetAnimatesWhilePaused(false);
+
         DirectionalLightEntity = World->ConstructEntity("PreviewLight");
         World->EmplaceComponent<FHideInSceneOutliner>(DirectionalLightEntity);
         World->EmplaceComponent<SDirectionalLightComponent>(DirectionalLightEntity);
