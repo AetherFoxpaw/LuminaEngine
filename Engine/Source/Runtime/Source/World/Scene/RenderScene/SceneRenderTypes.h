@@ -983,7 +983,8 @@ namespace Lumina
         uint32      SkinnedVertexBase;
         // Assigned by FScenePrimitiveSet::AssignMeshletVisibility; kNoMeshletVisibility for none.
         uint32      MeshletVisibilityBase;
-        uint32      _Pad0;
+        // Read only when LODAndThinning carries INSTANCE_CUSTOM_LAYERS_BIT, so a zeroed payload still reads as Default.
+        uint32      RenderLayers;
     };
     // Word 0 is never handed out, so a zeroed payload reads as an instance with no meshlet visibility.
     constexpr uint32 kNoMeshletVisibility = 0u;
@@ -1011,7 +1012,8 @@ namespace Lumina
         uint32          SurfaceDescIndex;       //        104
         uint32          MeshletTotalCount;      //        108
         uint32          RetainedSlot;           //        112
-        uint32          _Pad0[3];               //        116
+        uint32          RenderLayers;           //        116
+        uint32          _Pad0[2];               //        120
     };
 
     static_assert(sizeof(FGPUInstance) == 128, "FGPUInstance layout must match shader");
@@ -1071,11 +1073,12 @@ namespace Lumina
     };
     static_assert(sizeof(FSkinnedFrameData) == 28, "FSkinnedFrameData must match shader");
 
-    // The forced LOD plus one in the low byte (0 is automatic) and the foliage thinning start distance as a half float in the high half.
-    inline uint32 PackLODAndThinning(int32 ForcedLODIndex, float ThinningStartDistance)
+    // The forced LOD plus one in the low byte (0 is automatic), the custom layer bit, and the foliage thinning start distance as a half float in the high half.
+    inline uint32 PackLODAndThinning(int32 ForcedLODIndex, float ThinningStartDistance, uint32 RenderLayers = RENDER_LAYER_DEFAULT_MASK)
     {
-        const uint32 LOD = (uint32)Math::Clamp(ForcedLODIndex + 1, 0, 255);
-        return LOD | ((uint32)FHalf(Math::Clamp(ThinningStartDistance, 0.0f, 65000.0f)).Bits << 16);
+        const uint32 LOD    = (uint32)Math::Clamp(ForcedLODIndex + 1, 0, 255);
+        const uint32 Layers = RenderLayers != RENDER_LAYER_DEFAULT_MASK ? INSTANCE_CUSTOM_LAYERS_BIT : 0u;
+        return LOD | Layers | ((uint32)FHalf(Math::Clamp(ThinningStartDistance, 0.0f, 65000.0f)).Bits << 16);
     }
 
     constexpr uint32 PackDrawIDAndFlags(uint32 DrawID, EInstanceFlags Flags)
@@ -1152,8 +1155,9 @@ namespace Lumina
         // The cull camera clip range, so the sphere projection and the Hi-Z tap agree with CullCameraProjection.
         float  CullNearPlane;
         float  CullFarPlane;
+        // Render layers the primary camera draws, for passes that cull without a cull view.
+        uint32 CameraLayerMask = RENDER_LAYER_DEFAULT_MASK;
         // Holds the struct at a 16-byte multiple, which the members after it in FSceneGlobalData rely on.
-        uint32 _CullPad0 = 0;
         uint32 _CullPad1 = 0;
         uint32 _CullPad2 = 0;
     };
@@ -1200,7 +1204,7 @@ namespace Lumina
         uint32      CascadeIndex;               // Cascade this view rasterizes; only read when Flags has Cascade
         float       MinBoundsDiameter;          // Reject bounds thinner than this (world units); 0 = off
         float       LODErrorScale;              // MakeLODErrorScale; 0 keeps every instance at LOD 0
-        uint32      _Pad0;
+        uint32      LayerMask;                  // Render layers the view draws
     };
 
     FORCEINLINE uint32 GetCullViewFlags(const FCullView& View)

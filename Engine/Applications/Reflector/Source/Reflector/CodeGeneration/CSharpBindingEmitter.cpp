@@ -2232,6 +2232,8 @@ namespace Lumina::Reflection
             }
             Writer.Line("[global::LuminaSharp.ManagedExport]");
             Writer.Line("[global::System.Runtime.InteropServices.UnmanagedCallersOnly(CallConvs = new[] { typeof(global::System.Runtime.CompilerServices.CallConvStdcall) })]");
+            // Internal only so the export table can reach it, and script assemblies see LuminaSharp's internals, so completion has to be told to skip it.
+            Writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
             Writer.Linef("internal static %s %s(global::System.IntPtr __handle%s)", SeRetAbiCS(FB).c_str(), Dispatch.c_str(), AbiParams.c_str());
             Writer.BeginBlock();
             // Declared outside the try so the catch can name the script that threw.
@@ -2723,6 +2725,8 @@ namespace Lumina::Reflection
                 EmitDocSummary(Writer, Prop->Metadata);
                 Writer.Linef("public %s %s;", CSharpFieldType(*Prop).c_str(), SafeIdentifier(Prop->Name).c_str());
             }
+            // The NativeCall generator pins this for an instance call, so a method runs on the caller's copy.
+            EmitFunctions(Writer, Struct, Database);
             Writer.EndBlock();
         }
         else
@@ -2811,21 +2815,19 @@ namespace Lumina::Reflection
         {
             return;
         }
-        // A blittable value-mirror struct exposes its fields directly -> no thunks.
-        if (Type.Type == FReflectedType::EType::Structure)
-        {
-            int Size = 0;
-            int Align = 0;
-            if (IsBlittableValueStruct(Type, Database, Size, Align))
-            {
-                return;
-            }
-        }
-
         const std::string Friendly = Names::FriendlyFromQualified(Type.QualifiedName);
         const char* Qualified = Type.EmittedCppQualifiedName().c_str();
         // Thunks are resolved by name at runtime, so they need the always-dllexport macro, not the module one.
         const char* ApiMacro = "LUMINA_SCRIPT_API";
+
+        // A blittable value mirror exposes its fields directly, so only its functions need thunks.
+        int Size = 0;
+        int Align = 0;
+        if (Type.Type == FReflectedType::EType::Structure && IsBlittableValueStruct(Type, Database, Size, Align))
+        {
+            EmitNativeFunctions(Writer, Type, Qualified, ApiMacro, Database);
+            return;
+        }
 
         for (const auto& Prop : Type.Props)
         {

@@ -121,16 +121,27 @@ namespace LuminaSharp
         var spanParams = new List<(int Index, string Name, string Elem)>();
         var sigParams = new List<string>();
 
-        // Instance methods pass the containing type's Handle first, typed as that member is declared.
+        // Instance methods pass the containing type's Handle first, or for a value struct the pinned address of this.
+        string? selfPin = null;
         if (!method.IsStatic)
         {
             string? handleTypeFq = FindHandleType(type, fq);
-            if (handleTypeFq == null)
+            if (handleTypeFq != null)
+            {
+                nativeTypes.Add(handleTypeFq);
+                callArgs.Add("Handle");
+            }
+            else if (type.TypeKind == TypeKind.Struct && !type.IsReadOnly && type.IsUnmanagedType)
+            {
+                string selfFq = type.ToDisplayString(fq);
+                nativeTypes.Add(selfFq + "*");
+                callArgs.Add("__self");
+                selfPin = "fixed (" + selfFq + "* __self = &this)";
+            }
+            else
             {
                 return null;
             }
-            nativeTypes.Add(handleTypeFq);
-            callArgs.Add("Handle");
         }
 
         for (int i = 0; i < method.Parameters.Length; i++)
@@ -412,14 +423,14 @@ namespace LuminaSharp
         }
 
         bool hasStrings = stringParams.Count > 0;
-        bool hasSpans = spanParams.Count > 0;
+        bool hasPins = spanParams.Count > 0 || selfPin != null;
 
         // A binding dropped at resolve stays null, so a call fails naming the export instead of jumping to zero.
         string unboundThrow = "throw global::LuminaSharp.NativeBindings.Unbound(\"" + entry + "\")";
         string unboundGuard = "if (" + field + " == null) { " + unboundThrow + "; }\n";
 
         // Trivial shape (no marshalling fixups, plain return): expression body / one-liner.
-        if (!hasStrings && !hasSpans && !stringReturn && !arrayReturn && !nativeRefReturn)
+        if (!hasStrings && !hasPins && !stringReturn && !arrayReturn && !nativeRefReturn)
         {
             if (method.ReturnsVoid)
             {
@@ -453,13 +464,17 @@ namespace LuminaSharp
                 indent += 4;
             }
 
-            // Span args: stacked `fixed` pins wrapping the call.
+            // This and the span args, as stacked `fixed` pins wrapping the call.
+            if (selfPin != null)
+            {
+                sb.Append(Pad(indent)).Append(selfPin).Append('\n');
+            }
             foreach ((int idx, string name, string elem) in spanParams)
             {
                 sb.Append(Pad(indent)).Append("fixed (").Append(elem).Append("* __sp").Append(idx)
                   .Append(" = ").Append(name).Append(")\n");
             }
-            if (hasSpans)
+            if (hasPins)
             {
                 sb.Append(Pad(indent)).Append("{\n");
                 sb.Append(CoreBody(indent + 4));

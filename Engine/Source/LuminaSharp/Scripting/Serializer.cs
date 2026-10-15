@@ -168,6 +168,7 @@ internal static class Serializer
                 break;
             }
             case EPropertyType.Struct:
+            case EPropertyType.ComponentRef:
             {
                 WriteString(Writer, Type.NativeName ?? "");
                 break;

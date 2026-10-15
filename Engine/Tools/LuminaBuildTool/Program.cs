@@ -49,6 +49,7 @@ public static class Program
             {
                 "build" => await BuildMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "run" => RunMode.Run(Arguments, Directories),
+                "open" => await OpenMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "test" => await TestMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "profile" => await ProfileMode.RunAsync(Arguments, Directories, Cancellation.Token).ConfigureAwait(false),
                 "clean" => CleanMode.Run(Arguments, Directories),
@@ -100,6 +101,7 @@ public static class Program
               Setup                     Fetch external dependencies and configure the environment
               Build <Target>            Compile and link a target
               Run <Target>              Launch a target's executable, located from its own rules
+              Open <File.lproject>      Build a project's editor target if stale, then open it in the editor
               Test [Module]             Build and run test suites; a module with a Tests or Benchmarks
                                         directory beside its Build.cs gets one binary per directory
               Profile <Target>          Run a target under Tracy and rank its zones by self time

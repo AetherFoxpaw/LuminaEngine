@@ -21,6 +21,7 @@ struct FMeshletCullContext
     bool     bFoliage;
     bool     bShadowOnly;
     bool     bTwoSided;
+    uint     Layers;
     float4x4 Model;
     float    MaxScale;
 
@@ -46,6 +47,7 @@ FMeshletCullContext MakeMeshletCullContext(FGPUInstance* Inst)
     Ctx.bFoliage    = I.HasFlag(EInstanceFlags::Foliage);
     Ctx.bShadowOnly = I.HasFlag(EInstanceFlags::ShadowOnly);
     Ctx.bTwoSided   = I.HasFlag(EInstanceFlags::TwoSided);
+    Ctx.Layers      = I.RenderLayers;
 
     Ctx.Model = I.ModelMatrix;
 
@@ -164,7 +166,8 @@ bool TestMeshletAgainstView(FMeshletCullContext Ctx, FCullView View,
     // Must agree with IsInstanceVisibleToView, which sized the bucket these appends fill.
     const bool bShadowView = View.HasFlag(CULL_VIEW_FLAG_CAST_SHADOW_ONLY);
 
-    bool bKeep = !(bShadowView && !Ctx.bCaster)
+    bool bKeep = (View.LayerMask & Ctx.Layers) != 0u
+              && !(bShadowView && !Ctx.bCaster)
               && !(View.HasFlag(CULL_VIEW_FLAG_FAR_CASCADE) && !Ctx.bFarCaster)
               && !(View.HasFlag(CULL_VIEW_FLAG_NO_FOLIAGE) && Ctx.bFoliage)
               && !(!bShadowView && Ctx.bShadowOnly)

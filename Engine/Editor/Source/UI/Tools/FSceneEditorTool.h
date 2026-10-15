@@ -176,8 +176,11 @@ namespace Lumina
         // bInteractiveOnly drops the visualizers that have no main-thread pass.
         void GatherVisualizerBindings(TVector<FVisualizerBinding>& OutBindings, bool bInteractiveOnly);
 
-        // Selected entities plus their children, the set both visualizer passes run over.
+        // The selected entities, which the interactive pass edits.
         void GatherVisualizerEntities(TVector<ECS::FEntity>& OutEntities);
+
+        // Grows the selection into what the wireframe pass draws, its children, or with bShowHierarchyVisualizers every tree it belongs to.
+        void ExpandVisualizerEntities(TVector<ECS::FEntity>& InOutEntities);
 
         TVector<FVisualizerBinding> VisualizerBindingScratch;
         FVisualizerInteractionState VisualizerInteraction;
@@ -463,16 +466,15 @@ namespace Lumina
 
         // Hook: whether Entity may be deleted from the panel (prefab forbids the root).
         virtual bool CanDeleteEntity(ECS::FEntity Entity) const { return true; }
-        // Hook: extra header buttons next to Add-Component/Delete (world: Add Tag).
         // Modal name prompt for one entity. Also reached from the outliner context menu.
         void PushRenameEntityModal(ECS::FEntity Entity);
 
-        // Owned by the tool rather than the modal lambda, which cannot hold state across frames.
-        FFixedString RenameModalBuffer;
+        // Any registry carries tags, so prefab entities get the same section and prompt as world ones.
+        void PushAddTagModal(ECS::FEntity Entity);
+        void DrawTagSection(ECS::FEntity Entity);
 
-        virtual void DrawDetailsHeaderExtraButtons(ECS::FEntity Entity) {}
-        // Hook: extra sections above the component list (world: the Tags chip section).
-        virtual void DrawDetailsExtraSections(ECS::FEntity Entity) {}
+        // Owned by the tool rather than the modal lambda, which cannot hold state across frames.
+        FFixedString TextModalBuffer;
 
         TQueue<ECS::FEntity> EntityDestroyRequests;
         bool                bImGuizmoUsedOnce = false;

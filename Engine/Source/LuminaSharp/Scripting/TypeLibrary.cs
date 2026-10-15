@@ -162,7 +162,7 @@ internal sealed class TypeLibrary
 
     private static IEnumerable<string> HeldStructNames(ScriptType Type)
     {
-        if (Type.Kind == EPropertyType.Struct && Type.NativeName != null)
+        if (Type.Kind is EPropertyType.Struct or EPropertyType.ComponentRef && Type.NativeName != null)
         {
             yield return Type.NativeName;
         }
@@ -455,8 +455,9 @@ internal sealed class TypeLibrary
                     MemberType = MemberType.GetElementType()!;
                 }
 
-                // A get-only container is a view over storage native owns, so it is stored even with no setter.
-                Kind = Property.CanWrite || bStructView || IsNativeOwnedViewType(MemberType) ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
+                // A get-only container is a view over storage native owns, and a component reference is filled by native, so both are stored with no setter.
+                bool bComponentRef = Property.GetCustomAttribute<PropertyAttribute>() is { Component: not EComponentBind.None };
+                Kind = Property.CanWrite || bStructView || bComponentRef || IsNativeOwnedViewType(MemberType) ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
             }
             else
             {
@@ -469,13 +470,13 @@ internal sealed class TypeLibrary
                 continue;
             }
 
-            ScriptType Resolved = ResolveType(MemberType);
+            PropertyAttribute? Meta = Member.GetCustomAttribute<PropertyAttribute>();
+            ScriptType Resolved = Meta != null && Meta.Component != EComponentBind.None ? ResolveComponentRef(MemberType) : ResolveType(MemberType);
             if (Resolved.Kind == EPropertyType.None)
             {
                 continue;
             }
 
-            PropertyAttribute? Meta = Member.GetCustomAttribute<PropertyAttribute>();
             Members.Add(new ScriptProperty
             {
                 Name = Member.Name,
@@ -493,6 +494,16 @@ internal sealed class TypeLibrary
         }
 
         return Members;
+    }
+
+    // A reference names the component it binds, which only a component handle can say.
+    private ScriptType ResolveComponentRef(Type Type)
+    {
+        ScriptType Value = ResolveType(Type);
+        bool bComponent = Type.GetInterfaces().Any(Interface => Interface.IsGenericType && Interface.GetGenericTypeDefinition() == typeof(IComponent<>));
+        return bComponent && Value.Kind == EPropertyType.Struct
+            ? new ScriptType { Kind = EPropertyType.ComponentRef, Clr = Type, NativeName = Value.NativeName }
+            : new ScriptType { Kind = EPropertyType.None, Clr = Type };
     }
 
     // Only LuminaSharp's own attributes count, so a game attribute that happens to share a name changes nothing.
@@ -565,6 +576,10 @@ internal sealed class TypeLibrary
         AddIfSet(nameof(PropertyAttribute.AssetType), Meta?.AssetType);
         AddIfSet(nameof(PropertyAttribute.Bundle), Meta?.Bundle);
         AddIfSet(nameof(PropertyAttribute.Group), Meta?.Group);
+        if (Meta != null && Meta.Component != EComponentBind.None)
+        {
+            Result.Add(new(nameof(PropertyAttribute.Component), Meta.Component.ToString()));
+        }
         if (Member.GetCustomAttribute<BindAttribute>() is BindAttribute Bind)
         {
             Result.Add(new("Bind", Bind.Name ?? ""));

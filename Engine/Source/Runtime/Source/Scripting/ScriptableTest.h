@@ -6,6 +6,8 @@
 #include "Core/Templates/Optional.h"
 #include "Core/Threading/Thread.h"
 #include "Scripting/EntityScript.h"
+#include "World/Entity/Components/ComponentRef.h"
+#include "World/Entity/Components/NameComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
 #include "World/Entity/Systems/EntitySystem.h"
 #include "World/Subsystems/WorldSubsystem.h"
@@ -73,6 +75,24 @@ namespace Lumina
         int32 FixedUpdateCount = 0;
         int32 DetachCount = 0;
         float AccumulatedTime = 0.0f;
+    };
+
+    // One reference of each binding, recording what OnAttach already saw.
+    REFLECT()
+    class RUNTIME_API CComponentRefScriptTest : public CEntityScript
+    {
+        GENERATED_BODY()
+    public:
+
+        void OnAttach() override { bTransformAtAttach = Transform.Get() != nullptr; }
+
+        PROPERTY(Component)
+        TComponentRef<STransformComponent> Transform;
+
+        PROPERTY(Component = Get)
+        TComponentRef<SNameComponent> Name;
+
+        bool bTransformAtAttach = false;
     };
 
     // Opted into the parallel pass, recording the thread that ran it so a test can tell the pass fanned out.

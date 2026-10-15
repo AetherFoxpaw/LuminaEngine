@@ -12,6 +12,7 @@
 #include "Core/Threading/Thread.h"
 #include "Memory/Memory.h"
 #include "Platform/GenericPlatform.h"
+#include "Renderer/RenderLayers.h"
 #include "World/Scene/RenderScene/MeshDrawCommand.h"
 #include "World/Scene/RenderScene/MeshResolveCache.h"
 #include "World/Scene/RenderScene/SceneRenderTypes.h"
@@ -213,6 +214,7 @@ namespace Lumina
         float                               BoundsScale = 1.0f;
 
         int32                               ForcedLODIndex = -1;
+        uint32                              RenderLayers = RenderLayers::kDefaultMask;
         EInstanceFlags                      BaseFlags = EInstanceFlags::None;
         EPrimitiveSource                    Source = EPrimitiveSource::StaticMesh;
         bool                                bCastShadow = true;
@@ -254,6 +256,9 @@ namespace Lumina
 
         // Drops every primitive and re-arms a full rescan. World teardown / scene rebuild.
         void Reset(ECS::FRegistry* Registry);
+
+        // Remaps Foreground-layer instances for this camera, or draws them in place when it has no foreground. Call before Sync.
+        void SetForegroundView(const FViewVolume& View, const FViewLayerSettings& Layers);
 
         uint32                              Num() const { return (uint32)Primitives.size(); }
         const FScenePrimitive*              GetPrimitives() const { return Primitives.data(); }
@@ -397,6 +402,11 @@ namespace Lumina
         void    RefreshInstances(uint32 Index, TVector<uint32>* DirtySink = nullptr);
 
         void    RefreshInstanceTransform(uint32 Index, TVector<uint32>* DirtySink = nullptr);
+
+        bool        IsRemappedForeground(const FScenePrimitive& Prim) const { return bForegroundActive && (Prim.RenderLayers & RenderLayers::kForegroundMask) != 0u; }
+        FMatrix4    InstanceTransformOf(const FScenePrimitive& Prim) const;
+        FVector4    InstanceSphereOf(uint32 Index) const;
+        void        TrackForeground(uint32 Index);
 
         uint32  AllocateInstanceSlot();
         void    FreeInstanceSlot(uint32 Slot);
@@ -610,6 +620,12 @@ namespace Lumina
 
         // Folds the per-worker lists back into DirtyInstanceSlots, or gives up and re-sends everything.
         void MergeParallelDirtySlots();
+
+        FMatrix4                            ForegroundTransform = FMatrix4(1.0f);
+        float                               ForegroundRadiusScale = 1.0f;
+        bool                                bForegroundActive = false;
+        // Few enough that a camera move refreshes every one of them.
+        TVector<uint64>                     ForegroundKeys;
 
         TVector<FInstanceCullEntry>         RetainedCullEntries;
         TVector<FTransform3x4>              RetainedTransforms;

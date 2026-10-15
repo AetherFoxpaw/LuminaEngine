@@ -12,7 +12,7 @@ public enum EPropertyType : byte
     Float, Double,
     Bool, Object, SoftObject, Class, Name, String,
     Enum, Vector, Struct, Optional, SubStruct, Delegate, InstancedStruct, Map,
-    Entity,
+    Entity, ComponentRef,
 }
 
 /// <summary>The resolved, recursive shape of a script property's type, resolved once per type and shared.</summary>

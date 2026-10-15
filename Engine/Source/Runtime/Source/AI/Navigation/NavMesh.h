@@ -90,6 +90,12 @@ namespace Lumina
          *  against, so a follower can tell the ground moved under it. */
         uint64 GetTopologyEpoch() const { return TopologyEpoch.load(std::memory_order_acquire); }
 
+        // Starts a replacement mesh past the one it replaces, so a path or cache stamped against the old mesh sees a change.
+        void ContinueTopologyEpochFrom(uint64 PreviousEpoch)
+        {
+            TopologyEpoch.store(Math::Max(TopologyEpoch.load(std::memory_order_acquire), PreviousEpoch + 1), std::memory_order_release);
+        }
+
         // Y is ignored because a tile spans the whole bake, and a ring overflow reports changed.
         bool HasTileChangedSince(uint64 SinceEpoch, const FVector3& Min, const FVector3& Max) const;
 

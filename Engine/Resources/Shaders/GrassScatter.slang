@@ -227,5 +227,6 @@ void main(uint3 Tid : SV_DispatchThreadID)
     Static.BoneOffset              = 0u;
     Static.SkinnedVertexBase       = kNoPreSkinBase;
     Static.MeshletVisibilityBase   = kNoMeshletVisibility;
+    Static.RenderLayers            = RENDER_LAYER_DEFAULT_MASK;
     (P->OutStatic).Set(Slot, Static);
 }

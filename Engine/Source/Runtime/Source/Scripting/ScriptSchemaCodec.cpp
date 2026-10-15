@@ -155,6 +155,7 @@ namespace Lumina::Scripting
                     break;
                 }
                 case EPropertyTypeFlags::Struct:
+                case EPropertyTypeFlags::ComponentRef:
                 {
                     Type->NativeName = FName(R.Str().c_str());
                     break;

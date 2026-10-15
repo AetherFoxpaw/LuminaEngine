@@ -180,10 +180,15 @@ internal static class ScriptPropertyRewriter
             foreach (FStoredMember Member in Stored)
             {
                 string MemberName = Member.Symbol.Name;
-                FScriptPropertyClassification Classification = ScriptPropertyClassifier.Classify(Member.Type);
+                FScriptPropertyClassification Classification = ScriptPropertyClassifier.ClassifyMember(Member.Symbol, Member.Type);
                 if (!Classification.IsSupported)
                 {
                     Errors.Add($"{FilePath}({Line(Member.At)}): [Property] '{MemberName}' has type '{Member.Type.ToDisplayString()}': {Classification.Rejection}");
+                    continue;
+                }
+                if (Classification.Access == EScriptAccess.ComponentRef)
+                {
+                    Errors.Add($"{FilePath}({Line(Member.At)}): [Property(Component)] '{MemberName}' is on a script struct, which has no entity to find the component on.");
                     continue;
                 }
                 if (HasAttributeNamed(Member.Declaration.AttributeLists, "Sync"))
@@ -285,8 +290,9 @@ internal static class ScriptPropertyRewriter
                 return null;
             }
 
-            bool bView = ScriptPropertyClassifier.Classify(Symbol.Type).IsView;
-            EScriptMemberKind Kind = Symbol.SetMethod != null || bView ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
+            FScriptPropertyClassification Shape = ScriptPropertyClassifier.ClassifyMember(Symbol, Symbol.Type);
+            bool bNativeFilled = Shape.IsView || Shape.Access == EScriptAccess.ComponentRef;
+            EScriptMemberKind Kind = Symbol.SetMethod != null || bNativeFilled ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
             if (!ScriptPropertyClassifier.RuleFor(Symbol, Kind, bOwnerIsNativeObject: true).bStored)
             {
                 return null;
@@ -343,11 +349,17 @@ internal static class ScriptPropertyRewriter
                 string Name = Member.Symbol.Name;
 
                 // The shared classifier also runs in the IDE analyzer, so what fails here was already underlined there.
-                FScriptPropertyClassification Classification = ScriptPropertyClassifier.Classify(Member.Type);
+                FScriptPropertyClassification Classification = ScriptPropertyClassifier.ClassifyMember(Member.Symbol, Member.Type);
                 if (!Classification.IsSupported)
                 {
                     Errors.Add($"{FilePath}({Line(Member.At)}): [Property] '{Name}' has type "
                              + $"'{Member.Type.ToDisplayString()}': {Classification.Rejection}");
+                    continue;
+                }
+
+                if (Classification.Access == EScriptAccess.ComponentRef && Member.Initializer != null)
+                {
+                    Errors.Add($"{FilePath}({Line(Member.At)}): [Property(Component)] '{Name}' is bound to the entity's component before OnAttach, so it cannot be initialized.");
                     continue;
                 }
 
@@ -583,6 +595,11 @@ internal static class ScriptPropertyRewriter
                     Get = $"global::LuminaSharp.NativeStructs.FromAddress<{Type}>((nint){SelfHandle} + {Offset})";
                     Set = $"global::LuminaSharp.Native.PropCopyStruct({SelfHandle}, {Token}, "
                         + "global::LuminaSharp.NativeStructs.AddressOf(value))";
+                    break;
+
+                // Native binds the reference before OnAttach, and it is read as the tracked handle it was laid out to be.
+                case EScriptAccess.ComponentRef:
+                    Get = $"global::LuminaSharp.NativeStructs.FromRef<{Type}>(*(global::LuminaSharp.NativeRef*)((nint){SelfHandle} + {Offset}))";
                     break;
 
                 // A strong object reference, stored natively as an object property so it keeps its target alive.

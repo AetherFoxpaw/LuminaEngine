@@ -44,6 +44,9 @@ namespace Lumina
     {
         TUniquePtr<FNavMesh>            Mesh;
 
+        // The highest topology epoch any mesh this runtime dropped reached, which its next mesh continues from.
+        uint64                          RetiredEpoch = 0;
+
         /** Shared with the bake worker, so dropping this mid-bake leaves the worker a live handle. */
         TSharedPtr<FNavBakeHandle>      ActiveBake;
 

@@ -1038,6 +1038,7 @@ namespace Lumina
         case EPropertyTypeFlags::String: return FStringPropertyCustomization::MakeInstance();
         case EPropertyTypeFlags::Enum:   return FEnumPropertyCustomization::MakeInstance();
         case EPropertyTypeFlags::Delegate: return FDelegatePropertyCustomization::MakeInstance();
+        case EPropertyTypeFlags::ComponentRef: return FComponentRefPropertyCustomization::MakeInstance();
         default: return nullptr;
         }
     }
@@ -1756,10 +1757,7 @@ namespace Lumina
             bExpanded = false;
         }
 
-        if (!Customization)
-        {
-            RebuildChildren();
-        }
+        RebuildChildren();
     }
 
     void FStructPropertyRow::Update()
@@ -1882,6 +1880,11 @@ namespace Lumina
 
     void FStructPropertyRow::RebuildChildren()
     {
+        // A customization draws the whole value itself, so member rows would show it twice.
+        if (Customization)
+        {
+            return;
+        }
         BuildMemberRows(StructProperty->GetStruct(), PropertyHandle->GetValuePtr(), PropertyHandle->GetDefaultValuePtr());
     }
 

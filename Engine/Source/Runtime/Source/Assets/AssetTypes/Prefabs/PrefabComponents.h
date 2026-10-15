@@ -34,6 +34,10 @@ namespace Lumina
 
         PROPERTY(ReadOnly, Category = "Prefab")
         bool bIsRoot = false;
+
+        // The source's revision this copy last took, so an undo that restores older data is caught and refreshed.
+        PROPERTY()
+        uint32 AppliedRevision = 0;
     };
 
     /** One overridden leaf on an instance: a single property addressed by a delimiter-joined path

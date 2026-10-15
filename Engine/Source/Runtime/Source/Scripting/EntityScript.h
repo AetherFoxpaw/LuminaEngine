@@ -111,6 +111,9 @@ namespace Lumina
             OwningWorld  = InWorld;
         }
 
+        // Points every PROPERTY(Component) reference at the owner's component, adding it unless the property says Component = Get.
+        void BindComponentRefs();
+
         /// OnAttach has run, so a script loaded but never adopted gets no OnDetach.
         bool IsAttached() const { return OwningEntity != ECS::NullEntity; }
 

@@ -259,12 +259,27 @@ internal enum EScriptParamFlags : uint
     RefParam = 1u << 18,
 }
 
+// How a [Property(Component = ...)] reference is filled before OnAttach.
+public enum EComponentBind
+{
+    None,
+
+    // Finds the entity's component, leaving the reference unbound when it has none.
+    Get,
+
+    // Adds the component first when the entity has none.
+    GetOrAdd,
+}
+
 /// <summary>
 /// Exposes a script field/property to the editor (and saves it).
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
 public sealed class PropertyAttribute : Attribute
 {
+    // Turns a component-typed member into a reference to the owner entity's component, bound before OnAttach and never saved, the same as a C++ PROPERTY(Component = ...).
+    public EComponentBind Component { get; set; }
+
     /// <summary>Inspector group.</summary>
     public string? Category { get; set; }
 

@@ -141,6 +141,39 @@ internal static class ScriptPropertyClassifier
             : FScriptPropertyClassification.Of(bMarshalled ? EScriptAccess.MarshalledStruct : EScriptAccess.Blittable);
     }
 
+    // A [Property(Component = ...)] member is a reference to the owner's component rather than a value of that type.
+    public static FScriptPropertyClassification ClassifyMember(ISymbol Member, ITypeSymbol Type)
+    {
+        if (!BindsComponent(Member))
+        {
+            return Classify(Type);
+        }
+        bool bComponent = IsStructHandle(Type)
+            && Type.AllInterfaces.Any(Interface => Interface.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.Component);
+        return bComponent
+            ? FScriptPropertyClassification.Of(EScriptAccess.ComponentRef)
+            : FScriptPropertyClassification.Reject($"'{Display(Type)}' is not a component, and Component binds a reference to one of the entity's components.");
+    }
+
+    private static bool BindsComponent(ISymbol Member)
+    {
+        foreach (AttributeData Attribute in Member.GetAttributes())
+        {
+            if (Attribute.AttributeClass?.ToDisplayString() != ScriptPropertyTypeNames.PropertyAttribute)
+            {
+                continue;
+            }
+            foreach (KeyValuePair<string, TypedConstant> Argument in Attribute.NamedArguments)
+            {
+                if (Argument.Key == "Component" && Argument.Value.Value is int Bind && Bind != 0)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // A primitive is its bytes everywhere, and a mirror's size is checked against native at startup.
     private static bool IsEngineMirror(ITypeSymbol Type)
     {
@@ -426,6 +459,9 @@ internal enum EScriptAccess
 
     // A struct declared in script holding a string, so its native layout differs from its managed one and each field crosses on its own.
     MarshalledStruct,
+
+    // A reference to the owner entity's component, bound before OnAttach and read as the handle that tracks it.
+    ComponentRef,
 }
 
 /// <summary>The result of <see cref="ScriptPropertyClassifier.Classify"/>: the access shape plus whatever type
@@ -490,6 +526,7 @@ internal static class ScriptPropertyTypeNames
 {
     public const string NativeObject = "LuminaSharp.NativeObject";
     public const string NativeStruct = "LuminaSharp.INativeStruct";
+    public const string Component = "LuminaSharp.IComponent<TSelf>";
     public const string SoftObjectReference = "LuminaSharp.ISoftObjectReference";
     public const string InputBinding = "LuminaSharp.SInputBinding";
 

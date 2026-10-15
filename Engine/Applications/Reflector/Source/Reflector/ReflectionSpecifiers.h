@@ -76,7 +76,7 @@ namespace Lumina::Reflection
     X(Replicated,           Flag,   Runtime,   "Alias of Sync.") \
     X(Change,               Value,  Runtime,   "A FUNCTION() run whenever the Sync field changes, or a Bind field is changed by its UI, taking nothing or (Old, New).") \
     X(Bind,                 Either, Runtime,   "Exposes the value to a UI document as {{ Name }} and the data-* views, under this name or its own. A struct binds its members and a TVector binds for data-for.") \
-    X(Element,              Either, Runtime,   "Fills an SUIElement with the element of this id, or of the property's name, each time the script's UI document loads.") \
+    X(Element,              Either, Runtime,   "Fills an SUIElement with the element of this id, or of the property's name, each time the script's UI document loads.")     X(Component,            Either, Runtime,   "Binds a TComponentRef to the owner entity's component before OnAttach, adding it first. Component = Get only finds it, leaving the reference unbound when the entity has none.") \
     X(Rate,                 Number,  Runtime,   "The most times a second the host sends the Sync field. A change sooner than that waits for the next slot.") \
     X(Quantize,             Number,  Runtime,   "Snaps a numeric Sync field to multiples of this step, so a smaller wobble never reaches the wire.") \
     X(Validate,             Value,  Runtime,   "For a Sync = FromOwner field, a FUNCTION() taking the proposed value and returning whether the host accepts it.") \

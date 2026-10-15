@@ -43,6 +43,7 @@
 #include <World/Entity/Systems/CameraSystem.h>
 #include "Config/EngineSettings.h"
 #include "Input/Key.h"
+#include "Renderer/RenderLayers.h"
 #include "implot.h"
 #include "LuminaEditor.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
@@ -616,6 +617,11 @@ namespace Lumina
         PropertyCustomizationRegistry->RegisterPropertyCustomization(SKey::StaticStruct()->GetName(), []
         {
            return FKeyPropertyCustomization::MakeInstance();
+        });
+
+        PropertyCustomizationRegistry->RegisterPropertyCustomization(SRenderLayerMask::StaticStruct()->GetName(), []
+        {
+           return FRenderLayerMaskPropertyCustomization::MakeInstance();
         });
 
         PropertyCustomizationRegistry->RegisterPropertyCustomization(SInputActionHandle::StaticStruct()->GetName(), []

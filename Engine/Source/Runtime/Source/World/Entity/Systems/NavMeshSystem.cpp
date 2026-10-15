@@ -87,6 +87,15 @@ namespace Lumina
             }
         }
 
+        void RetireNavMesh(FNavMeshRuntime& RT)
+        {
+            if (RT.Mesh)
+            {
+                RT.RetiredEpoch = Math::Max(RT.RetiredEpoch, RT.Mesh->GetTopologyEpoch());
+                RT.Mesh.reset();
+            }
+        }
+
         void DrawNavDebug(const FSystemContext& Context, SNavMeshComponent& Comp)
         {
             const FNavMesh& Mesh = *Comp.Runtime.Mesh;
@@ -1979,7 +1988,7 @@ namespace Lumina
                     // Fail explicitly, since leaving State=Building here read as stuck on Baking.
                     LOG_WARN("NavMesh bake produced no walkable tiles ({} total). Check the bounds overlap source geometry, and that the volume/scale isn't so large the bake was capped.", (int32)Comp.Tiles.size());
                     Comp.Runtime.bRuntimeDirty = false;
-                    Comp.Runtime.Mesh.reset();
+                    RetireNavMesh(Comp.Runtime);
                     Comp.Runtime.State = ENavBakeState::Failed;
                 }
                 else
@@ -1993,14 +2002,20 @@ namespace Lumina
             // Drain finished async hydration.
             if (Comp.Runtime.PendingInit && Comp.Runtime.PendingInit->bDone.load(std::memory_order_acquire))
             {
-                Comp.Runtime.Mesh = std::move(Comp.Runtime.PendingInit->ResultMesh);
+                TUniquePtr<FNavMesh> Hydrated = std::move(Comp.Runtime.PendingInit->ResultMesh);
                 Comp.Runtime.PendingInit.reset();
+                RetireNavMesh(Comp.Runtime);
+                if (Hydrated)
+                {
+                    Hydrated->ContinueTopologyEpochFrom(Comp.Runtime.RetiredEpoch);
+                }
+                Comp.Runtime.Mesh = std::move(Hydrated);
                 // dtNavMesh::init or addTile can fail; without this branch state silently goes Ready.
                 if (!Comp.Runtime.Mesh || !Comp.Runtime.Mesh->IsReady())
                 {
                     LOG_ERROR("NavMesh hydration failed: dtNavMesh did not initialize (recast vendoring missing, or addTile rejected every blob). All Nav queries will return false.");
                     Comp.Runtime.State = ENavBakeState::Failed;
-                    Comp.Runtime.Mesh.reset();
+                    RetireNavMesh(Comp.Runtime);
                 }
                 else
                 {

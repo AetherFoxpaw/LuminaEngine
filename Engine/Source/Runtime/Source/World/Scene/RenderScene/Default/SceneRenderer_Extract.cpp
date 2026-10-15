@@ -83,7 +83,7 @@ namespace Lumina
         }
     }
 
-    void FDefaultSceneRenderer::Extract(const FViewVolume& ViewVolume, const SPostProcessSettings* PostProcess)
+    void FDefaultSceneRenderer::Extract(const FViewVolume& ViewVolume, const SPostProcessSettings* PostProcess, const FViewLayerSettings& Layers)
     {
         LUMINA_PROFILE_SCOPE();
         LUMINA_MEMORY_SCOPE("Render Scene");
@@ -100,6 +100,7 @@ namespace Lumina
         Frame.bExtractedThisFrame  = false;
         Frame.CachedWorldDeltaTime = (float)World->GetWorldDeltaTime();
         Frame.ViewVolume           = ViewVolume;
+        Frame.ViewLayers           = Layers;
 
         // PostProcess is a stack temporary in CWorld::Extract, so value-copy it.
         if (PostProcess != nullptr)
@@ -202,6 +203,7 @@ namespace Lumina
         SceneGlobalData.CullData.bHasDirectional        = 0u;
         SceneGlobalData.CullData.bFrustumCull           = FrameSettings.bFrustumCull;
         SceneGlobalData.CullData.bOcclusionCull         = FrameSettings.bOcclusionCull;
+        SceneGlobalData.CullData.CameraLayerMask        = Layers.CullMask;
 
         // Copied, not aliased, since freezing the cull replaces these and leaves the render camera.
         SceneGlobalData.CullData.CullCameraPosition     = SceneGlobalData.CameraData.Location;
@@ -682,6 +684,8 @@ namespace Lumina
 
         // The bounds build reads the retained slots this sync rewrites.
         JoinInstanceBlockBounds();
+
+        ScenePrimitives.SetForegroundView(ExtractFrame->ViewVolume, ExtractFrame->ViewLayers);
 
         MovedTransformScratch.clear();
         ECS::Utils::DrainMovedTransforms(Registry, MovedTransformConsumer, MovedTransformScratch);
@@ -1651,6 +1655,7 @@ namespace Lumina
                 }
                 Item.bEmit               = Component.bEmit;
                 Item.bBurstOnSpawn       = Component.bBurstOnSpawn;
+                Item.bOnDrawnLayer       = Frame.ViewLayers.Draws(Component.RenderLayers);
                 Item.bForceBurst         = bForceBurst;
                 Item.bForceReset         = bForceReset;
                 Item.MeshletHeaderSlot   = Emitter->RenderMode == EParticleRenderMode::Mesh ? ResidentMeshletHeaderSlot(Emitter->Mesh.Get()) : 0u;
@@ -2304,6 +2309,10 @@ namespace Lumina
         // Dense, since the range indexes skeletal primitives rather than the whole table.
         const uint32* RESTRICT Skeletal = SkeletalPrimitiveIndices;
 
+        // A skeleton on a layer no view draws is never skinned.
+        const bool   bOtherViews  = !Frame.Views.CaptureViews.empty() || Frame.ReflectionProbes.BakingProbe >= 0;
+        const uint32 DrawnLayers  = Frame.ViewLayers.CullMask | (bOtherViews ? RenderLayers::kAllMask : 0u);
+
         // Claimed from the shared cursor a batch at a time, since every worker bumping it per primitive fights over one line.
         constexpr uint32 AcceptBatch = 64;
         uint32 Accepted[AcceptBatch];
@@ -2331,6 +2340,10 @@ namespace Lumina
             if (Prim.Surfaces == nullptr || Prim.SurfaceCount == 0u || Prim.BoneCount == 0u)
             {
                 return;   // parked awaiting resolve or a skeleton; the sync pass retries it
+            }
+            if ((Prim.RenderLayers & DrawnLayers) == 0u)
+            {
+                return;
             }
 
             // A superset of what the emit pass accepts; anything it rejects just leaves an unused hole.
@@ -3006,7 +3019,7 @@ namespace Lumina
         for (ECS::FEntity Entity : PointView)
         {
             const SPointLightComponent& Light = PointView.Get<SPointLightComponent>(Entity);
-            if (!Light.bCastShadows || Light.Intensity <= 0.0f)
+            if (!Light.bCastShadows || Light.Intensity <= 0.0f || !Frame.ViewLayers.Draws(Light.RenderLayers))
             {
                 continue;
             }
@@ -3024,7 +3037,7 @@ namespace Lumina
         for (ECS::FEntity Entity : SpotView)
         {
             const SSpotLightComponent& Light    = SpotView.Get<SSpotLightComponent>(Entity);
-            if (!Light.bCastShadows || Light.Intensity <= 0.0f)
+            if (!Light.bCastShadows || Light.Intensity <= 0.0f || !Frame.ViewLayers.Draws(Light.RenderLayers))
             {
                 continue;
             }
@@ -3094,7 +3107,7 @@ namespace Lumina
     void FDefaultSceneRenderer::ProcessPointLight(const SPointLightComponent& PointLight, const STransformComponent& TransformComponent, FLightBatch& Batch, TAtomic<uint32>& LightCount)
     {
         // A switched-off light adds nothing to the image, so it should not take a slot or a cluster test either.
-        if (PointLight.Intensity <= 0.0f)
+        if (PointLight.Intensity <= 0.0f || !ExtractFrame->ViewLayers.Draws(PointLight.RenderLayers))
         {
             return;
         }
@@ -3179,7 +3192,7 @@ namespace Lumina
 
     void FDefaultSceneRenderer::ProcessSpotLight(const SSpotLightComponent& SpotLight, const STransformComponent& TransformComponent, FLightBatch& Batch, TAtomic<uint32>& LightCount)
     {
-        if (SpotLight.Intensity <= 0.0f)
+        if (SpotLight.Intensity <= 0.0f || !ExtractFrame->ViewLayers.Draws(SpotLight.RenderLayers))
         {
             return;
         }
@@ -3271,7 +3284,7 @@ namespace Lumina
 
     void FDefaultSceneRenderer::ProcessAreaLight(const SAreaLightComponent& AreaLight, const STransformComponent& TransformComponent, FLightBatch& Batch, TAtomic<uint32>& LightCount)
     {
-        if (AreaLight.Intensity <= 0.0f)
+        if (AreaLight.Intensity <= 0.0f || !ExtractFrame->ViewLayers.Draws(AreaLight.RenderLayers))
         {
             return;
         }
@@ -3659,6 +3672,11 @@ namespace Lumina
         const float ShadowTolerance   = ShadowLODTexels();
         const float ShadowAtlasTexels = (float)ShadowAtlas.GetConfig().AtlasResolution;
 
+        // The camera and its shadows draw what the camera draws, and the other views skip a remapped Foreground layer, which only lines up from the camera.
+        const FViewLayerSettings& Layers = Frame.ViewLayers;
+        const uint32 OtherViewLayers = Layers.IsForegroundActive() ? ~RenderLayers::kForegroundMask : RenderLayers::kAllMask;
+        uint32 PushLayers = Layers.CullMask;
+
         auto PushView = [&](const FMatrix4& ViewProjection, const FVector3& Origin, uint32 Flags, float LODErrorScale,
                             uint32 CascadeIndex = Constants::kIndexNoneU32, float MinBoundsDiameter = 0.0f)
         {
@@ -3676,6 +3694,7 @@ namespace Lumina
             View.CascadeIndex       = CascadeIndex;
             View.MinBoundsDiameter  = MinBoundsDiameter;
             View.LODErrorScale      = LODErrorScale;
+            View.LayerMask          = PushLayers;
             CullViews.push_back(View);
 
             return ViewIndex;
@@ -3835,6 +3854,7 @@ namespace Lumina
                      MakeLODErrorScale(ShadowData.ViewProjection[0], SpotTexels, ShadowTolerance));
         }
 
+        PushLayers = OtherViewLayers;
         for (FFrameData::FCaptureViewData& Capture : Frame.Views.CaptureViews)
         {
             const FMatrix4 CaptureVP = Capture.ViewVolume.GetProjectionMatrix() * Capture.ViewVolume.GetViewMatrix();

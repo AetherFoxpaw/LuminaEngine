@@ -1010,7 +1010,10 @@ namespace Lumina
 
         const FScenePrimitive&    Prim = Primitives[Index];
         const FPrimitiveCullData& Cull = CullData[Index];
-        const FVector4&           Sphere = Bounds[Index];
+        const FVector4            Sphere = InstanceSphereOf(Index);
+        // Its shadow would fall from where it is drawn rather than where it is.
+        const bool                bRemapped   = IsRemappedForeground(Prim);
+        const bool                bCastShadow = Prim.bCastShadow && !bRemapped;
 
         for (uint32 s = 0; s < Prim.SurfaceCount; ++s)
         {
@@ -1022,13 +1025,17 @@ namespace Lumina
             }
 
             EInstanceFlags Flags = Prim.BaseFlags | Binding.MaterialFlags;
-            if (Prim.bCastShadow && Binding.bMaterialCastsShadows)
+            if (bCastShadow && Binding.bMaterialCastsShadows)
             {
                 Flags |= EInstanceFlags::CastShadow;
                 if (Prim.bCastFarShadow)
                 {
                     Flags |= EInstanceFlags::CastFarShadow;
                 }
+            }
+            if (bRemapped)
+            {
+                Flags &= ~EInstanceFlags::HasDistanceField;
             }
 
             // Skeletal primitives are Active now, so CullInstances compacts them like everything else.
@@ -1049,9 +1056,9 @@ namespace Lumina
             NewCull.DrawIDAndFlags   = PackDrawIDAndFlags(Binding.BatchIndex, Flags);
             NewCull.SurfaceDescIndex = Binding.SurfaceDescIndex;
             NewCull.MaxDrawDistance  = Cull.MaxDrawDistance;
-            NewCull.LODAndThinning   = PackLODAndThinning(Prim.ForcedLODIndex, 0.0f);
+            NewCull.LODAndThinning   = PackLODAndThinning(Prim.ForcedLODIndex, 0.0f, Prim.RenderLayers);
 
-            const FTransform3x4 NewTransform = PackTransform3x4(Prim.Transform);
+            const FTransform3x4 NewTransform = PackTransform3x4(InstanceTransformOf(Prim));
 
             FInstanceStatic NewStatic = {};
             NewStatic.MeshletHeaderSlot = Prim.MeshletHeaderSlot;
@@ -1060,6 +1067,7 @@ namespace Lumina
             NewStatic.EntityID          = Prim.EntityID;
             // Owned by AssignMeshletVisibility, which a rebuilt payload must not undo.
             NewStatic.MeshletVisibilityBase = RetainedStatic[Slot].MeshletVisibilityBase;
+            NewStatic.RenderLayers      = Prim.RenderLayers;
 
             // A resolve bump onto identical values must not dirty the slot, or every instance re-uploads.
             const bool bCullChanged      = StoreIfChanged(RetainedCullEntries[Slot], NewCull);
@@ -1090,8 +1098,8 @@ namespace Lumina
         }
 
         const FScenePrimitive& Prim   = Primitives[Index];
-        const FVector4&        Sphere = Bounds[Index];
-        const FTransform3x4    Packed = PackTransform3x4(Prim.Transform);
+        const FVector4         Sphere = InstanceSphereOf(Index);
+        const FTransform3x4    Packed = PackTransform3x4(InstanceTransformOf(Prim));
 
         for (uint32 s = 0; s < Prim.SurfaceCount; ++s)
         {
@@ -1116,6 +1124,77 @@ namespace Lumina
             {
                 MarkInstanceDirty(Slot);
             }
+        }
+    }
+
+    FMatrix4 FScenePrimitiveSet::InstanceTransformOf(const FScenePrimitive& Prim) const
+    {
+        return IsRemappedForeground(Prim) ? ForegroundTransform * Prim.Transform : Prim.Transform;
+    }
+
+    FVector4 FScenePrimitiveSet::InstanceSphereOf(uint32 Index) const
+    {
+        const FVector4& Sphere = Bounds[Index];
+        if (!IsRemappedForeground(Primitives[Index]))
+        {
+            return Sphere;
+        }
+        return FVector4(FVector3(ForegroundTransform * FVector4(FVector3(Sphere), 1.0f)), Sphere.w * ForegroundRadiusScale);
+    }
+
+    void FScenePrimitiveSet::TrackForeground(uint32 Index)
+    {
+        if ((Primitives[Index].RenderLayers & RenderLayers::kForegroundMask) != 0u && !Algo::Contains(ForegroundKeys, Keys[Index]))
+        {
+            ForegroundKeys.push_back(Keys[Index]);
+        }
+    }
+
+    void FScenePrimitiveSet::SetForegroundView(const FViewVolume& View, const FViewLayerSettings& Layers)
+    {
+        const bool bActive = Layers.IsForegroundActive() && !View.IsOrthographic();
+
+        // Scaled about the eye, toward it by the depth scale and across by the field of view ratio, so every point keeps its pixel ray.
+        FMatrix4 Transform(1.0f);
+        float    RadiusScale = 1.0f;
+        if (bActive)
+        {
+            const float Widen = Math::Tan(Math::Radians(View.GetFOV()) * 0.5f) / Math::Tan(Math::Radians(Layers.ForegroundFOV) * 0.5f);
+            const float Depth = Layers.ForegroundDepthScale;
+            Transform   = View.GetInverseViewMatrix() * Math::Scale(FMatrix4(1.0f), FVector3(Widen * Depth, Widen * Depth, Depth)) * View.GetViewMatrix();
+            RadiusScale = Math::Max(Widen, 1.0f) * Depth;
+        }
+
+        const bool bToggled = bActive != bForegroundActive;
+        if (!bToggled && Transform == ForegroundTransform)
+        {
+            return;
+        }
+
+        bForegroundActive     = bActive;
+        ForegroundTransform   = Transform;
+        ForegroundRadiusScale = RadiusScale;
+
+        for (SIZE_T i = 0; i < ForegroundKeys.size();)
+        {
+            const uint32 Index = FindPrimitive(ForegroundKeys[i]);
+            if (Index == Constants::kIndexNoneU32 || (Primitives[Index].RenderLayers & RenderLayers::kForegroundMask) == 0u)
+            {
+                ForegroundKeys[i] = ForegroundKeys.back();
+                ForegroundKeys.pop_back();
+                continue;
+            }
+
+            // Toggling changes whether it casts shadows, which only the full refresh rewrites.
+            if (bToggled)
+            {
+                RefreshInstances(Index);
+            }
+            else
+            {
+                RefreshInstanceTransform(Index);
+            }
+            ++i;
         }
     }
 
@@ -1368,6 +1447,7 @@ namespace Lumina
             Prim.ForcedLODIndex  = Component.ForcedLODIndex;
             Prim.bCastShadow     = Component.bCastShadow;
             Prim.bCastFarShadow  = Component.bCastFarShadow;
+            Prim.RenderLayers    = Component.RenderLayers.Bits;
 
             Cull.MaxDrawDistance = Component.MaxDrawDistance;
             Cull.bCastShadow     = Component.bCastShadow ? 1u : 0u;
@@ -1557,6 +1637,7 @@ namespace Lumina
         }
 
         RebuildWorldBounds(Index);
+        TrackForeground(Index);
         RefreshInstances(Index);
         ++StructureGeneration;
 

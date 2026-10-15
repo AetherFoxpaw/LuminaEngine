@@ -156,6 +156,9 @@ namespace Lumina
 
         void Serialize(FArchive& Ar) override;
 
+        // Both registries, so a world loaded but never initialized, or no longer managed, still shows what its entities hold.
+        void VisitAdditionalObjectReferences(FObjectReferenceVisitor::FSlotFunc Func) override;
+
         void PreLoad() override;
 
         void PostLoad() override;

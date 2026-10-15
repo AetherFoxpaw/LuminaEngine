@@ -114,7 +114,7 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
             return null;
         }
 
-        FScriptPropertyClassification Classification = ScriptPropertyClassifier.Classify(Field.Type);
+        FScriptPropertyClassification Classification = ScriptPropertyClassifier.ClassifyMember(Field, Field.Type);
         if (!Classification.IsSupported)
         {
             return Diagnostic.Create(UnsupportedType, Location, Field.Name, Field.Type.ToDisplayString(),
@@ -139,8 +139,9 @@ public sealed class ScriptPropertyGenerator : IIncrementalGenerator
             return null;
         }
 
-        FScriptPropertyClassification Classification = ScriptPropertyClassifier.Classify(Property.Type);
-        EScriptMemberKind Kind = Property.SetMethod != null || Classification.IsView ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
+        FScriptPropertyClassification Classification = ScriptPropertyClassifier.ClassifyMember(Property, Property.Type);
+        bool bNativeFilled = Classification.IsView || Classification.Access == EScriptAccess.ComponentRef;
+        EScriptMemberKind Kind = Property.SetMethod != null || bNativeFilled ? EScriptMemberKind.WritableProperty : EScriptMemberKind.ReadOnlyProperty;
         if (!ScriptPropertyClassifier.RuleFor(Property, Kind, bOwnerIsNativeObject: true).bStored)
         {
             return null;

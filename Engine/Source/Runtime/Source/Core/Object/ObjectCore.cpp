@@ -435,11 +435,11 @@ namespace Lumina
         FPropertyArena& Arena = Outer->GetPropertyArena();
         Arena.Reserve(NumProperties * kArenaBytesPerProperty);
 
-        // Last to first, the order a struct's properties have always had and the order its packages were written in.
+        // Declaration order, since AddProperty appends. Packages written in the old reversed order still load by name.
         const FPropertyOwner Owner{ &Arena, Outer, nullptr };
-        for (uint32 Index = NumProperties; Index != 0; --Index)
+        for (uint32 Index = 0; Index < NumProperties; ++Index)
         {
-            ConstructProperty(Owner, Properties[Index - 1]);
+            ConstructProperty(Owner, Properties[Index]);
         }
     }
 

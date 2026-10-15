@@ -482,6 +482,9 @@ struct FInstanceCullEntry
     // Past this camera distance a foliage instance thins out, 0 never.
     property float ThinningStartDistance { get { return f16tof32(LODAndThinning >> 16u); } }
 
+    // Clear for the Default layer, which is nearly everything, so only the rest load their mask from FInstanceStatic.
+    property bool bCustomLayers { get { return (LODAndThinning & INSTANCE_CUSTOM_LAYERS_BIT) != 0u; } }
+
     bool HasFlag(EInstanceFlags Flag)
     {
         uint Mask = (uint)Flag << 16;
@@ -505,7 +508,8 @@ struct FInstanceStatic
     uint            SkinnedVertexBase;
     // One visibility word per block of its camera LOD, kNoMeshletVisibility for none.
     uint            MeshletVisibilityBase;
-    uint            _Pad0;
+    // Only meaningful when the cull entry has bCustomLayers.
+    uint            RenderLayers;
 }
 
 // Word 0 is never handed out, so a zeroed payload reads as an instance with no meshlet visibility.
@@ -652,7 +656,8 @@ struct FGPUInstance
     uint                    MeshletTotalCount;
     // Into InstanceVisibility, keyed by the retained slot since the compacted slot changes every frame.
     uint                    RetainedSlot;
-    uint                    _Pad0[3];
+    uint                    RenderLayers;
+    uint                    _Pad0[2];
 
     property float4x4 ModelMatrix { get { return Transform.ToMatrix(); } }
 
@@ -878,7 +883,7 @@ struct FCullView
     float  MinBoundsDiameter;  // world units, 0 is off
     // Pixels a unit of world error covers at unit distance, over the pixel error the view tolerates; 0 pins LOD 0.
     float  LODErrorScale;
-    uint   _Pad0;
+    uint   LayerMask;
 
     property float3 ViewOrigin { get { return ViewOriginAndFlags.xyz; } }
     property uint   Flags      { get { return asuint(ViewOriginAndFlags.w); } }
@@ -928,8 +933,9 @@ struct FCullData
     // The cull camera's clip range, which under a frozen cull is not the live view's.
     float    CullNearPlane;
     float    CullFarPlane;
+    // Render layers the primary camera draws, for passes that cull without a cull view.
+    uint     CameraLayerMask;
     // Holds the struct at a 16-byte multiple, which the members after it in FSceneGlobalData rely on.
-    uint     _CullPad0;
     uint     _CullPad1;
     uint     _CullPad2;
 };

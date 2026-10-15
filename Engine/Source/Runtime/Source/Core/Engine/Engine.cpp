@@ -1,9 +1,9 @@
 ﻿#include "Platform/Time/PlatformTime.h"
-#include "World/ECS/ECSReferenceProvider.h"
 #include "World/Entity/PersistentEntities.h"
 #include "RuntimePCH.h"
 #include <string>
 #include "Engine.h"
+#include "Core/Object/ObjectReferenceProvider.h"
 #include "FrameStats.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
 #include "Core/Diagnostics/HangWatchdog.h"
@@ -258,7 +258,6 @@ namespace Lumina
         };
 
         // Before anything can build an object, so a reinstance always sees every holder.
-        FECSObjectReferenceProvider::Register();
         if (GConfig != nullptr)
         {
             FObjectReferenceProviders::Register(GConfig);

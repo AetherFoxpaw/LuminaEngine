@@ -3211,6 +3211,35 @@ namespace Lumina
         });
     }
 
+    void FSceneEditorTool::ExpandVisualizerEntities(TVector<ECS::FEntity>& InOutEntities)
+    {
+        const ECS::FHierarchy& Hierarchy = GetSceneRegistry().GetHierarchy();
+        const SIZE_T NumSelected = InOutEntities.size();
+
+        if (!bShowHierarchyVisualizers)
+        {
+            for (SIZE_T i = 0; i < NumSelected; ++i)
+            {
+                Hierarchy.ForEachChild(InOutEntities[i], [&](ECS::FEntity Child) { InOutEntities.push_back(Child); });
+            }
+            return;
+        }
+
+        // Each tree once, however many of its entities are selected.
+        for (ECS::FEntity& Entity : InOutEntities)
+        {
+            Entity = Hierarchy.GetRoot(Entity);
+        }
+        Algo::Sort(InOutEntities);
+        InOutEntities.erase(Algo::Unique(InOutEntities), InOutEntities.end());
+
+        const SIZE_T NumRoots = InOutEntities.size();
+        for (SIZE_T i = 0; i < NumRoots; ++i)
+        {
+            Hierarchy.ForEachDescendant(InOutEntities[i], [&](ECS::FEntity Descendant) { InOutEntities.push_back(Descendant); });
+        }
+    }
+
     bool FSceneEditorTool::HasVisualizerSubSelection() const
     {
         if (VisualizerInteraction.SelectedSubElement == Constants::kIndexNone || VisualizerInteraction.SelectedComponentType == nullptr)
@@ -3334,19 +3363,21 @@ namespace Lumina
         }
 
         // Worker-visible storage, since a lambda never captures a thread_local and workers index this.
-        TVector<ECS::FEntity>& SelectedList = VisualizerEntityScratch;
-        GatherVisualizerEntities(SelectedList);
+        TVector<ECS::FEntity>& DrawList = VisualizerEntityScratch;
+        GatherVisualizerEntities(DrawList);
 
-        if (SelectedList.empty())
+        if (DrawList.empty())
         {
             return;
         }
+        ExpandVisualizerEntities(DrawList);
 
         ECS::FRegistry& Registry = GetSceneRegistry();
         ECS::Utils::ResolveAllDirtyTransforms(Registry);
 
-        auto DrawFor = [&](ECS::FEntity Entity)
+        Task::ParallelFor((uint32)DrawList.size(), [&](uint32 Index)
         {
+            const ECS::FEntity Entity = DrawList[Index];
             for (const FVisualizerBinding& Binding : VisualizerBindingScratch)
             {
                 if (Binding.Storage->Contains(Entity))
@@ -3354,16 +3385,6 @@ namespace Lumina
                     Binding.Visualizer->Draw(World->GetDebugInterface(), Registry, Entity);
                 }
             }
-        };
-
-        Task::ParallelFor((uint32)SelectedList.size(), [&](uint32 Index)
-        {
-            const ECS::FEntity SelectedEntity = SelectedList[Index];
-            DrawFor(SelectedEntity);
-            Registry.GetHierarchy().ForEachChild(SelectedEntity, [&](ECS::FEntity Child)
-            {
-                DrawFor(Child);
-            });
         }, 32);
     }
 
@@ -3435,7 +3456,7 @@ namespace Lumina
             auto& NameComponent = GetSceneRegistry().Get<SNameComponent>(Entity);
 
             // Per modal rather than process-wide, so two rename dialogs cannot share a buffer.
-            FFixedString& InputBuffer = RenameModalBuffer;
+            FFixedString& InputBuffer = TextModalBuffer;
 
             if (ImGui::IsWindowAppearing())
             {
@@ -3485,6 +3506,126 @@ namespace Lumina
 
             return false;
         });
+    }
+
+    void FSceneEditorTool::PushAddTagModal(ECS::FEntity Entity)
+    {
+        ToolContext->PushModal("Add Tag", ImVec2(450.0f, 220.0f), [this, Entity]() -> bool
+        {
+            ECS::FRegistry& Registry = GetSceneRegistry();
+            if (!Registry.IsValid(Entity))
+            {
+                return true;
+            }
+
+            if (ImGui::IsWindowAppearing())
+            {
+                TextModalBuffer.clear();
+                ImGui::SetKeyboardFocusHere();
+            }
+
+            ImGui::TextUnformatted("Tag name");
+            ImGui::Spacing();
+
+            ImGui::SetNextItemWidth(-1.0f);
+            const bool bEnter = ImGuiX::InputText("##Tag", TextModalBuffer, ImGuiInputTextFlags_EnterReturnsTrue);
+
+            const FName Tag = TextModalBuffer.empty() ? FName() : FName(TextModalBuffer.c_str());
+            const bool bExists = !Tag.IsNone() && ECS::Utils::EntityHasTag(Tag, Registry, Entity);
+            if (bExists)
+            {
+                ImGui::TextColored(EditorColors::Warning(), "The entity already carries this tag.");
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            constexpr float ButtonWidth = 100.0f;
+            const float AvailWidth = ImGui::GetContentRegionAvail().x;
+            ImGui::SetCursorPosX((AvailWidth - ButtonWidth * 2 - ImGui::GetStyle().ItemSpacing.x) * 0.5f);
+
+            ImGui::BeginDisabled(Tag.IsNone() || bExists);
+            const bool bAdd = ImGui::Button("Add", ImVec2(ButtonWidth, 0.0f)) || (bEnter && !Tag.IsNone() && !bExists);
+            ImGui::EndDisabled();
+            if (bAdd)
+            {
+                RunTransacted("Add Tag", [&]()
+                {
+                    Registry.NamedStorage<STagComponent>(Tag).Emplace(Entity).Tag = Tag;
+                });
+                return true;
+            }
+
+            ImGui::SameLine();
+            return ImGui::Button("Cancel", ImVec2(ButtonWidth, 0.0f));
+        });
+    }
+
+    void FSceneEditorTool::DrawTagSection(ECS::FEntity Entity)
+    {
+        ECS::FRegistry& Registry = GetSceneRegistry();
+        TVector<FName> Tags;
+        ECS::Utils::ForEachEntityTag(Registry, Entity, [&](const FName& Tag) { Tags.push_back(Tag); });
+        if (Tags.empty())
+        {
+            return;
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::TextDim());
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(LE_ICON_TAG " Tags");
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        const ImGuiStyle& Style = ImGui::GetStyle();
+        const float RightEdge = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+        const float CloseWidth = ImGui::CalcTextSize(LE_ICON_CLOSE).x + Style.FramePadding.x * 2.0f;
+
+        FName Removed;
+        ImGui::PushStyleColor(ImGuiCol_Button, EditorColors::FrameBg());
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, EditorColors::FrameBg());
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, EditorColors::FrameBg());
+        for (size_t Index = 0; Index < Tags.size(); ++Index)
+        {
+            const FName& Tag = Tags[Index];
+            ImGui::PushID(Tag.c_str());
+
+            // A chip wraps to the next line rather than running past the panel's edge.
+            const float ChipWidth = ImGui::CalcTextSize(Tag.c_str()).x + Style.FramePadding.x * 2.0f + CloseWidth;
+            if (Index > 0 && ImGui::GetItemRectMax().x + Style.ItemSpacing.x + ChipWidth <= RightEdge)
+            {
+                ImGui::SameLine();
+            }
+
+            ImGui::Button(Tag.c_str());
+
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::TextMuted());
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, EditorColors::Danger());
+            if (ImGui::Button(LE_ICON_CLOSE))
+            {
+                Removed = Tag;
+            }
+            ImGui::PopStyleColor(2);
+            ImGuiX::TextTooltip("Remove {}", Tag.c_str());
+
+            ImGui::PopID();
+        }
+        ImGui::PopStyleColor(3);
+
+        if (!Removed.IsNone())
+        {
+            RunTransacted("Remove Tag", [&]()
+            {
+                Registry.NamedStorage<STagComponent>(Removed).RemoveEntity(Entity);
+            });
+        }
+
+        ImGui::Spacing();
     }
 
     void FSceneEditorTool::DrawEntityProperties(ECS::FEntity Entity)
@@ -3557,8 +3698,14 @@ namespace Lumina
                 ImGui::SetTooltip("Add Component");
             }
 
-            // Tool-specific header buttons, such as the world editor's Add Tag.
-            DrawDetailsHeaderExtraButtons(Entity);
+            if (ImGui::Button(LE_ICON_TAG, ActionSize))
+            {
+                PushAddTagModal(Entity);
+            }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip("Add Tag");
+            }
 
             ImGui::PopStyleColor(3);
 
@@ -3624,8 +3771,7 @@ namespace Lumina
 
         ImGui::SeparatorText("Details");
 
-        // Tool-specific sections above the component list, such as the world editor's Tags.
-        DrawDetailsExtraSections(Entity);
+        DrawTagSection(Entity);
 
         ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::TextDim());
         ImGui::AlignTextToFramePadding();

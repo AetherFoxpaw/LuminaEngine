@@ -242,6 +242,7 @@ namespace Lumina
                 float                   SpawnRateMultiplier = 1.0f;
                 bool                    bEmit               = true;
                 bool                    bBurstOnSpawn       = true;
+                bool                    bOnDrawnLayer       = true;
 
                 // Extract-phase Activate()/Deactivate() intents, applied once then cleared.
                 bool                    bForceBurst         = false;
@@ -293,6 +294,7 @@ namespace Lumina
             };
 
             FViewVolume                      ViewVolume = {};
+            FViewLayerSettings               ViewLayers = {};
             FFrustum                         CameraFrustum = {};
             FSceneGlobalData                 SceneGlobalData = {};
             float                            CachedWorldDeltaTime = 0.0f;
@@ -649,7 +651,7 @@ namespace Lumina
 
         void Init() override;
 
-        void Extract(const FViewVolume& ViewVolume, const SPostProcessSettings* PostProcess) override;
+        void Extract(const FViewVolume& ViewVolume, const SPostProcessSettings* PostProcess, const FViewLayerSettings& Layers) override;
         void PrepareRender(uint8 FrameIndex) override;
         void RenderView(uint8 FrameIndex) override;
         void SetActivePostProcessMaterials(const TVector<CMaterialInterface*>& Materials) override { PendingPostProcessMaterials = Materials; }

@@ -8,7 +8,7 @@ using LuminaBuildTool.Platform;
 
 namespace LuminaBuildTool.Modes;
 
-/// <summary>First-time setup, fetching the dependency bundle, persisting LUMINA_DIR, configuring git hooks.</summary>
+/// <summary>First-time setup, fetching the dependency bundle, persisting LUMINA_DIR, configuring git hooks, registering file icons.</summary>
 public static class SetupMode
 {
     private const string ReleaseUrl =
@@ -80,11 +80,11 @@ public static class SetupMode
         Log.Info("Engine root: {0}", Directories.EngineRoot);
 
         Log.Info(string.Empty);
-        Log.Info("[1/3] Environment");
+        Log.Info("[1/4] Environment");
         PersistEngineDirectory(Directories.EngineRoot);
 
         Log.Info(string.Empty);
-        Log.Info("[2/3] External dependencies");
+        Log.Info("[2/4] External dependencies");
 
         BuildPlatform HostPlatform = BuildPlatformRegistry.HostPlatform;
         DependencyBundle? Bundle = Bundles.FirstOrDefault(B => B.Platform == HostPlatform);
@@ -119,8 +119,12 @@ public static class SetupMode
         }
 
         Log.Info(string.Empty);
-        Log.Info("[3/3] Git hooks");
+        Log.Info("[3/4] Git hooks");
         ConfigureGitHooks(Directories.EngineRoot);
+
+        Log.Info(string.Empty);
+        Log.Info("[4/4] File types");
+        FileTypeRegistration.Register(Directories.EngineRoot);
 
         Log.Info(string.Empty);
         Log.Info("Setup complete. Next: run {0}, or build and run directly with", RunMode.HostScriptName("GenerateProjectFiles"));

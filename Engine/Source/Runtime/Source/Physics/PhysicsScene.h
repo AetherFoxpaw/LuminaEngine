@@ -187,6 +187,10 @@ namespace Lumina::Physics
         // Runs around every fixed character step, after input is latched, so netcode can record or replace it.
         void SetCharacterStepHook(TFunction<void(float, bool)> Hook) { CharacterStepHook = Move(Hook); }
 
+        // Collision drawing for this scene alone, so one editor viewport's toggle never reaches another world.
+        void SetDebugDrawEnabled(bool bEnabled) { bDebugDraw = bEnabled; }
+        bool IsDebugDrawEnabled() const { return bDebugDraw; }
+
         virtual bool GetCharacterNetState(ECS::FEntity Entity, FCharacterNetState& Out) const { return false; }
         virtual bool SetCharacterNetState(ECS::FEntity Entity, const FCharacterNetState& State) { return false; }
 
@@ -342,5 +346,6 @@ namespace Lumina::Physics
 
         TFunction<void(float)> PreStepCallback;
         TFunction<void(float, bool)> CharacterStepHook;
+        bool bDebugDraw = false;
     };
 }

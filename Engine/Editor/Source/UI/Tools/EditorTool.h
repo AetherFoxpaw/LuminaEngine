@@ -396,6 +396,9 @@ namespace Lumina
         /** Toggle for the interactive pass, so face and radius handles can be muted without hiding the wireframe. */
         bool bVisualizerHandlesEnabled = true;
 
+        // Draws the wireframe of every entity in the selection's trees, root down, instead of only the selection and its children.
+        bool bShowHierarchyVisualizers = false;
+
         /** Component types whose visualizer the user switched off in the Visualizations menu. */
         THashSet<const CStruct*> HiddenVisualizerTypes;
 
