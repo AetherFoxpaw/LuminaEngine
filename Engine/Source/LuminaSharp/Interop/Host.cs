@@ -388,11 +388,12 @@ public static unsafe partial class Host
 
             DiscardPendingCompile();
             List<ScriptAssemblyUnit> Read = ReadUnits(Units, Count);
+            bool bUseLastBuildOnError = Scripts.bUseLastBuildOnError;
             PendingCompile = System.Threading.Tasks.Task.Run<FCompiledGeneration?>(() =>
             {
                 try
                 {
-                    return ScriptManager.BuildGeneration(Read);
+                    return ScriptManager.BuildGeneration(Read, bUseLastBuildOnError);
                 }
                 catch (Exception Exception)
                 {

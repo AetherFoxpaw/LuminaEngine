@@ -297,6 +297,9 @@ namespace Lumina
         // Restates each comment's title in screen space once the canvas is zoomed out too far to read it.
         void DrawCommentHints();
 
+        // Spells out a failing node's error right under it, so it is read in the graph rather than found in a log.
+        void DrawNodeErrorBubble(const CEdGraphNode* Node);
+
         // Pushes a node's stored position, and a comment's stored size, into the canvas.
         void ApplyNodeLayoutToCanvas(CEdGraphNode* Node);
 

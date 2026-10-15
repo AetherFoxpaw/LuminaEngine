@@ -88,6 +88,10 @@ namespace Lumina
         // Every required stage of the default set has a library entry, which is what readiness derives from.
         NODISCARD bool HasRequiredStages() const;
 
+        // Its last compile failed, as opposed to one still pending, so surfaces draw the error material instead.
+        NODISCARD bool HasCompileFailed() const { return bCompileFailed.load(std::memory_order_acquire); }
+        void SetCompileFailed(bool bFailed);
+
         // The default set's entry for Stage, null when this material does not produce it.
         NODISCARD FShaderH GetStage(EMaterialShaderStage Stage) const;
 
@@ -145,6 +149,7 @@ namespace Lumina
         NODISCARD bool ReferencesTexture(const CTexture* ChangedTexture) const;
 
         static CMaterial* GetDefaultMaterial();
+        static CMaterial* GetErrorMaterial();
         static CMaterial* GetDefaultTerrainMaterial();
         static void CreateDefaultMaterial();
         static void CreateDefaultTerrainMaterial();
@@ -286,6 +291,8 @@ namespace Lumina
 
         // Latched once the async loads are issued, since Extract asks every frame until they land.
         bool bTextureLoadRequested = false;
+
+        std::atomic_bool bCompileFailed { false };
 
         THashMap<FName, SMaterialParameter> ParameterLookup;
     };

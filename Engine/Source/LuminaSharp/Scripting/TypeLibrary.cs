@@ -502,7 +502,7 @@ internal sealed class TypeLibrary
         Type? Component = Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(TComponentRef<>) ? Type.GetGenericArguments()[0] : null;
         ScriptType? Value = Component != null ? ResolveType(Component) : null;
         return Value is { Kind: EPropertyType.Struct }
-            ? new ScriptType { Kind = EPropertyType.ComponentRef, Clr = Component, NativeName = Value.NativeName }
+            ? new ScriptType { Kind = EPropertyType.ComponentRef, Clr = Value.Clr, NativeName = Value.NativeName }
             : new ScriptType { Kind = EPropertyType.None, Clr = Type };
     }
 

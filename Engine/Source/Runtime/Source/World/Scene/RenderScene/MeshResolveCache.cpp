@@ -302,7 +302,12 @@ namespace Lumina
             {
                 bReady = false;
             }
-            Material = CMaterial::GetDefaultMaterial();
+
+            // A material still compiling keeps the plain default, so only a real failure shows the checker.
+            const CMaterial* Root = IsValid(RawMaterial) ? RawMaterial->GetMaterial() : nullptr;
+            CMaterial* ErrorMaterial = CMaterial::GetErrorMaterial();
+            const bool bShowError = IsValid(Root) && Root->HasCompileFailed() && IsValid(ErrorMaterial) && ErrorMaterial->IsReadyForRender();
+            Material = bShowError ? ErrorMaterial : CMaterial::GetDefaultMaterial();
         }
 
         // Second gate. IsReadyForRender reports that the material finished COMPILING.
