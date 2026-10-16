@@ -1059,7 +1059,7 @@ namespace Lumina
         // Frames a slice survives ungathered, so a mesh flicking through the cull does not thrash its base.
         static constexpr uint32                kBoneSliceGraceFrames = 300;
         uint32                                 BoneSliceFrameNumber = 0;
-        TVector<FUIntVector2>                  BoneUploadScratch;
+        TVector<uint64>                        BoneDirtyChunks;
 
         // Lights one parallel range builds, committed with one reservation so the ranges never contend per light.
         struct FLightBatch
@@ -1516,6 +1516,7 @@ namespace Lumina
         TArray<FSceneBuffer, RHI::kFramesInFlight> MeshletBlockRing = MakeSceneRing<RHI::kFramesInFlight>("Cull.MeshletBlocks", 1.2f);
         TArray<FSceneBuffer, RHI::kFramesInFlight> BlockDispatchArgsRing = MakeSceneRing<RHI::kFramesInFlight>("Cull.BlockDispatchArgs", 1.0f);
         TArray<FSceneBuffer, RHI::kFramesInFlight> SkinWorkBaseRing = MakeSceneRing<RHI::kFramesInFlight>("Skinning.WorkBase", 1.5f);
+        TArray<FSceneBuffer, RHI::kFramesInFlight> SkinWorkEntryRing = MakeSceneRing<RHI::kFramesInFlight>("Skinning.WorkEntry", 1.5f);
         TArray<FSceneBuffer, RHI::kFramesInFlight> SkinDispatchArgsRing = MakeSceneRing<RHI::kFramesInFlight>("Cull.SkinDispatchArgs", 1.0f);
         TArray<FSceneBuffer, RHI::kFramesInFlight> MeshletCullDispatchArgsRing = MakeSceneRing<RHI::kFramesInFlight>("Cull.MeshletCullDispatchArgs", 1.0f);
         TArray<FSceneBuffer, RHI::kFramesInFlight> InstanceViewRangeRing = MakeSceneRing<RHI::kFramesInFlight>("Cull.InstanceViewRanges", 1.25f);
@@ -1576,6 +1577,9 @@ namespace Lumina
         uint32                                              SkinnedMeshletBoundsCapacity = 0;
         // Longest per-slot meshlet range, which is the x extent of the bounds dispatch.
         uint32                                              SkinnedBoundsMaxRange = 0;
+
+        // Every gathered slot's surface meshlets, which bounds the skinning dispatch and sizes its work-entry map.
+        uint32                                              SkinWorkCapacity = 0;
         // Slots the retained static buffer actually holds, which bounds the header lookup in that pass.
         uint32                                              RetainedStaticCapacity = 0;
         uint32                                              UploadedSurfaceDescs = 0;

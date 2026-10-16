@@ -32,6 +32,7 @@
 #include "Log/Log.h"
 #include "Renderer/SkeletonResource.h"
 #include "Containers/StringFormat.h"
+#include "Core/Math/Hash/Hash.h"
 
 namespace Lumina
 {
@@ -849,23 +850,31 @@ namespace Lumina
                 }
             }
 
-            // Bit-exact because the same recipe on the same inputs runs the same instructions.
+            // Any other writer leaves the serial or the dirty flag moved, so only the animation system's own last pose is ever compared by hash.
+            const uint64 PoseHash = bProduced ? Hash::GetHash64(PoseScratch.data(), PoseScratch.size() * sizeof(FMatrix4)) : 0ull;
             const bool bPoseChanged = bProduced
                 && (PoseScratch.size() != Mesh.BoneTransforms.size()
-                || (!PoseScratch.empty()
-                    && Memory::Memcmp(PoseScratch.data(), Mesh.BoneTransforms.data(),
-                                      PoseScratch.size() * sizeof(FMatrix4)) != 0));
+                || Mesh.bRenderBonesDirty
+                || Mesh.PackedPoseSerial != Mesh.PoseSerial
+                || PoseHash != Mesh.PoseHash);
 
             if (bPoseChanged)
             {
-                // Swapped rather than copied, and the scratch inherits the old buffer to refill.
-                Mesh.BoneTransforms.swap(PoseScratch);
+                // Streamed rather than swapped, so the scratch stays cached and the component's cold lines are never read for ownership.
+                Mesh.BoneTransforms.resize(PoseScratch.size());
+                Memory::MemcpyToWriteCombined(Mesh.BoneTransforms.data(), PoseScratch.data(), PoseScratch.size() * sizeof(FMatrix4));
+
+                // Packed here while the scratch is in cache, so the gather copies half the bytes and never reads the matrices.
+                const uint32 NumBones = (uint32)PoseScratch.size();
+                Mesh.PackedBones.resize((SIZE_T)NumBones * 2u);
+                SkeletalUtils::PackRenderBones(PoseScratch.data(), NumBones, reinterpret_cast<FBoneTransform*>(Mesh.PackedBones.data()));
 
                 // A stale external write is superseded by the pose that just replaced it.
                 Mesh.bRenderBonesDirty = false;
 
-                // No pack here; the gather packs into its arena slice, only for what survives culling.
                 ++Mesh.PoseSerial;
+                Mesh.PackedPoseSerial = Mesh.PoseSerial;
+                Mesh.PoseHash         = PoseHash;
             }
         }
     }

@@ -337,6 +337,7 @@ namespace Lumina
             MeshletCullDispatchArgsRing[Slot].Release();
             SkinDispatchArgsRing[Slot].Release();
             SkinWorkBaseRing[Slot].Release();
+            SkinWorkEntryRing[Slot].Release();
             InstanceViewRangeRing[Slot].Release();
             MaterialClassifyRing[Slot].Release();
             VisibleInstanceRing[Slot].Release();
@@ -1637,6 +1638,7 @@ namespace Lumina
             RenderBucketRing[Slot].Allocate(sizeof(FRenderBucketGPU));
             MeshletBlockRing[Slot].Allocate(sizeof(uint32) * 2);
             SkinWorkBaseRing[Slot].Allocate(sizeof(uint32) * 2);
+            SkinWorkEntryRing[Slot].Allocate(sizeof(uint32) * 2);
             VisibleInstanceRing[Slot].Allocate(sizeof(FGPUInstance));
 
             // Fixed size, one grid each, rewritten every frame.
