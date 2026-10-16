@@ -12,6 +12,7 @@ namespace Lumina
 {
     class CObject;
     class CClass;
+    class CStruct;
     class CWorld;
     struct FAssetData;
 }
@@ -27,6 +28,8 @@ namespace Lumina::DragDrop
         Entity,
         SceneFolder,
         File,
+        // An entity the drop creates, named EntityName, carrying ComponentType or seeded from AssetObject when set.
+        NewEntity,
     };
 
     struct RUNTIME_API FPayload
@@ -43,6 +46,12 @@ namespace Lumina::DragDrop
 
         FFixedString    FilePath;
         FFixedString    FileExtension;
+
+        FName           EntityName;
+        CStruct*        ComponentType = nullptr;
+
+        // Set once the UI that started the drag has closed, so something else draws the drag preview.
+        bool            bSourceClosed = false;
     };
 
     constexpr const char* GImGuiPayloadType = "LumDD";
@@ -54,6 +63,10 @@ namespace Lumina::DragDrop
     RUNTIME_API void SetEntityPayload(CWorld* World, ECS::FEntity Entity);
     RUNTIME_API void SetSceneFolderPayload(CWorld* World, uint32 FolderID);
     RUNTIME_API void SetFilePayload(FStringView VirtualPath);
+    RUNTIME_API void SetNewEntityPayload(FName EntityName, CStruct* ComponentType = nullptr, CObject* Seed = nullptr);
+
+    // For a source that closes mid-drag, such as a popup the cursor left, so the drag carries on without it.
+    RUNTIME_API void MarkSourceClosed();
 
     // Target helpers
 

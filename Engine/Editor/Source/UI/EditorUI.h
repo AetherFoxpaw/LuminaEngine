@@ -358,7 +358,6 @@ namespace Lumina
         // A drag begun inside the drawer closes it once it leaves, uncovering the drop target underneath.
         bool                                            bDrawerDragSeen = false;
         bool                                            bDrawerDragStartedInDrawer = false;
-        bool                                            bDrawerClosedByDrag = false;
         ImGuiID                                         MainDockspaceID = 0;    // root editor dockspace, for "Dock in Layout"
 
         /**

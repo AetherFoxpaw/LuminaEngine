@@ -15,9 +15,8 @@ namespace Lumina
         Writes<SystemResource::PhysicsQuery>();
     }
 
-    void SFoliageCollisionSystem::OnUpdate()
+    void SFoliageCollisionSystem::OnUpdate(const SSystemContext& Context)
     {
-        const FSystemContext& Context = GetContext();
 
         LUMINA_PROFILE_SCOPE();
 
@@ -103,9 +102,8 @@ namespace Lumina
         });
     }
 
-    void SFoliageCollisionSystem::OnTeardown()
+    void SFoliageCollisionSystem::OnTeardown(const SSystemContext& Context)
     {
-        const FSystemContext& Context = GetContext();
 
         Physics::IPhysicsScene* Scene = Context.GetPhysicsScene();
 

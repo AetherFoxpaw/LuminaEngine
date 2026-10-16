@@ -387,12 +387,12 @@ namespace Lumina
 
         if (bUniformScale)
         {
-            // Propagated by RATIO, since scale multiplies, and a previous zero has no ratio to carry.
+            // Propagated by ratio, since scale multiplies, and a previous zero has no ratio to carry.
             float* Scale = Math::ValuePtr(ScaleVec);
             const float* Prev = Math::ValuePtr(PrevScale);
             for (int32 Axis = 0; Axis < 3; ++Axis)
             {
-                if (Scale[Axis] == Prev[Axis])
+                if (Math::IsNearlyEqual(Scale[Axis], Prev[Axis]))
                 {
                     continue;
                 }

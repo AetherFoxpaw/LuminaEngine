@@ -32,9 +32,12 @@ namespace Lumina
 
         static FEditorAssetDropRegistry& Get();
 
-        void Register(FName AssetClass, FEditorAssetDropHandler Handler);
+        // bPlacesEntity marks a handler that spawns a new entity with no target, which a viewport drag previews live.
+        void Register(FName AssetClass, FEditorAssetDropHandler Handler, bool bPlacesEntity = false);
 
         const FEditorAssetDropHandler* FindHandler(FName AssetClass) const;
+
+        NODISCARD bool PlacesEntity(FName AssetClass) const;
 
         // Runs the asset's handler, or with none sets the one object field on DropTarget's components that takes it.
         ECS::FEntity Drop(CWorld* World, CObject* Asset, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget) const;
@@ -44,6 +47,15 @@ namespace Lumina
 
     private:
 
-        THashMap<FName, FEditorAssetDropHandler> Handlers;
+        struct FEntry
+        {
+            FEditorAssetDropHandler Handler;
+            bool                    bPlacesEntity = false;
+        };
+
+        // The class's own entry, else the nearest super class's, so one registration covers its subclasses.
+        const FEntry* FindEntry(FName AssetClass) const;
+
+        THashMap<FName, FEntry> Handlers;
     };
 }

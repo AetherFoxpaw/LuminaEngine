@@ -109,6 +109,24 @@ namespace Lumina::DragDrop
         ImGui::SetDragDropPayload(GImGuiPayloadType, &GSentinel, 1, ImGuiCond_Once);
     }
 
+    void SetNewEntityPayload(FName EntityName, CStruct* ComponentType, CObject* Seed)
+    {
+        Reset();
+        GPayload.Kind = EPayloadKind::NewEntity;
+        GPayload.EntityName = EntityName;
+        GPayload.ComponentType = ComponentType;
+        GPayload.AssetObject = Seed;
+        ImGui::SetDragDropPayload(GImGuiPayloadType, &GSentinel, 1, ImGuiCond_Once);
+    }
+
+    void MarkSourceClosed()
+    {
+        if (GPayload.Kind != EPayloadKind::None)
+        {
+            GPayload.bSourceClosed = true;
+        }
+    }
+
     const FPayload* PeekPayload()
     {
         const ImGuiPayload* P = ImGui::GetDragDropPayload();

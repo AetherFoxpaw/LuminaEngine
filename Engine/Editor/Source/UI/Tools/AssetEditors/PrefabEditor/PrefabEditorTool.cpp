@@ -725,7 +725,8 @@ namespace Lumina
 
         Registry.Emplace<SPrefabComponent>(Entity).StableID = FName(FGuid::New().ToShortString());
 
-        if (Root != ECS::NullEntity && Root != Entity)
+        // One the spawn already parented, such as a drop onto a row, is inside the prefab already.
+        if (Root != ECS::NullEntity && Root != Entity && Registry.GetHierarchy().GetParent(Entity) == ECS::NullEntity)
         {
             ECS::Utils::ReparentEntity(Registry, Entity, Root);
         }
@@ -923,16 +924,11 @@ namespace Lumina
         Registry.Remove<SPrefabOverrideComponent>(Entity);
     }
 
-    void FPrefabEditorTool::HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget)
+    void FPrefabEditorTool::HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget, const FTransform* SpawnTransform)
     {
-        // Default drop target is the prefab root so dropped meshes become prefab-owned children.
-        if (DropTarget == ECS::NullEntity)
-        {
-            DropTarget = FindPrefabRoot();
-        }
-
+        // A drop on empty space spawns a root, which AdoptSpawnedSubtree below files under the prefab root.
         BeginTransaction();
-        ECS::FEntity Spawned = HandleContentBrowserAssetDrop(VirtualPath, DropTarget, bAttachToTarget);
+        ECS::FEntity Spawned = HandleContentBrowserAssetDrop(VirtualPath, DropTarget, bAttachToTarget, SpawnTransform);
         if (Spawned != ECS::NullEntity && Spawned != DropTarget)
         {
             // A dropped prefab arrives as a whole subtree, and only what carries SPrefabComponent is saved.
@@ -1133,19 +1129,7 @@ namespace Lumina
         ImGuizmo::SetDrawlist(ImGui::GetCurrentWindow()->DrawList);
         ImGuizmo::SetRect(ViewportOrigin.x, ViewportOrigin.y, ViewportSize.x, ViewportSize.y);
 
-        // The entity under the cursor is the target, so a material or clip lands on what it was dropped on.
-        {
-            const ImRect ViewportRect(ViewportOrigin, ImVec2(ViewportOrigin.x + ViewportSize.x, ViewportOrigin.y + ViewportSize.y));
-            if (ImGui::BeginDragDropTargetCustom(ViewportRect, ImGui::GetCurrentWindow()->ID))
-            {
-                FVector3     TracedLocation(0.0f);
-                ECS::FEntity HitEntity = ECS::NullEntity;
-                TraceViewportPlacement(ImGui::GetMousePos(), TracedLocation, &HitEntity);
-
-                AcceptContentBrowserPayload(HitEntity, /*bAttachToTarget*/ false);
-                ImGui::EndDragDropTarget();
-            }
-        }
+        DrawViewportDropTarget();
 
         // Selected-camera PiP (shared with the world editor); before the gizmo's early returns.
         DrawCameraPreviewOverlay(ViewportOrigin, ViewportSize);

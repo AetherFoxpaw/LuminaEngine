@@ -2211,21 +2211,16 @@ namespace Lumina
 
     void FEditorUI::DrawOrphanedDragPreview()
     {
-        if (!bDrawerClosedByDrag)
-        {
-            return;
-        }
-
         const DragDrop::FPayload* Payload = DragDrop::PeekPayload();
-        if (Payload == nullptr || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        if (Payload == nullptr || !Payload->bSourceClosed || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            bDrawerClosedByDrag = false;
             return;
         }
 
-        const FStringView Path = Payload->Kind == DragDrop::EPayloadKind::Asset
-            ? FStringView(Payload->AssetPath.c_str(), Payload->AssetPath.size())
-            : FStringView(Payload->FilePath.c_str(), Payload->FilePath.size());
+        const FString EntityName = Payload->EntityName.ToString();
+        const FStringView Path = Payload->Kind == DragDrop::EPayloadKind::Asset    ? FStringView(Payload->AssetPath.c_str(), Payload->AssetPath.size())
+                               : Payload->Kind == DragDrop::EPayloadKind::NewEntity ? FStringView(EntityName.c_str(), EntityName.size())
+                               :                                                      FStringView(Payload->FilePath.c_str(), Payload->FilePath.size());
         if (Path.empty())
         {
             return;
@@ -2412,7 +2407,7 @@ namespace Lumina
         {
             OpenDrawer = nullptr;
             DrawerOpenAmount = 0.0f;
-            bDrawerClosedByDrag = true;
+            DragDrop::MarkSourceClosed();
         }
     }
 

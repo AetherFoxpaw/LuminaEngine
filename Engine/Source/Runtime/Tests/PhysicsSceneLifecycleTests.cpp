@@ -3,7 +3,7 @@
 #include "Physics/API/Box3D/Box3DPhysicsScene.h"
 #include "Physics/API/Box3D/Box3DRagdollHandle.h"
 #include "World/World.h"
-#include "World/ECS/EventDispatcher.h"
+#include "World/Entity/Components/CharacterComponent.h"
 #include "World/Entity/Components/PhysicsComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
 #include "World/Subsystems/WorldSettings.h"
@@ -20,7 +20,6 @@ namespace
             RegisterPendingTypes();
             World = NewObject<CWorld>(nullptr, NAME_None, FGuid::New(), OF_Transient);
             Registry = &ECS::GetWorldRegistry(*World);
-            Registry->Ctx().Emplace<ECS::FEventDispatcher*>(&Dispatcher);
             Scene = MakeUnique<Physics::FBox3DPhysicsScene>(World);
             Scene->Simulate();
             Dt = 1.0f / Math::Max(10.0f, World->GetDefaultWorldSettings().PhysicsHz);
@@ -30,7 +29,6 @@ namespace
         {
             Scene->StopSimulate();
             Scene.reset();
-            Registry->Ctx().Erase<ECS::FEventDispatcher*>();
         }
 
         ECS::FEntity Spawn(float X = 0.0f, bool bCollider = true)
@@ -57,7 +55,6 @@ namespace
 
         CWorld* World = nullptr;
         ECS::FRegistry* Registry = nullptr;
-        ECS::FEventDispatcher Dispatcher;
         TUniquePtr<Physics::FBox3DPhysicsScene> Scene;
         float Dt = 0.0f;
     };
@@ -321,4 +318,115 @@ TEST_F(PhysicsSceneLifecycle, ClosestPointAndBoundsMeasureTheColliders)
     EXPECT_NEAR(Bounds.Max.y, 0.5f, 0.05f);
 
     EXPECT_FALSE(Scene->GetBodyBounds(ECS::NullEntity, Bounds));
+}
+
+namespace
+{
+    // What a system draining the queues sees, checked against the character's own delegates.
+    struct FCharacterEventCounter
+    {
+        ECS::TEventReader<SCharacterLandedEvent> LandedReader;
+        ECS::TEventReader<SCharacterJumpedEvent> JumpedReader;
+        int32 Landings = 0;
+        int32 Jumps = 0;
+        float LastImpactSpeed = 0.0f;
+        int32 LastJumpCount = 0;
+
+        void Drain(ECS::FEventQueues& Queues)
+        {
+            for (const SCharacterLandedEvent& Event : ECS::ReadEvents(Queues, LandedReader))
+            {
+                ++Landings;
+                LastImpactSpeed = Event.ImpactSpeed;
+            }
+            for (const SCharacterJumpedEvent& Event : ECS::ReadEvents(Queues, JumpedReader))
+            {
+                ++Jumps;
+                LastJumpCount = Event.JumpCount;
+            }
+        }
+    };
+}
+
+TEST_F(PhysicsSceneLifecycle, CharacterLandingAndJumpReachTheDelegateAndTheQueue)
+{
+    const ECS::FEntity Floor = Registry->Create();
+    Registry->Emplace<STransformComponent>(Floor).SetLocation(FVector3(0.0f, -0.5f, 0.0f));
+    Registry->Emplace<SRigidBodyComponent>(Floor).BodyType = EBodyType::Static;
+    Registry->Emplace<SBoxColliderComponent>(Floor).HalfExtent = FVector3(20.0f, 0.5f, 20.0f);
+
+    const ECS::FEntity Character = Registry->Create();
+    Registry->Emplace<STransformComponent>(Character).SetLocation(FVector3(0.0f, 3.0f, 0.0f));
+    Registry->Emplace<SCharacterPhysicsComponent>(Character);
+    SCharacterMovementComponent& Movement = Registry->Emplace<SCharacterMovementComponent>(Character);
+
+    int32 DelegateLandings = 0;
+    int32 DelegateJumps = 0;
+    Movement.OnLanded.AddLambda([&](const SCharacterLandedEvent& Event)
+    {
+        ++DelegateLandings;
+        EXPECT_EQ(Event.Entity, Character);
+        EXPECT_GT(Event.GroundNormal.y, 0.9f);
+    });
+    Movement.OnJumped.AddLambda([&](const SCharacterJumpedEvent& Event)
+    {
+        ++DelegateJumps;
+        EXPECT_EQ(Event.Entity, Character);
+        EXPECT_GT(Event.Velocity.y, 0.0f);
+    });
+
+    FCharacterEventCounter Counter;
+    auto Step = [&](int32 Steps)
+    {
+        for (int32 Index = 0; Index < Steps; ++Index)
+        {
+            Scene->Update(Dt);
+            World->FlushCommands();
+            Counter.Drain(World->GetEvents());
+            World->GetEvents().Advance();
+        }
+    };
+
+    Step(120);
+    EXPECT_TRUE(Registry->Get<SCharacterMovementComponent>(Character).bGrounded);
+    EXPECT_EQ(DelegateLandings, 1) << "falling three meters onto the floor is one landing";
+    EXPECT_EQ(Counter.Landings, 1);
+    EXPECT_GT(Counter.LastImpactSpeed, 1.0f) << "the fall carries real speed into the landing";
+    EXPECT_EQ(Counter.Jumps, 0);
+
+    Registry->Get<SCharacterMovementComponent>(Character).bPendingJump = true;
+    Step(1);
+    EXPECT_EQ(DelegateJumps, 1);
+    EXPECT_EQ(Counter.Jumps, 1);
+    EXPECT_EQ(Counter.LastJumpCount, 1) << "the jump off the ground is the first since landing";
+
+    Step(120);
+    EXPECT_EQ(DelegateLandings, 2) << "coming back down from the jump is the second landing";
+    EXPECT_EQ(Counter.Landings, 2);
+    EXPECT_EQ(Counter.Jumps, 1) << "standing still afterwards raises nothing further";
+}
+
+TEST_F(PhysicsSceneLifecycle, CharacterSpawnedOnTheFloorDoesNotReportALanding)
+{
+    const ECS::FEntity Floor = Registry->Create();
+    Registry->Emplace<STransformComponent>(Floor).SetLocation(FVector3(0.0f, -0.5f, 0.0f));
+    Registry->Emplace<SRigidBodyComponent>(Floor).BodyType = EBodyType::Static;
+    Registry->Emplace<SBoxColliderComponent>(Floor).HalfExtent = FVector3(20.0f, 0.5f, 20.0f);
+
+    const ECS::FEntity Character = Registry->Create();
+    Registry->Emplace<STransformComponent>(Character).SetLocation(FVector3(0.0f, 0.0f, 0.0f));
+    Registry->Emplace<SCharacterPhysicsComponent>(Character);
+    Registry->Emplace<SCharacterMovementComponent>(Character);
+
+    FCharacterEventCounter Counter;
+    for (int32 Index = 0; Index < 60; ++Index)
+    {
+        Scene->Update(Dt);
+        World->FlushCommands();
+        Counter.Drain(World->GetEvents());
+        World->GetEvents().Advance();
+    }
+
+    EXPECT_TRUE(Registry->Get<SCharacterMovementComponent>(Character).bGrounded);
+    EXPECT_EQ(Counter.Landings, 0) << "a character placed on the ground never arrived there";
 }

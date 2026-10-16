@@ -1619,19 +1619,7 @@ namespace Lumina
         ImGuizmo::SetDrawlist(ImGui::GetCurrentWindow()->DrawList);
         ImGuizmo::SetRect(ViewportOrigin.x, ViewportOrigin.y, ViewportSize.x, ViewportSize.y);
 
-        {
-            const ImRect ViewportRect(ViewportOrigin, ImVec2(ViewportOrigin.x + ViewportSize.x, ViewportOrigin.y + ViewportSize.y));
-            if (ImGui::BeginDragDropTargetCustom(ViewportRect, ImGui::GetCurrentWindow()->ID))
-            {
-                // Passing null unconditionally made every target-only handler dead in the viewport.
-                FVector3     TracedLocation(0.0f);
-                ECS::FEntity HitEntity = ECS::NullEntity;
-                TraceViewportPlacement(ImGui::GetMousePos(), TracedLocation, &HitEntity);
-
-                AcceptContentBrowserPayload(HitEntity, /*bAttachToTarget*/ false);
-                ImGui::EndDragDropTarget();
-            }
-        }
+        const bool bDropHovering = DrawViewportDropTarget();
 
         if (IWorldEditorMode* ActiveMode = GetActiveMode())
         {
@@ -2300,7 +2288,7 @@ namespace Lumina
                 }
             }
         }
-        else
+        else if (!bDropHovering)
         {
             // Not a pick target this frame, so tell the renderer to skip the picker readback.
             World->GetRenderer()->SetPickerCursor(0, 0, false);
@@ -4417,10 +4405,10 @@ namespace Lumina
         PendingAssetDropFolder = 0;
     }
 
-    void FWorldEditorTool::HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget)
+    void FWorldEditorTool::HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget, const FTransform* SpawnTransform)
     {
         BeginTransaction();
-        ECS::FEntity Spawned = HandleContentBrowserAssetDrop(VirtualPath, DropTarget, bAttachToTarget);
+        ECS::FEntity Spawned = HandleContentBrowserAssetDrop(VirtualPath, DropTarget, bAttachToTarget, SpawnTransform);
         if (Spawned != ECS::NullEntity)
         {
             // Filed inside the same transaction so the drop is one undo step, not two.

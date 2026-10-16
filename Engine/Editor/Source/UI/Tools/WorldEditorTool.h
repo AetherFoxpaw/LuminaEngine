@@ -265,7 +265,7 @@ namespace Lumina
 
         /** Drop onto a folder row: file entities, reparent a folder, or spawn a dropped asset into it. */
         void HandleFolderDragDrop(uint32 FolderID);
-        void HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget) override;
+        void HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget, const FTransform* SpawnTransform = nullptr) override;
         void OnDropSpawnedEntity(ECS::FEntity Entity) override;
 
         void DrawWorldSettings(bool bFocused);

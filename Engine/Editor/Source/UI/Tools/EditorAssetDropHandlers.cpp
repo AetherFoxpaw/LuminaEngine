@@ -53,7 +53,7 @@ namespace Lumina
 
         // Casts the dropped asset once, so each handler below is written against its own type.
         template<typename TAsset, typename TFunc>
-        void RegisterTyped(FEditorAssetDropRegistry& Registry, TFunc&& Func)
+        void RegisterTyped(FEditorAssetDropRegistry& Registry, TFunc&& Func, bool bPlacesEntity = false)
         {
             Registry.Register(TAsset::StaticClass()->GetName(),
                 [Func = std::forward<TFunc>(Func)](CWorld* World, CObject* Asset, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget) -> ECS::FEntity
@@ -64,7 +64,7 @@ namespace Lumina
                         return ECS::NullEntity;
                     }
                     return Func(World, Typed, SpawnTransform, DropTarget, bAttachToTarget);
-                });
+                }, bPlacesEntity);
         }
 
         // Applies to the TComponent DropTarget already has, otherwise to a new one on an entity spawned at SpawnTransform.
@@ -142,7 +142,7 @@ namespace Lumina
             {
                 return RetargetOrSpawn<SStaticMeshComponent>(World, Mesh, SpawnTransform, DropTarget, bAttachToTarget,
                     [Mesh](SStaticMeshComponent& Component, bool) { Component.SetStaticMesh(Mesh); });
-            });
+            }, /*bPlacesEntity*/ true);
 
             // A material is only meaningful on an existing mesh entity, and sets slot 0.
             RegisterTyped<CMaterialInterface>(Instance, [](CWorld* World, CMaterialInterface* Material, const FTransform&, ECS::FEntity DropTarget, bool)
@@ -162,7 +162,7 @@ namespace Lumina
                 return DropTarget;
             });
 
-            RegisterTyped<CSkeletalMesh>(Instance, &DropSkeletalMesh);
+            RegisterTyped<CSkeletalMesh>(Instance, &DropSkeletalMesh, /*bPlacesEntity*/ true);
 
             // A skeleton has no geometry, so dropping it spawns the preview mesh it carries.
             RegisterTyped<CSkeleton>(Instance, [](CWorld* World, CSkeleton* Skeleton, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
@@ -175,7 +175,7 @@ namespace Lumina
                     return ECS::NullEntity;
                 }
                 return DropSkeletalMesh(World, PreviewMesh, SpawnTransform, DropTarget, bAttachToTarget);
-            });
+            }, /*bPlacesEntity*/ true);
 
             // Plays immediately so the placement can be heard, and swaps rather than stacking on an emitter.
             auto DropSound = [](CWorld* World, CSoundBase* Sound, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
@@ -192,8 +192,8 @@ namespace Lumina
                         }
                     });
             };
-            RegisterTyped<CAudioStream>(Instance, DropSound);
-            RegisterTyped<CAudioGraph>(Instance, DropSound);
+            RegisterTyped<CAudioStream>(Instance, DropSound, /*bPlacesEntity*/ true);
+            RegisterTyped<CAudioGraph>(Instance, DropSound, /*bPlacesEntity*/ true);
 
             // The component bursts on spawn, so the effect plays as soon as it lands and can be judged.
             RegisterTyped<CParticleSystem>(Instance, [](CWorld* World, CParticleSystem* System, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
@@ -208,7 +208,7 @@ namespace Lumina
                             Component.Activate(/*bReset*/ true);
                         }
                     });
-            });
+            }, /*bPlacesEntity*/ true);
 
             // Lands Simulated deliberately, since an Inactive ragdoll looks identical to no ragdoll at all.
             RegisterTyped<CPhysicsAsset>(Instance, [](CWorld* World, CPhysicsAsset* PhysicsAsset, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
@@ -255,7 +255,7 @@ namespace Lumina
                 // Instantiate takes a parent, so the entity under the cursor only passes on when attaching.
                 const ECS::FEntity Parent = bAttachToTarget ? DropTarget : ECS::NullEntity;
                 return Prefab->Instantiate(World, SpawnTransform, Parent);
-            });
+            }, /*bPlacesEntity*/ true);
 
             // A destructible needs the mesh it breaks from, so a collection on its own spawns its source mesh.
             RegisterTyped<CGeometryCollection>(Instance, [](CWorld* World, CGeometryCollection* Collection, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
@@ -316,7 +316,7 @@ namespace Lumina
                 Sprite.HFrames = Math::Max(Sheet->HFrames, 1);
                 Sprite.VFrames = Math::Max(Sheet->VFrames, 1);
                 return Target;
-            });
+            }, /*bPlacesEntity*/ true);
         }
     }
 
@@ -332,12 +332,24 @@ namespace Lumina
         return Instance;
     }
 
-    void FEditorAssetDropRegistry::Register(FName AssetClass, FEditorAssetDropHandler Handler)
+    void FEditorAssetDropRegistry::Register(FName AssetClass, FEditorAssetDropHandler Handler, bool bPlacesEntity)
     {
-        Handlers[AssetClass] = std::move(Handler);
+        Handlers[AssetClass] = FEntry{ std::move(Handler), bPlacesEntity };
     }
 
     const FEditorAssetDropHandler* FEditorAssetDropRegistry::FindHandler(FName AssetClass) const
+    {
+        const FEntry* Entry = FindEntry(AssetClass);
+        return Entry != nullptr ? &Entry->Handler : nullptr;
+    }
+
+    bool FEditorAssetDropRegistry::PlacesEntity(FName AssetClass) const
+    {
+        const FEntry* Entry = FindEntry(AssetClass);
+        return Entry != nullptr && Entry->bPlacesEntity;
+    }
+
+    const FEditorAssetDropRegistry::FEntry* FEditorAssetDropRegistry::FindEntry(FName AssetClass) const
     {
         // Direct hit on the concrete class name first.
         auto It = Handlers.find(AssetClass);

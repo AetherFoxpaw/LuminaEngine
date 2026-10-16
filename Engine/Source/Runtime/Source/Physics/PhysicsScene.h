@@ -1,7 +1,6 @@
 #pragma once
 
 #include "World/ECS/Registry.h"
-#include "World/ECS/EventDispatcher.h"
 
 #include "PhysicsTypes.h"
 #include "Core/Templates/Optional.h"
@@ -203,7 +202,7 @@ namespace Lumina::Physics
         virtual void Simulate() = 0;
         virtual void StopSimulate() = 0;
 
-        // Game-thread drain of step-side events (ECS::FEventDispatcher). Pair with Update.
+        // Game-thread send of what the step recorded into the world's event queues. Pair with Update.
         virtual void DispatchPendingEvents() {}
         
         virtual void DeactivateBody(ECS::FEntity Entity) = 0;

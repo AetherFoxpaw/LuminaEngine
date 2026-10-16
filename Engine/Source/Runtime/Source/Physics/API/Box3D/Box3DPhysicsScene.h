@@ -17,6 +17,7 @@
 #include "Physics/PhysicsScene.h"
 #include "Assets/AssetTypes/PhysicsAsset/PhysicsAsset.h"
 #include "Renderer/SkeletonResource.h"
+#include "World/Entity/Components/CharacterComponent.h"
 #include "World/Entity/Components/DirtyComponent.h"
 #include "Lumina.h"
 
@@ -112,6 +113,7 @@ namespace Lumina::Physics
     {
         SCharacterPhysicsComponent*     Physics;
         SCharacterMovementComponent*    Movement;
+        ECS::FEntity                    Entity = ECS::NullEntity;
     };
 
     struct FPendingCharacterPush
@@ -124,7 +126,16 @@ namespace Lumina::Physics
     // One bucket per task-thread slot, cache isolated so neighboring workers do not share a line.
     struct alignas(64) FCharacterPushBucket
     {
-        TVector<FPendingCharacterPush> Pushes;
+        TVector<FPendingCharacterPush>  Pushes;
+        TVector<SCharacterLandedEvent>  Landings;
+        TVector<SCharacterJumpedEvent>  Jumps;
+
+        void Clear()
+        {
+            Pushes.clear();
+            Landings.clear();
+            Jumps.clear();
+        }
     };
 
     class RUNTIME_API FBox3DPhysicsScene : public IPhysicsScene
@@ -163,6 +174,9 @@ namespace Lumina::Physics
 
         // Teleports and ground seating, shared by the loop and an isolated step. False means no collide-and-solve is owed.
         bool ResolveCharacterPreStep(ECS::FEntity Entity, SCharacterPhysicsComponent& Physics, SCharacterMovementComponent& Movement);
+
+        // Sends the landings and jumps a step recorded, which turn readable at the next sync point.
+        void DeliverCharacterEvents(const FCharacterPushBucket& Bucket);
         void FollowTransform(ECS::FRegistry& Registry, ECS::FEntity Entity, SCharacterPhysicsComponent& Physics,
             SCharacterMovementComponent& Movement, float FixedDt);
         void BuildInterpolatedTransforms(float Alpha);
