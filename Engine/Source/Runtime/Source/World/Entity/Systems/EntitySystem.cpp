@@ -3,7 +3,7 @@
 #include "EntitySystem.h"
 
 #include "Core/Object/Class.h"
-#include "Core/Object/ObjectArray.h"
+#include "Core/Object/ObjectIteration.h"
 #include "Core/Object/ObjectCore.h"
 #include "Core/Object/ScriptClass.h"
 #include "Log/Log.h"
@@ -74,7 +74,7 @@ namespace Lumina
 
             // Collected before anything is visited, because creating a CDO mutates the object array.
             TVector<CClass*> Classes;
-            GObjectArray.ForEachObject([&](CObjectBase* Object, int32)
+            ForEachObject([&](CObjectBase* Object, int32)
             {
                 if (Object == nullptr || !Object->IsA<CClass>())
                 {

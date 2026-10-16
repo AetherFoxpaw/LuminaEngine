@@ -70,9 +70,9 @@ namespace Lumina::SkeletalUtils
             return false;
         }
 
-        if (const CSkeleton* Asset = GetSkeletonAsset(Mesh))
+        if (Mesh.SkeletalMesh.IsValid())
         {
-            if (const SMeshSocket* Socket = Asset->FindSocket(SocketOrBone))
+            if (const SMeshSocket* Socket = Mesh.SkeletalMesh->FindSocket(SocketOrBone))
             {
                 OutBoneIndex = Skeleton->FindBoneIndex(Socket->BoneName);
                 OutSocketOffset = Socket->RelativeTransform.GetMatrix();

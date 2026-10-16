@@ -638,9 +638,11 @@ namespace Lumina
         {
             if (CSkeleton* Skeleton = SkeletalUtils::GetSkeletonAsset(*SkeletalMesh))
             {
-                for (const SMeshSocket& Socket : Skeleton->Sockets)
+                TVector<const SMeshSocket*> Sockets;
+                SkeletalMesh->SkeletalMesh->CollectActiveSockets(Sockets);
+                for (const SMeshSocket* Socket : Sockets)
                 {
-                    Out.Sockets.push_back(Socket.SocketName);
+                    Out.Sockets.push_back(Socket->SocketName);
                 }
                 Out.Skeleton = Skeleton->GetSkeletonResource();
             }

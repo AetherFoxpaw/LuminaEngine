@@ -2960,6 +2960,33 @@ namespace Lumina
                         ToolWindowFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
                     }
                     
+                    // A window added after this tool's layout was saved has no settings, so it joins a docked sibling instead of floating.
+                    if (ImGui::FindWindowByName(ToolWindowName.c_str()) == nullptr && ImGui::FindWindowSettingsByID(ImHashStr(ToolWindowName.c_str())) == nullptr)
+                    {
+                        auto FindToolWindow = [&](const FName& Name)
+                        {
+                            return ImGui::FindWindowByName(FEditorTool::GetToolWindowName(Name.c_str(), Tool->GetCurrentDockspaceID()).c_str());
+                        };
+
+                        // A sibling tabbed behind the viewport would hide the new window there too.
+                        ImGuiID ViewportDockId = 0;
+                        for (auto& Sibling : Tool->ToolWindows)
+                        {
+                            ImGuiWindow* SiblingWindow = Sibling->bViewport ? FindToolWindow(Sibling->Name) : nullptr;
+                            ViewportDockId = SiblingWindow != nullptr ? SiblingWindow->DockId : ViewportDockId;
+                        }
+
+                        for (auto& Sibling : Tool->ToolWindows)
+                        {
+                            ImGuiWindow* SiblingWindow = (Sibling != Window && !Sibling->bViewport) ? FindToolWindow(Sibling->Name) : nullptr;
+                            if (SiblingWindow != nullptr && SiblingWindow->DockId != 0 && SiblingWindow->DockId != ViewportDockId)
+                            {
+                                ImGui::SetNextWindowDockID(SiblingWindow->DockId, ImGuiCond_FirstUseEver);
+                                break;
+                            }
+                        }
+                    }
+
                     ImGui::SetNextWindowClass(&Tool->ToolWindowsClass);
                     // Floor the size so a panel can't be dragged to a degenerate extent (child widgets assert at zero width).
                     ImGui::SetNextWindowSizeConstraints(ImVec2(100.0f, 80.0f), ImVec2(FLT_MAX, FLT_MAX));
@@ -3740,7 +3767,7 @@ namespace Lumina
         }
 
         FormatTo(Stats.Perf, LE_ICON_GAUGE " {:>3.0f} FPS / {:.2f} ms", SmoothedFPS, SmoothedFrameTime);
-        FormatTo(Stats.Objects, LE_ICON_CUBE_OUTLINE " {}", GObjectArray.GetNumAliveObjects());
+        FormatTo(Stats.Objects, LE_ICON_CUBE_OUTLINE " {}", Object::Internal::GetNumAliveObjects());
         FormatTo(Stats.Memory, LE_ICON_MEMORY " {:.0f} MiB", SmoothedMemoryMiB);
         FormatTo(Stats.GPUMemory, LE_ICON_EXPANSION_CARD " {:.0f} / {:.0f} MiB", SmoothedGPUMemoryMiB, GPUMemoryBudgetMiB);
 
