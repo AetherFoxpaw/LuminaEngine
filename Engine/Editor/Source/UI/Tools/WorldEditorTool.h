@@ -253,9 +253,6 @@ namespace Lumina
         /** Gameplay quit (Game.Quit): raised mid-world-tick, so only flag it; Update ends PIE at FrameStart. */
         void OnGameQuitRequested() { bGameQuitRequested = true; }
 
-        /** Accept a content-browser drag payload in the current scope and, if it's a prefab, instantiate it under DropTarget. */
-        void AcceptContentBrowserPrefabPayload(ECS::FEntity DropTarget, bool bAttachToTarget);
-
         // The Scene Graph panel + shared Add menu + filter UI + the incremental outliner engine now
         // live in FSceneEditorTool. The world editor supplies the empty-area drop + prefab instantiation
         // hooks and drives the tree via its registry observers below.
@@ -269,6 +266,7 @@ namespace Lumina
         /** Drop onto a folder row: file entities, reparent a folder, or spawn a dropped asset into it. */
         void HandleFolderDragDrop(uint32 FolderID);
         void HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget) override;
+        void OnDropSpawnedEntity(ECS::FEntity Entity) override;
 
         void DrawWorldSettings(bool bFocused);
         void DrawSystemsPanel(bool bFocused);

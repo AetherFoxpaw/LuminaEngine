@@ -26,7 +26,7 @@ namespace Lumina
     // handlers that only modify DropTarget ignore it.
     using FEditorAssetDropHandler = TFunction<ECS::FEntity(CWorld* World, CObject* Asset, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)>;
 
-    class FEditorAssetDropRegistry
+    class EDITOR_API FEditorAssetDropRegistry
     {
     public:
 
@@ -35,6 +35,12 @@ namespace Lumina
         void Register(FName AssetClass, FEditorAssetDropHandler Handler);
 
         const FEditorAssetDropHandler* FindHandler(FName AssetClass) const;
+
+        // Runs the asset's handler, or with none sets the one object field on DropTarget's components that takes it.
+        ECS::FEntity Drop(CWorld* World, CObject* Asset, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget) const;
+
+        // Fills the editable object field on DropTarget that takes Asset, preferring an empty one when several do.
+        static ECS::FEntity AssignToComponentField(CWorld* World, CObject* Asset, ECS::FEntity DropTarget);
 
     private:
 

@@ -29,6 +29,7 @@
 #include "Tools/Dialogs/Dialogs.h"
 #include "Tools/PrimitiveManager/PrimitiveManager.h"
 #include "Tools/UI/ImGui/ImGuiFonts.h"
+#include "Tools/UI/ImGui/ImGuiDragDrop.h"
 #include "Tools/UI/ImGui/ImGuiX.h"
 #include "Tools/UI/ImGui/EditorColors.h"
 #include "UI/Properties/PropertyEditContexts.h"
@@ -37,6 +38,8 @@
 #include "Core/Serialization/ObjectArchiver.h"
 #include "Core/Serialization/MemoryArchiver.h"
 #include "UI/Tools/EditorEntityUtils.h"
+#include "UI/Widgets/EntityScriptPicker.h"
+#include "FileSystem/FileSystem.h"
 #include "World/Entity/Components/EditorComponent.h"
 #include "World/Entity/Components/EntityTags.h"
 #include "World/Entity/Components/NameComponent.h"
@@ -49,6 +52,7 @@
 #include "World/Entity/EntityUtils.h"
 #include "World/World.h"
 #include "World/Entity/Components/LightComponent.h"
+#include "Containers/Algorithm.h"
 #include "Containers/StringFormat.h"
 
 namespace Lumina
@@ -101,6 +105,71 @@ namespace Lumina
         {
             Package->MarkDirty();
         }
+    }
+
+    void FSceneEditorTool::AcceptContentBrowserPayload(ECS::FEntity DropTarget, bool bAttachToTarget)
+    {
+        const DragDrop::FPayload* Peek = DragDrop::PeekPayload();
+        if (Peek == nullptr)
+        {
+            return;
+        }
+
+        if (Peek->Kind == DragDrop::EPayloadKind::File)
+        {
+            FFixedString ScriptPath;
+            if (DragDrop::AcceptFile("cs", ScriptPath))
+            {
+                HandleScriptSourceDrop(FStringView(ScriptPath.c_str(), ScriptPath.size()), DropTarget);
+            }
+            return;
+        }
+
+        if (Peek->Kind == DragDrop::EPayloadKind::Asset && DragDrop::IsDelivered())
+        {
+            HandlePrefabContentDrop(FStringView(Peek->AssetPath.c_str(), Peek->AssetPath.size()), DropTarget, bAttachToTarget);
+        }
+    }
+
+    void FSceneEditorTool::HandleScriptSourceDrop(FStringView VirtualPath, ECS::FEntity DropTarget)
+    {
+        CClass* ScriptClass = EntityScriptPicker::FindScriptClassForSource(VirtualPath);
+        if (ScriptClass == nullptr)
+        {
+            ImGuiX::Notifications::NotifyWarning("\"{}\" declares no entity script to attach.", VFS::FileName(VirtualPath));
+            return;
+        }
+
+        ECS::FRegistry& Registry = GetSceneRegistry();
+        if (!Registry.IsValid(DropTarget))
+        {
+            const FString ClassName = ScriptClass->GetName().ToString();
+            SpawnEntityTransacted(FName(EntityScriptPicker::ShortTypeName(ClassName)), "Drop Script", [&](ECS::FEntity Created)
+            {
+                EntityScripts::Attach(Registry, Created, ScriptClass);
+                OnDropSpawnedEntity(Created);
+            });
+            OutlinerListView.MarkTreeDirty();
+            return;
+        }
+
+        // Attach appends, so a second drop of the same file would stack a duplicate script.
+        const SEntityScriptComponent* Scripts = Registry.TryGet<SEntityScriptComponent>(DropTarget);
+        const bool bAlreadyAttached = Scripts != nullptr && Algo::AnyOf(Scripts->Scripts, [ScriptClass](const TStrongObjectPtr<CEntityScript>& Script)
+        {
+            return Script.Get() != nullptr && Script->GetClass() == ScriptClass;
+        });
+        if (!bAlreadyAttached)
+        {
+            BeginComponentTransaction({ DropTarget }, SEntityScriptComponent::StaticStruct());
+            EntityScripts::Attach(Registry, DropTarget, ScriptClass);
+            EndTransaction("Drop Script");
+            MarkSceneDirty();
+        }
+
+        SetSingleSelectedEntity(DropTarget);
+        bDetailsDirty = true;
+        OutlinerListView.MarkTreeDirty();
     }
 
     void FSceneEditorTool::SetSingleSelectedEntity(ECS::FEntity Entity)

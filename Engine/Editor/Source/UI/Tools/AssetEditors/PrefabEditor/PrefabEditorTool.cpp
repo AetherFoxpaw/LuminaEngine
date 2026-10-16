@@ -863,11 +863,7 @@ namespace Lumina
             return;
         }
 
-        // Asset drop (static mesh, material, etc.) onto an outliner row.
-        if (Peek->Kind == DragDrop::EPayloadKind::Asset && DragDrop::IsDelivered())
-        {
-            HandlePrefabContentDrop(FStringView(Peek->AssetPath.c_str(), Peek->AssetPath.size()), DropItem, /*bAttachToTarget*/ true);
-        }
+        AcceptContentBrowserPayload(DropItem, /*bAttachToTarget*/ true);
     }
 
     FString FPrefabEditorTool::GetReparentRefusal(ECS::FEntity Entity, ECS::FEntity NewParent)
@@ -943,14 +939,8 @@ namespace Lumina
             ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
             const bool bWasInstance = Registry.HasAny<SPrefabInstanceComponent>(Spawned);
 
-            AdoptIntoPrefab(Spawned);
-            Registry.GetHierarchy().ForEachDescendant(Spawned, [this](ECS::FEntity Descendant)
-            {
-                AdoptIntoPrefab(Descendant);
-            });
-
+            AdoptSpawnedSubtree(Spawned);
             EndTransaction("Drop Asset");
-            OutlinerListView.MarkTreeDirty();
             Asset->GetPackage()->MarkDirty();
 
             if (bWasInstance)
@@ -1111,11 +1101,7 @@ namespace Lumina
     void FPrefabEditorTool::HandleOutlinerEmptyAreaDrop()
     {
         // A content-browser asset dropped on empty space spawns under the prefab root.
-        const DragDrop::FPayload* Peek = DragDrop::PeekPayload();
-        if (Peek && Peek->Kind == DragDrop::EPayloadKind::Asset && DragDrop::IsDelivered())
-        {
-            HandlePrefabContentDrop(FStringView(Peek->AssetPath.c_str(), Peek->AssetPath.size()), ECS::NullEntity, /*bAttachToTarget*/ false);
-        }
+        AcceptContentBrowserPayload(ECS::NullEntity, /*bAttachToTarget*/ false);
     }
 
     bool FPrefabEditorTool::CanDeleteEntity(ECS::FEntity Entity) const
@@ -1147,16 +1133,16 @@ namespace Lumina
         ImGuizmo::SetDrawlist(ImGui::GetCurrentWindow()->DrawList);
         ImGuizmo::SetRect(ViewportOrigin.x, ViewportOrigin.y, ViewportSize.x, ViewportSize.y);
 
-        // Dropping a content-browser asset on empty space spawns it under the prefab root.
+        // The entity under the cursor is the target, so a material or clip lands on what it was dropped on.
         {
             const ImRect ViewportRect(ViewportOrigin, ImVec2(ViewportOrigin.x + ViewportSize.x, ViewportOrigin.y + ViewportSize.y));
             if (ImGui::BeginDragDropTargetCustom(ViewportRect, ImGui::GetCurrentWindow()->ID))
             {
-                const DragDrop::FPayload* Peek = DragDrop::PeekPayload();
-                if (Peek && Peek->Kind == DragDrop::EPayloadKind::Asset && DragDrop::IsDelivered())
-                {
-                    HandlePrefabContentDrop(FStringView(Peek->AssetPath.c_str(), Peek->AssetPath.size()), ECS::NullEntity, /*bAttachToTarget*/ false);
-                }
+                FVector3     TracedLocation(0.0f);
+                ECS::FEntity HitEntity = ECS::NullEntity;
+                TraceViewportPlacement(ImGui::GetMousePos(), TracedLocation, &HitEntity);
+
+                AcceptContentBrowserPayload(HitEntity, /*bAttachToTarget*/ false);
                 ImGui::EndDragDropTarget();
             }
         }

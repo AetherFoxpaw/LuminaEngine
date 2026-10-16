@@ -4,6 +4,7 @@
 #include "Core/Object/Class.h"
 #include "Core/Object/ObjectIterator.h"
 #include "Core/Object/ScriptClass.h"
+#include "FileSystem/FileSystem.h"
 #include "Scripting/EntityScript.h"
 #include "Tools/UI/ImGui/ImGuiDesignIcons.h"
 
@@ -21,6 +22,14 @@ namespace Lumina::EntityScriptPicker
                 Character = Character == '\\' ? '/' : (char)std::tolower((unsigned char)Character);
             }
             return Lower;
+        }
+
+        bool IsAttachableScriptClass(CClass* Class)
+        {
+            CClass* Base = CEntityScript::StaticClass();
+            return Class != nullptr && Class != Base && Class->IsChildOf(Base)
+                && !Class->HasAnyFlag(OF_DefaultObject) && !Class->HasAnyFlag(OF_MarkedDestroy)
+                && !Class->IsAbstract() && !Class->IsSuperseded();
         }
     }
 
@@ -53,13 +62,10 @@ namespace Lumina::EntityScriptPicker
         Out.clear();
         const FScriptSourceIndex SourceIndex;
 
-        CClass* Base = CEntityScript::StaticClass();
         for (TObjectIterator<CClass> It; It; ++It)
         {
             CClass* Class = *It;
-            if (Class == nullptr || Class == Base || !Class->IsChildOf(Base)
-                || Class->HasAnyFlag(OF_DefaultObject) || Class->HasAnyFlag(OF_MarkedDestroy)
-                || Class->IsAbstract() || Class->IsSuperseded())
+            if (!IsAttachableScriptClass(Class))
             {
                 continue;
             }
@@ -96,5 +102,42 @@ namespace Lumina::EntityScriptPicker
                 Item.Tooltip = Lumina::Format("{}\n{}", Class->GetMeta("ToolTip"), Item.Tooltip);
             }
         }
+    }
+
+    CClass* FindScriptClassForSource(FStringView VirtualPath)
+    {
+        const FPathString Resolved = VFS::ResolvePath(VirtualPath);
+        const FString DiskKey = NormalizeSourceKey(FStringView(Resolved.c_str(), Resolved.size()));
+        const FString StemKey = NormalizeSourceKey(VFS::FileName(VirtualPath, true));
+        const FScriptSourceIndex SourceIndex;
+
+        CClass* PathMatch = nullptr;
+        CClass* StemMatch = nullptr;
+        for (TObjectIterator<CClass> It; It; ++It)
+        {
+            CClass* Class = *It;
+            if (!IsAttachableScriptClass(Class) || ToScriptClass(Class) == nullptr)
+            {
+                continue;
+            }
+
+            const FString FullName = Class->GetName().ToString();
+            const FString ShortKey = NormalizeSourceKey(ShortTypeName(FullName));
+            const DotNet::FScriptSourceFolder* Source = SourceIndex.Find(Class, ShortTypeName(FullName));
+            if (Source != nullptr && NormalizeSourceKey(Source->Path) == DiskKey)
+            {
+                // A file holding several scripts hands over the one it is named after.
+                if (ShortKey == StemKey)
+                {
+                    return Class;
+                }
+                PathMatch = PathMatch != nullptr ? PathMatch : Class;
+            }
+            else if (ShortKey == StemKey)
+            {
+                StemMatch = Class;
+            }
+        }
+        return PathMatch != nullptr ? PathMatch : StemMatch;
     }
 }

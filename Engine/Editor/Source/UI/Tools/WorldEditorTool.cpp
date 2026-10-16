@@ -1628,7 +1628,7 @@ namespace Lumina
                 ECS::FEntity HitEntity = ECS::NullEntity;
                 TraceViewportPlacement(ImGui::GetMousePos(), TracedLocation, &HitEntity);
 
-                AcceptContentBrowserPrefabPayload(HitEntity, /*bAttachToTarget*/ false);
+                AcceptContentBrowserPayload(HitEntity, /*bAttachToTarget*/ false);
                 ImGui::EndDragDropTarget();
             }
         }
@@ -4378,7 +4378,7 @@ namespace Lumina
             return;
         }
 
-        AcceptContentBrowserPrefabPayload(DropItem, /*bAttachToTarget*/ true);
+        AcceptContentBrowserPayload(DropItem, /*bAttachToTarget*/ true);
     }
 
     void FWorldEditorTool::HandleFolderDragDrop(uint32 FolderID)
@@ -4413,42 +4413,20 @@ namespace Lumina
         }
 
         PendingAssetDropFolder = FolderID;
-        AcceptContentBrowserPrefabPayload(ECS::NullEntity, /*bAttachToTarget*/ false);
+        AcceptContentBrowserPayload(ECS::NullEntity, /*bAttachToTarget*/ false);
         PendingAssetDropFolder = 0;
-    }
-
-    void FWorldEditorTool::AcceptContentBrowserPrefabPayload(ECS::FEntity DropTarget, bool bAttachToTarget)
-    {
-        const DragDrop::FPayload* Peek = DragDrop::PeekPayload();
-        if (Peek == nullptr || Peek->Kind != DragDrop::EPayloadKind::Asset)
-        {
-            return;
-        }
-        if (!DragDrop::IsDelivered())
-        {
-            return;
-        }
-        HandlePrefabContentDrop(FStringView(Peek->AssetPath.c_str(), Peek->AssetPath.size()), DropTarget, bAttachToTarget);
     }
 
     void FWorldEditorTool::HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget)
     {
-        // Dispatches every asset class via the editor drop registry. Spawn transform comes from the camera.
-        const uint32 DropFolder = PendingAssetDropFolder;
-        PendingAssetDropFolder = 0;
-
         BeginTransaction();
         ECS::FEntity Spawned = HandleContentBrowserAssetDrop(VirtualPath, DropTarget, bAttachToTarget);
         if (Spawned != ECS::NullEntity)
         {
             // Filed inside the same transaction so the drop is one undo step, not two.
-            if (DropFolder != 0)
+            if (Spawned != DropTarget)
             {
-                if (SSceneFolderComponent* Folders = GetEditableSceneFolders())
-                {
-                    Folders->AssignEntity(Spawned, DropFolder);
-                    EntityFolderCache[Spawned] = DropFolder;
-                }
+                OnDropSpawnedEntity(Spawned);
             }
 
             EndTransaction("Drop Asset");
@@ -4460,6 +4438,19 @@ namespace Lumina
             AbortTransaction();
             ImGuiX::Notifications::NotifyWarning("Could not add \"{0}\" to the world (see log for details).",
                 FString(VirtualPath.data(), VirtualPath.size()).c_str());
+        }
+    }
+
+    void FWorldEditorTool::OnDropSpawnedEntity(ECS::FEntity Entity)
+    {
+        if (PendingAssetDropFolder == 0)
+        {
+            return;
+        }
+        if (SSceneFolderComponent* Folders = GetEditableSceneFolders())
+        {
+            Folders->AssignEntity(Entity, PendingAssetDropFolder);
+            EntityFolderCache[Entity] = PendingAssetDropFolder;
         }
     }
 
@@ -4930,7 +4921,7 @@ namespace Lumina
             return;
         }
 
-        AcceptContentBrowserPrefabPayload(ECS::NullEntity, /*bAttachToTarget*/ false);
+        AcceptContentBrowserPayload(ECS::NullEntity, /*bAttachToTarget*/ false);
     }
 
     bool FWorldEditorTool::IsUnsavedDocument()

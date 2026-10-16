@@ -2640,13 +2640,6 @@ namespace Lumina
             return ECS::NullEntity;
         }
 
-        const FEditorAssetDropHandler* Handler = FEditorAssetDropRegistry::Get().FindHandler(AssetData->AssetClass);
-        if (Handler == nullptr || !*Handler)
-        {
-            LOG_WARN("Asset drop: no drop handler for class '{}' ('{}')", AssetData->AssetClass.c_str(), FString(VirtualPath.data(), VirtualPath.size()).c_str());
-            return ECS::NullEntity;
-        }
-
         // A dropped prefab pulls in its whole closure, which the inline path resolves depth-first here.
         CObject* Loaded = FindObject<CObject>(AssetData->AssetGUID);
         if (Loaded == nullptr)
@@ -2667,6 +2660,6 @@ namespace Lumina
             SpawnTransform.SetLocation(TracedLocation);
         }
 
-        return (*Handler)(World.Get(), Loaded, SpawnTransform, DropTarget, bAttachToTarget);
+        return FEditorAssetDropRegistry::Get().Drop(World.Get(), Loaded, SpawnTransform, DropTarget, bAttachToTarget);
     }
 }

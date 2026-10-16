@@ -296,6 +296,15 @@ namespace Lumina
         virtual void HandleOutlinerEmptyAreaDrop() {}
         virtual void HandlePrefabContentDrop(FStringView VirtualPath, ECS::FEntity DropTarget, bool bAttachToTarget) {}
 
+        // Routes a content browser drag landing here, an asset to HandlePrefabContentDrop and a .cs file to HandleScriptSourceDrop.
+        void AcceptContentBrowserPayload(ECS::FEntity DropTarget, bool bAttachToTarget);
+
+        // Attaches the script a .cs file declares to DropTarget, or to a new entity when there is none.
+        virtual void HandleScriptSourceDrop(FStringView VirtualPath, ECS::FEntity DropTarget);
+
+        // Lets a tool file an entity a drop created, such as into the folder row it landed on.
+        virtual void OnDropSpawnedEntity(ECS::FEntity Entity) {}
+
         struct FEntityListFilterState
         {
             ImGuiTextFilter FilterName;

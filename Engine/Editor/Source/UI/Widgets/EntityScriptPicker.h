@@ -6,6 +6,7 @@
 
 namespace Lumina
 {
+    class CClass;
     class CStruct;
 }
 
@@ -13,6 +14,9 @@ namespace Lumina::EntityScriptPicker
 {
     // Every class an entity can take as a script, C# and C++ alike, filed by the folder its source sits in. Keyed by class name.
     EDITOR_API void GatherItems(TVector<FPickerItem>& Out);
+
+    // The C# script class a dropped .cs file declares, preferring the one named after the file, and null when it declares none.
+    EDITOR_API CClass* FindScriptClassForSource(FStringView VirtualPath);
 
     // The category C++ scripts file under, which a picker lists after the project's own folders.
     inline constexpr const char* NativeCategory = "C++";
