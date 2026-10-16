@@ -73,6 +73,10 @@ namespace Lumina
         RUNTIME_API bool IsGameInputFocused() const { return bGameInputFocused; }
         RUNTIME_API void SetGameInputFocused(bool bFocused);
 
+        // A game's developer overlay holds the keyboard, mouse and pad while open, freeing the cursor without touching the game's own mode.
+        RUNTIME_API void SetDevOverlayCapturing(bool bCapturing);
+        RUNTIME_API bool IsDevOverlayCapturing() const { return bDevOverlayCapturing; }
+
         // A game world is the active viewport and holds game focus, so editor UI must leave the keyboard and mouse alone.
         RUNTIME_API bool IsGameOwningInput() const;
 
@@ -137,6 +141,7 @@ namespace Lumina
         // Took a mouse press and keeps the mouse until every button is up, so a drag that leaves the panel still releases.
         FInputViewport* MousePressViewport = nullptr;
         bool            bGameInputFocused = true;
+        bool            bDevOverlayCapturing = false;
         TUniquePtr<FInputContext> RawInput;
         FGamepadDevices Gamepads;
 

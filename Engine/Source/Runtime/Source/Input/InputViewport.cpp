@@ -407,9 +407,22 @@ namespace Lumina
         ApplyActiveCursorMode();
     }
 
+    void FInputViewportRegistry::SetDevOverlayCapturing(bool bCapturing)
+    {
+        if (bDevOverlayCapturing == bCapturing)
+        {
+            return;
+        }
+        bDevOverlayCapturing = bCapturing;
+
+        // A key held as the overlay opens would otherwise stay down for the game until it is pressed again.
+        OnWindowFocusLost();
+        ApplyActiveCursorMode();
+    }
+
     bool FInputViewportRegistry::IsActiveViewportReceivingGamepad() const
     {
-        if (ActiveViewport == nullptr || !bGameInputFocused)
+        if (ActiveViewport == nullptr || !bGameInputFocused || bDevOverlayCapturing)
         {
             return false;
         }
@@ -619,7 +632,7 @@ namespace Lumina
     EMouseMode FInputViewportRegistry::GetActiveEffectiveMouseMode() const
     {
         // A benchmark run is unattended, and a captured cursor would vanish from whoever is using the machine.
-        if (ActiveViewport == nullptr || Benchmark::IsActive())
+        if (ActiveViewport == nullptr || Benchmark::IsActive() || bDevOverlayCapturing)
         {
             return EMouseMode::Normal;
         }

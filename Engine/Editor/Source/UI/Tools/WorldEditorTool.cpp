@@ -872,6 +872,12 @@ namespace Lumina
             EntityScripts::DebugDraw(ECS::GetWorldRegistry(*World));
         }
 
+        // Scripts' debug windows join the editor's own while playing, as a game build's overlay shows them.
+        if (World != nullptr && HasSimulatingWorld())
+        {
+            EntityScripts::DebugGui(ECS::GetWorldRegistry(*World));
+        }
+
         ProcessComponentEditRequests();
 
         if (!EntityDestroyRequests.empty())

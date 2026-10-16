@@ -773,29 +773,23 @@ namespace Lumina::MCP
                         }
                     }
 
-                    FConsoleRegistry& Registry = FConsoleRegistry::Get();
-
-                    if (Registry.FindCommand(Name) != nullptr)
+                    const FConsoleLineResult Result = FConsoleRegistry::Get().ExecuteLine(Line, false);
+                    switch (Result.Kind)
                     {
-                        Registry.ExecuteCommand(Name);
+                    case EConsoleLineResult::RanCommand:
                         Out.Output = "executed";
                         return Agent::FToolResult::Ok(Lumina::Format("Ran {}.", Name));
-                    }
-
-                    if (Registry.Find(Name) == nullptr)
-                    {
-                        return Agent::FToolResult::Error(Lumina::Format("No console command or variable named '{}'.", Name));
-                    }
-
-                    if (!Value.empty() && !Registry.SetValueFromString(Name, Value))
-                    {
+                    case EConsoleLineResult::RejectedValue:
                         return Agent::FToolResult::Error(Lumina::Format("'{}' did not accept '{}'.", Name, Value));
+                    case EConsoleLineResult::ReadVariable:
+                    case EConsoleLineResult::SetVariable:
+                        Out.Output = Result.Value;
+                        return Agent::FToolResult::Ok(Lumina::Format("{} = {}", Name, Out.Output));
+                    case EConsoleLineResult::Empty:
+                    case EConsoleLineResult::Unknown:
+                        break;
                     }
-
-                    const TOptional<FString> Current = Registry.GetValueAsString(Name);
-                    Out.Output = Current.IsSet() ? *Current : FString("<unprintable>");
-
-                    return Agent::FToolResult::Ok(Lumina::Format("{} = {}", Name, Out.Output));
+                    return Agent::FToolResult::Error(Lumina::Format("No console command or variable named '{}'.", Name));
                 });
         }
 
