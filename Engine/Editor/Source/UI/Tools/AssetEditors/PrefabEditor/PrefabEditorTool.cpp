@@ -36,6 +36,7 @@
 #include "World/Scene/RenderScene/RenderScene.h"
 #include "World/World.h"
 #include "Containers/StringFormat.h"
+#include "Scripting/EntityScript.h"
 
 
 namespace Lumina
@@ -584,6 +585,8 @@ namespace Lumina
         {
             Registry.EmplaceOrReplace<FNeedsTransformUpdate>(Entity);
         });
+        
+        EntityScripts::DebugDraw(Registry);
 
         const ECS::FEntity LastSelected = GetLastSelectedEntity();
         if (Registry.IsValid(LastSelected))
