@@ -1,6 +1,13 @@
 #pragma once
 
 #include "CategorizedPicker.h"
+#include "Containers/HashTable.h"
+#include "Scripting/DotNet/DotNetHost.h"
+
+namespace Lumina
+{
+    class CStruct;
+}
 
 namespace Lumina::EntityScriptPicker
 {
@@ -9,4 +16,29 @@ namespace Lumina::EntityScriptPicker
 
     // The category C++ scripts file under, which a picker lists after the project's own folders.
     inline constexpr const char* NativeCategory = "C++";
+
+    // A reflected name with its namespace dropped, such as Walker for Ashgrave.Walker.
+    inline FStringView ShortTypeName(FStringView FullName)
+    {
+        const size_t Dot = FullName.find_last_of('.');
+        return Dot == FStringView::npos ? FullName : FullName.substr(Dot + 1);
+    }
+
+    // One pass over the script roots, so filing many C# types by folder does not walk them once per type.
+    class EDITOR_API FScriptSourceIndex
+    {
+    public:
+
+        FScriptSourceIndex();
+        LE_NO_COPYMOVE(FScriptSourceIndex);
+
+        // Matched by the type's recorded SourceFile first, then by a file named after it, and null when neither turns up.
+        const DotNet::FScriptSourceFolder* Find(const CStruct* Type, FStringView ShortName) const;
+
+    private:
+
+        TVector<DotNet::FScriptSourceFolder>                  Sources;
+        THashMap<FString, const DotNet::FScriptSourceFolder*> ByStem;
+        THashMap<FString, const DotNet::FScriptSourceFolder*> ByPath;
+    };
 }

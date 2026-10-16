@@ -41,6 +41,25 @@ namespace Lumina::MCP
             Out.bPlaying = State.bPlaying;
             Out.bPaused  = State.bPaused;
             Out.World    = State.World;
+            Out.bEjected = State.bEjected;
+
+            const FInputViewportRegistry& Viewports = FInputViewportRegistry::Get();
+            Out.bGameInputFocused = Viewports.IsGameInputFocused();
+            switch (Viewports.GetActiveEffectiveMouseMode())
+            {
+            case EMouseMode::Normal:   Out.MouseMode = "Normal";   break;
+            case EMouseMode::Hidden:   Out.MouseMode = "Hidden";   break;
+            case EMouseMode::Captured: Out.MouseMode = "Captured"; break;
+            }
+            if (const FInputViewport* Active = Viewports.GetActiveViewport())
+            {
+                switch (Active->GetContext().GetInputMode())
+                {
+                case EInputMode::Game:      Out.InputMode = "Game";      break;
+                case EInputMode::UI:        Out.InputMode = "UI";        break;
+                case EInputMode::GameAndUI: Out.InputMode = "GameAndUI"; break;
+                }
+            }
         }
 
         const char* LevelName(ELogLevel Level)
@@ -816,24 +835,16 @@ namespace Lumina::MCP
             }
         }
 
-        // Shared by send_key and send_mouse: input only reaches a viewport the editor considers focused.
+        // Shared by send_key and send_mouse, since injected input only reaches the viewport that owns input.
         bool FocusGameViewport(bool& bOutFocused)
         {
             return Agent::FGameThreadGate::Run([&bOutFocused]()
             {
                 FInputViewportRegistry& Viewports = FInputViewportRegistry::Get();
-                Viewports.SetGameInputFocused(true);
-
                 FString SceneError;
-                if (CWorld* World = SessionOps::GetSceneWorld(SceneError))
-                {
-                    if (FInputViewport* Viewport = Viewports.FindViewportForWorld(World))
-                    {
-                        Viewports.SetActiveViewport(Viewport);
-                        Viewports.SetFocusedViewport(Viewport);
-                    }
-                }
-                bOutFocused = Viewports.GetFocusedViewport() != nullptr;
+                CWorld* World = SessionOps::GetSceneWorld(SceneError);
+                Viewports.TakeGameFocus(World != nullptr ? Viewports.FindViewportForWorld(World) : nullptr);
+                bOutFocused = Viewports.GetActiveViewport() != nullptr;
             }, Agent::FGameThreadGate::GetDefaultTimeoutMilliseconds()) == Agent::EGameThreadResult::Ran;
         }
 
@@ -1003,7 +1014,7 @@ namespace Lumina::MCP
                     double WindowY = In.Y;
                     (void)Agent::FGameThreadGate::Run([&]()
                     {
-                        if (FInputViewport* Viewport = FInputViewportRegistry::Get().GetFocusedViewport())
+                        if (FInputViewport* Viewport = FInputViewportRegistry::Get().GetActiveViewport())
                         {
                             Viewport->GetContext().ContextToWindow(In.X, In.Y, WindowX, WindowY);
                         }
@@ -1074,20 +1085,12 @@ namespace Lumina::MCP
 
                     const bool bFocused = OnGameThread([&]()
                     {
+                        // Keys route to the active viewport, which the editor only moves while its OS window is foreground.
                         FInputViewportRegistry& Viewports = FInputViewportRegistry::Get();
-                        Viewports.SetGameInputFocused(true);
-
-                        // Keys route to the focused viewport, which the editor only sets while its OS window is foreground.
                         FString SceneError;
-                        if (CWorld* World = SessionOps::GetSceneWorld(SceneError))
-                        {
-                            if (FInputViewport* Viewport = Viewports.FindViewportForWorld(World))
-                            {
-                                Viewports.SetActiveViewport(Viewport);
-                                Viewports.SetFocusedViewport(Viewport);
-                            }
-                        }
-                        Out.bGameInputFocused = Viewports.GetFocusedViewport() != nullptr;
+                        CWorld* World = SessionOps::GetSceneWorld(SceneError);
+                        Viewports.TakeGameFocus(World != nullptr ? Viewports.FindViewportForWorld(World) : nullptr);
+                        Out.bGameInputFocused = Viewports.GetActiveViewport() != nullptr;
                     });
                     if (!bFocused)
                     {

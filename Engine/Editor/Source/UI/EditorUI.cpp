@@ -80,7 +80,6 @@
 #include "Core/Object/Package/Package.h"
 #include "Core/Profiler/Profile.h"
 #include "Core/Reflection/PropertyCustomization/PropertyCustomization.h"
-#include "Input/InputProcessor.h"
 #include "Input/InputViewport.h"
 #include "Memory/Memory.h"
 #include "Platform/CrashReporter.h"
@@ -733,23 +732,7 @@ namespace Lumina
         LUMINA_PROFILE_SCOPE();
         ImGuizmo::BeginFrame();
 
-        // Driven off the single registry flag so it stays correct whichever preview window is active.
-        {
-            ImGuiIO& IO = ImGui::GetIO();
-
-            const ImGuiConfigFlags Mask = ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard | ImGuiConfigFlags_NoMouseCursorChange;
-
-            FInputViewportRegistry& Reg = FInputViewportRegistry::Get();
-            const FInputViewport* Active = Reg.GetActiveViewport();
-            const bool bGameOwnsInput = Reg.IsGameInputFocused()
-                                      && Active != nullptr
-                                      && Active->GetWorld() != nullptr
-                                      && Active->GetWorld()->IsGameWorld();
-            // Never clear per-frame, since the editor camera sets NoMouse itself during a right-button look.
-            if (bGameOwnsInput)            { IO.ConfigFlags |= Mask; }
-            else if (bWasGameOwningInput)  { IO.ConfigFlags &= ~Mask; }
-            bWasGameOwningInput = bGameOwnsInput;
-        }
+        SyncImGuiInputFlags();
 
         auto TitleBarMenuContents = [this, &UpdateContext] ()
         {
@@ -1113,11 +1096,6 @@ namespace Lumina
         for (FEditorTool* Tool : EditorTools)
         {
             Tool->EndFrame();
-        }
-
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftShift) && ImGui::IsKeyPressed(ImGuiKey_F1))
-        {
-            FInputProcessor::Get().SetMouseMode(EMouseMode::Normal);
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) && ImGui::IsKeyDown(ImGuiMod_Shift) && GamePreviewTool != nullptr)

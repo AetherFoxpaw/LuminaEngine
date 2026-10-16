@@ -34,7 +34,6 @@
 #include "Core/Application/Application.h"
 #include "Core/UpdateContext.h"
 #include "Input/InputContext.h"
-#include "Input/InputProcessor.h"
 #include "Input/InputViewport.h"
 #include "Renderer/RHI.h"
 #include "Renderer/ImmediateLineRenderer.h"
@@ -947,40 +946,7 @@ namespace Lumina
             RmlUi::SetWorldDisplaySize(World.Get(), FUIntVector2(uint32(Math::Max(ViewportSize.x, 1.0f)), uint32(Math::Max(ViewportSize.y, 1.0f))));
         }
 
-        InputViewport->SetHovered(bViewportHovered);
-        InputViewport->SetFocused(bViewportFocused);
-
-        FInputViewportRegistry& Reg = FInputViewportRegistry::Get();
-
-        if (bViewportHovered)
-        {
-            Reg.SetHoveredViewport(InputViewport.get());
-        }
-        else if (Reg.GetHoveredViewport() == InputViewport.get())
-        {
-            Reg.SetHoveredViewport(nullptr);
-        }
-
-        if (Reg.IsGameInputFocused())
-        {
-            void* const ThisWindow = InputViewport->GetNativeWindowHandle();
-            if (Windowing::IsNativeWindowFocused(ThisWindow))
-            {
-                FInputViewport* Active = Reg.GetActiveViewport();
-                const bool bActiveWindowFocused = Active != nullptr
-                    && Windowing::IsNativeWindowFocused(Active->GetNativeWindowHandle());
-                if (!bActiveWindowFocused)
-                {
-                    Reg.SetActiveViewport(InputViewport.get());
-                    Reg.SetFocusedViewport(InputViewport.get());
-                }
-            }
-        }
-        else if (bViewportFocused)
-        {
-            Reg.SetFocusedViewport(InputViewport.get());
-            Reg.SetActiveViewport(InputViewport.get());
-        }
+        FInputViewportRegistry::Get().UpdateViewportFocus(InputViewport.get(), bViewportHovered, bViewportFocused);
     }
 
     bool FEditorTool::DrawViewport(const FUpdateContext& UpdateContext, ImTextureRef ViewportTexture)
@@ -1050,13 +1016,9 @@ namespace Lumina
             && ImGui::IsMouseClicked(ImGuiMouseButton_Left)
             && !ImGui::IsAnyItemHovered())
         {
-            FInputViewportRegistry& Reg = FInputViewportRegistry::Get();
-            if (!Reg.IsGameInputFocused())
+            if (!FInputViewportRegistry::Get().IsGameInputFocused())
             {
-                // Keys go to the focused viewport first, so it moves with the click or they stay with the last player.
-                Reg.SetActiveViewport(InputViewport.get());
-                Reg.SetFocusedViewport(InputViewport.get());
-                Reg.SetGameInputFocused(true);
+                FInputViewportRegistry::Get().TakeGameFocus(InputViewport.get());
             }
         }
 
@@ -2007,6 +1969,26 @@ namespace Lumina
         return (bViewportFocused || bViewportHovered) && ImGui::GetIO().KeyAlt;
     }
 
+    void SyncImGuiInputFlags()
+    {
+        const FInputViewportRegistry& Reg = FInputViewportRegistry::Get();
+        const bool bGameOwnsInput = Reg.IsGameOwningInput();
+
+        // A hidden or captured cursor belongs to the viewport, so ImGui must neither hover under it nor warp it.
+        const bool bViewportOwnsCursor = bGameOwnsInput || Reg.GetActiveEffectiveMouseMode() != EMouseMode::Normal;
+
+        ImGuiIO& IO = ImGui::GetIO();
+        IO.ConfigFlags &= ~(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard | ImGuiConfigFlags_NoMouseCursorChange);
+        if (bViewportOwnsCursor)
+        {
+            IO.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+        }
+        if (bGameOwnsInput)
+        {
+            IO.ConfigFlags |= ImGuiConfigFlags_NoKeyboard;
+        }
+    }
+
     void FEditorTool::BeginEditorLookCapture()
     {
         if (InputViewport == nullptr)
@@ -2014,8 +1996,8 @@ namespace Lumina
             return;
         }
         InputViewport->GetContext().SetMouseMode(EMouseMode::Captured);
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
-        FInputViewportRegistry::Get().ReapplyActiveCursorMode();
+        FInputViewportRegistry::Get().ApplyActiveCursorMode();
+        SyncImGuiInputFlags();
     }
 
     void FEditorTool::EndEditorLookCapture()
@@ -2025,8 +2007,8 @@ namespace Lumina
             return;
         }
         InputViewport->GetContext().SetMouseMode(EMouseMode::Normal);
-        ImGui::GetIO().ConfigFlags &= ~(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange);
-        FInputViewportRegistry::Get().ReapplyActiveCursorMode();
+        FInputViewportRegistry::Get().ApplyActiveCursorMode();
+        SyncImGuiInputFlags();
     }
 
     void FEditorTool::DrawWorldGrid()

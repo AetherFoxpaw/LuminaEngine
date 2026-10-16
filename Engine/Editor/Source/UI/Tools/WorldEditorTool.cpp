@@ -29,9 +29,8 @@
 #include "Paths/Paths.h"
 #include "Core/Serialization/ObjectArchiver.h"
 #include "Input/InputContext.h"
-#include "Input/InputProcessor.h"
-#include "UI/RmlUiBridge.h"
 #include "Input/InputViewport.h"
+#include "UI/RmlUiBridge.h"
 #include "Memory/SmartPtr.h"
 #include "Core/Math/Math.h"
 #include "Scripting/DotNet/DotNetHost.h"
@@ -73,6 +72,7 @@
 #include "Log/Log.h"
 #include "Renderer/MeshQuantization.h"
 #include "Containers/StringFormat.h"
+#include "UI/Widgets/ComponentPicker.h"
 #include "UI/Widgets/EntityScriptPicker.h"
 #include "World/Entity/Systems/SystemAccess.h"
 
@@ -425,12 +425,7 @@ namespace Lumina
             ImGui::Separator();
 
             // --- Components & scripts ---
-            if (ImGui::MenuItem(LE_ICON_PUZZLE " Add Component..."))
-            {
-                PushAddComponentModal(Data.Entity);
-            }
-            ImGuiX::TextTooltip("{}", "Add a new component to the entity");
-
+            DrawAddComponentMenu(Data.Entity);
             DrawScriptAttachMenuItems(Data.Entity);
 
             ImGui::Separator();
@@ -2385,12 +2380,7 @@ namespace Lumina
                 ImGui::Spacing();
 
                 // Components.
-                if (ImGui::MenuItem("Add Component..."))
-                {
-                    PushAddComponentModal(LastSelected);
-                    ImGui::CloseCurrentPopup();
-                }
-
+                DrawAddComponentMenu(LastSelected);
                 DrawScriptAttachMenuItems(LastSelected);
 
                 if (ImGui::BeginMenu("Remove Component"))
@@ -2643,96 +2633,45 @@ namespace Lumina
         }
     }
 
-    void FWorldEditorTool::PushAddComponentModal(ECS::FEntity Entity)
+    void FWorldEditorTool::DrawAddComponentMenu(ECS::FEntity Entity)
     {
-        TUniquePtr<ImGuiTextFilter> Filter = MakeUnique<ImGuiTextFilter>();
-        ToolContext->PushModal("Add Component", ImVec2(500.0f, 600.0f), [this, Entity, Filter = Move(Filter)] () -> bool
+        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        if (!Registry.IsValid(Entity))
         {
-            bool bComponentAdded = false;
+            return;
+        }
 
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
-            if (SelectedEntities.size() > 1 && IsEntitySelected(Entity))
+        ComponentAttachPicker.SearchHint = "Search components...";
+        ComponentAttachPicker.ItemNoun   = "components";
+        ComponentAttachPicker.TrailingCategory = EntityScriptPicker::NativeCategory;
+        if (!ImGui::BeginMenu(LE_ICON_PUZZLE " Add Component"))
+        {
+            return;
+        }
+
+        // A multi-selection adds to every selected entity, so a component counts as present only once all of them have it.
+        const TVector<ECS::FEntity> Targets = GetComponentEditTargets(Entity);
+        auto IsOnEveryTarget = [&Registry, &Targets](CStruct* Struct)
+        {
+            return !Targets.empty() && Algo::AllOf(Targets, [&](ECS::FEntity Target)
             {
-                ImGui::Text("Select a component to add to %llu selected entities", (unsigned long long)SelectedEntities.size());
-            }
-            else
+                return ECS::Utils::HasComponent(Registry, Target, Struct);
+            });
+        };
+
+        if (const FPickerItem* Picked = ComponentAttachPicker.DrawContents([&](TVector<FPickerItem>& Out) { ComponentPicker::GatherItems(Out, IsOnEveryTarget); }))
+        {
+            if (CStruct* Component = ComponentPicker::FindComponent(Picked->Key))
             {
-                ImGui::TextUnformatted("Select a component to add to the entity");
-            }
-            ImGui::PopStyleColor();
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.16f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.18f, 0.18f, 0.19f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.2f, 0.2f, 0.21f, 1.0f));
-
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            Filter->Draw(LE_ICON_BRIEFCASE_SEARCH " Search Components...", ImGui::GetContentRegionAvail().x);
-
-            ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar(2);
-
-            ImGui::Spacing();
-
-            const float ListHeight = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing() * 2;
-
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 4.0f));
-
-            if (ImGui::BeginChild("##ComponentsList", ImVec2(0, ListHeight), true))
-            {
-                CStruct* PickedMetaType = nullptr;
-                CStruct* PickedStruct    = nullptr;
-
-                // Resolved before the list is drawn so it can gray out what these targets already have.
-                TVector<ECS::FEntity> Targets = GetComponentEditTargets(Entity);
-
-                if (DrawAddableComponentList(*Filter, Targets, PickedMetaType, PickedStruct))
+                ApplyAddComponentToTargets(Targets, Component);
+                if (Entity == DetailsEntity)
                 {
-                    ApplyAddComponentToTargets(Targets, PickedMetaType);
-
-                    bComponentAdded = true;
+                    bDetailsDirty = true;
                 }
             }
-            ImGui::EndChild();
-
-            ImGui::PopStyleVar(2);
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            const float ButtonWidth = 120.0f;
-            const float AvailWidth = ImGui::GetContentRegionAvail().x;
-            ImGui::SetCursorPosX((AvailWidth - ButtonWidth) * 0.5f);
-
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.22f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.25f, 0.27f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.3f, 0.32f, 1.0f));
-
-            bool bShouldClose = false;
-            if (ImGui::Button("Cancel", ImVec2(ButtonWidth, 0)))
-            {
-                bShouldClose = true;
-            }
-
-            ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar(2);
-
-            if (bComponentAdded && Entity == DetailsEntity)
-            {
-                bDetailsDirty = true;
-            }
-
-            return bComponentAdded || bShouldClose;
-        });
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndMenu();
     }
 
     void FWorldEditorTool::DrawScriptAttachMenuItems(ECS::FEntity Entity)
@@ -3668,7 +3607,7 @@ namespace Lumina
 
             // Set last, since HasEditorCameraControl flips with it and the refocus handler reads it next draw.
             bEjectedFromPlay = true;
-            SetInputFocus(EInputFocus::Editor);
+            FInputViewportRegistry::Get().SetGameInputFocused(false);
         }
         else
         {
@@ -3699,12 +3638,12 @@ namespace Lumina
             if (bHasPossessedInputModes && InputViewport)
             {
                 InputViewport->GetContext().SetInputMode(PossessedInputMode);
-                FInputProcessor::Get().SetMouseMode(PossessedMouseMode, World.Get());
+                FInputViewportRegistry::Get().SetMouseMode(PossessedMouseMode, World.Get());
             }
             bHasPossessedInputModes = false;
 
             bEjectedFromPlay = false;
-            SetInputFocus(EInputFocus::Game);
+            FInputViewportRegistry::Get().SetGameInputFocused(true);
         }
     }
 
@@ -4190,7 +4129,7 @@ namespace Lumina
             RebindRegistryObservers();
 
             // Play starts in Game focus, so ImGui stands down and input goes to the game and its UI.
-            SetInputFocus(EInputFocus::Game);
+            FInputViewportRegistry::Get().SetGameInputFocused(true);
 
             // FEditorUI spawns the other players' PIE worlds and pop-ups through a deferred tool create.
             OnGamePreviewStartRequested.Broadcast();
@@ -4226,7 +4165,7 @@ namespace Lumina
             bGameViewMode = false; // back to the editor view on stop
 
             // Hand input back to the editor on stop.
-            SetInputFocus(EInputFocus::Editor);
+            FInputViewportRegistry::Get().SetGameInputFocused(false);
 
             // SetupWorldForTool builds a fresh editor entity at origin, so stash the pre-Play camera pose.
             bool bHasSavedCamera = false;
@@ -4267,13 +4206,13 @@ namespace Lumina
 
             if (InputViewport)
             {
-                // Activate editor viewport first so FInputProcessor routes the mode change against the right context.
+                // Activate the editor viewport first so the mode change lands on the right context.
                 FInputViewportRegistry::Get().SetActiveViewport(InputViewport.get());
 
                 InputViewport->GetContext().SetInputMode(EInputMode::Game);
 
-                // Route through FInputProcessor so ImGuiConfigFlags_NoMouse clears; direct context-field set would leave ImGui ignoring the mouse.
-                FInputProcessor::Get().SetMouseMode(EMouseMode::Normal);
+                // Through the registry so ImGuiConfigFlags_NoMouse clears, which a direct context write would leave set.
+                FInputViewportRegistry::Get().SetMouseMode(EMouseMode::Normal);
             }
         }
     }
@@ -4389,31 +4328,9 @@ namespace Lumina
             {
                 FInputViewportRegistry::Get().SetActiveViewport(InputViewport.get());
                 InputViewport->GetContext().SetInputMode(EInputMode::Game);
-                FInputProcessor::Get().SetMouseMode(EMouseMode::Normal);
+                FInputViewportRegistry::Get().SetMouseMode(EMouseMode::Normal);
             }
         }
-    }
-
-    void FWorldEditorTool::ApplyInputFocus()
-    {
-        ImGuiIO& IO = ImGui::GetIO();
-        const ImGuiConfigFlags Mask = ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard;
-        if (InputFocus == EInputFocus::Game)
-        {
-            IO.ConfigFlags |= Mask;
-        }
-        else
-        {
-            IO.ConfigFlags &= ~Mask;
-        }
-    }
-
-    void FWorldEditorTool::SetInputFocus(EInputFocus NewFocus)
-    {
-        InputFocus = NewFocus;
-
-        // One global state, so handing the cursor back reaches every PIE preview window at once.
-        FInputViewportRegistry::Get().SetGameInputFocused(NewFocus == EInputFocus::Game);
     }
 
     bool FWorldEditorTool::OnEvent(FEvent& Event)

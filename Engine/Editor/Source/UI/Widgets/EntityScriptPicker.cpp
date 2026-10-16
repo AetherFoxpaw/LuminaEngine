@@ -1,11 +1,9 @@
 #include "EntityScriptPicker.h"
 
-#include "Containers/HashTable.h"
 #include "Containers/StringFormat.h"
 #include "Core/Object/Class.h"
 #include "Core/Object/ObjectIterator.h"
 #include "Core/Object/ScriptClass.h"
-#include "Scripting/DotNet/DotNetHost.h"
 #include "Scripting/EntityScript.h"
 #include "Tools/UI/ImGui/ImGuiDesignIcons.h"
 
@@ -26,20 +24,34 @@ namespace Lumina::EntityScriptPicker
         }
     }
 
+    FScriptSourceIndex::FScriptSourceIndex()
+    {
+        DotNet::GatherScriptSourceFolders(Sources);
+        for (const DotNet::FScriptSourceFolder& Source : Sources)
+        {
+            ByStem.emplace(NormalizeSourceKey(Source.Stem), &Source);
+            ByPath.emplace(NormalizeSourceKey(Source.Path), &Source);
+        }
+    }
+
+    const DotNet::FScriptSourceFolder* FScriptSourceIndex::Find(const CStruct* Type, FStringView ShortName) const
+    {
+        if (Type->HasMeta("SourceFile"))
+        {
+            auto Found = ByPath.find(NormalizeSourceKey(Type->GetMeta("SourceFile")));
+            if (Found != ByPath.end())
+            {
+                return Found->second;
+            }
+        }
+        auto Found = ByStem.find(NormalizeSourceKey(ShortName));
+        return Found != ByStem.end() ? Found->second : nullptr;
+    }
+
     void GatherItems(TVector<FPickerItem>& Out)
     {
         Out.clear();
-
-        // One pass over the script roots, since a lookup per class would walk them once for every row.
-        TVector<DotNet::FScriptSourceFolder> Sources;
-        DotNet::GatherScriptSourceFolders(Sources);
-        THashMap<FString, const DotNet::FScriptSourceFolder*> SourceByStem;
-        THashMap<FString, const DotNet::FScriptSourceFolder*> SourceByPath;
-        for (const DotNet::FScriptSourceFolder& Source : Sources)
-        {
-            SourceByStem.emplace(NormalizeSourceKey(Source.Stem), &Source);
-            SourceByPath.emplace(NormalizeSourceKey(Source.Path), &Source);
-        }
+        const FScriptSourceIndex SourceIndex;
 
         CClass* Base = CEntityScript::StaticClass();
         for (TObjectIterator<CClass> It; It; ++It)
@@ -53,9 +65,7 @@ namespace Lumina::EntityScriptPicker
             }
 
             const FString FullName = Class->GetName().ToString();
-            const FStringView View(FullName);
-            const size_t Dot = View.find_last_of('.');
-            const FStringView Short = Dot == FStringView::npos ? View : View.substr(Dot + 1);
+            const FStringView Short = ShortTypeName(FullName);
             const bool bManaged = ToScriptClass(Class) != nullptr;
 
             FPickerItem& Item = Out.emplace_back();
@@ -63,23 +73,7 @@ namespace Lumina::EntityScriptPicker
             Item.Key  = FullName;
             Item.Icon = bManaged ? LE_ICON_LANGUAGE_CSHARP : LE_ICON_LANGUAGE_CPP;
 
-            const DotNet::FScriptSourceFolder* Source = nullptr;
-            if (bManaged && Class->HasMeta("SourceFile"))
-            {
-                auto ByPath = SourceByPath.find(NormalizeSourceKey(Class->GetMeta("SourceFile")));
-                if (ByPath != SourceByPath.end())
-                {
-                    Source = ByPath->second;
-                }
-            }
-            if (bManaged && Source == nullptr)
-            {
-                auto ByStem = SourceByStem.find(NormalizeSourceKey(Short));
-                if (ByStem != SourceByStem.end())
-                {
-                    Source = ByStem->second;
-                }
-            }
+            const DotNet::FScriptSourceFolder* Source = bManaged ? SourceIndex.Find(Class, Short) : nullptr;
             if (Source != nullptr)
             {
                 Item.Category = Source->Folder;

@@ -109,6 +109,9 @@ namespace Lumina
         float       FocusOrbitDistance  = 5.0f;
     };
 
+    // The only writer of ImGui's NoMouse, NoKeyboard and NoMouseCursorChange flags, derived from who owns input this frame.
+    EDITOR_API void SyncImGuiInputFlags();
+
     // EDITOR_API: exported so editor plugins can derive their own tools out-of-module.
     // Every tool hears a script reload through OnScriptsReloaded, the one place to rebuild what it built from C# types.
     class EDITOR_API FEditorTool : public IEventHandler, public Scripting::IScriptReloadListener

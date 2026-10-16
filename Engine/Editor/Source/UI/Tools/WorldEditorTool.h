@@ -80,8 +80,6 @@ namespace Lumina
         void DrawViewportToolbarModeSelector(float ButtonSize) override;
         void DrawViewModeExtraItems() override;
 
-        void PushAddComponentModal(ECS::FEntity Entity);
-
         // GetComponentEditTargets / ApplyAddComponentToTargets / DrawAddableComponentList and the
         // CreateEntity* helpers now live in FSceneEditorTool.
         void PushSaveAsAssetModal();
@@ -100,6 +98,9 @@ namespace Lumina
         // Script context-menu helpers, shared between the outliner and viewport menus. The inline
         // assign/change dropdown is always offered; "Remove Script" only when one is present.
         void DrawScriptAttachMenuItems(ECS::FEntity Entity);
+
+        // The Add Component submenu, filed by where each component comes from the way the script submenu is.
+        void DrawAddComponentMenu(ECS::FEntity Entity);
         void AttachScriptToEntity(ECS::FEntity Entity, const FString& ScriptClass);  // C# class name; attaches or swaps
         void RemoveScriptFromEntity(ECS::FEntity Entity);
 
@@ -359,6 +360,7 @@ namespace Lumina
 
         // The outliner's Attach Script submenu, which keeps its open categories between uses.
         FCategorizedPicker                      ScriptAttachPicker;
+        FCategorizedPicker                      ComponentAttachPicker;
 
         TVector<TUniquePtr<IWorldEditorMode>>   EditorModes;
         int32                                   ActiveModeIndex = 0;
@@ -393,13 +395,6 @@ namespace Lumina
         // since stopping tears down the PIE world and shouldn't run mid-dispatch.
         bool                                    bStopPlayRequested = false;
 
-        // Who owns the mouse/keyboard while playing.
-        enum class EInputFocus                  : uint8 { Editor, Game };
-        EInputFocus                             InputFocus = EInputFocus::Editor;
-        
-        void ApplyInputFocus();
-        void SetInputFocus(EInputFocus NewFocus);
-        
         bool                                    bGameViewMode = false;
         bool                                    bSavedWorldGridEnabled = true;
         bool                                    bSavedShowComponentVisualizers = true;
