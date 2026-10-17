@@ -829,43 +829,39 @@ internal static unsafe class InteropTestHooks
         return CInteropTestLibrary.ReadOpaqueValue(Opaque);
     }
 
-    private static readonly DelegateBinding[] DelegateProbeBindings = new DelegateBinding[3];
+    private static IntPtr DelegateProbeHost;
     private static int DelegateProbeFlags;
 
-    // Binds every arity the generated accessors expose, over a native SDelegateTestHost the caller owns.
+    private static void OnProbeOne(string Text)
+    {
+        DelegateProbeFlags |= 1;
+        if (Text == "solo") DelegateProbeFlags |= 2;
+    }
+
+    private static void OnProbeTwo(Lumina.SDelegateTestPayload Payload, float Scalar)
+    {
+        DelegateProbeFlags |= 4;
+        if (Payload.X == 2.0f && Payload.Count == 5 && Scalar == 0.25f) DelegateProbeFlags |= 8;
+    }
+
+    private static void OnProbeThree(Lumina.SDelegateTestPayload Payload, float Scalar, string Text)
+    {
+        DelegateProbeFlags |= 16;
+        if (Payload.X == 7.0f && Payload.Count == 3 && Scalar == 1.5f && Text == "hello") DelegateProbeFlags |= 32;
+    }
+
+    // Subscribes to every arity the generated events expose, over a native SDelegateTestHost the caller owns.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static int Test_DelegateArgsBind(IntPtr Host)
     {
         DelegateProbeFlags = 0;
+        DelegateProbeHost = Host;
 
         Lumina.SDelegateTestHost View = new Lumina.SDelegateTestHost(Host);
-
-        DelegateProbeBindings[0] = View.OnOneString.Bind(Text =>
-        {
-            DelegateProbeFlags |= 1;
-            if (Text == "solo") DelegateProbeFlags |= 2;
-        });
-
-        DelegateProbeBindings[1] = View.OnTwo.Bind((Payload, Scalar) =>
-        {
-            DelegateProbeFlags |= 4;
-            if (Payload.X == 2.0f && Payload.Count == 5 && Scalar == 0.25f) DelegateProbeFlags |= 8;
-        });
-
-        DelegateProbeBindings[2] = View.OnThree.Bind((Payload, Scalar, Text) =>
-        {
-            DelegateProbeFlags |= 16;
-            if (Payload.X == 7.0f && Payload.Count == 3 && Scalar == 1.5f && Text == "hello") DelegateProbeFlags |= 32;
-        });
-
-        foreach (DelegateBinding Binding in DelegateProbeBindings)
-        {
-            if (!Binding.IsValid)
-            {
-                return 0;
-            }
-        }
+        View.OnOneString += OnProbeOne;
+        View.OnTwo += OnProbeTwo;
+        View.OnThree += OnProbeThree;
         return 1;
     }
 
@@ -873,16 +869,28 @@ internal static unsafe class InteropTestHooks
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static int Test_DelegateArgsFlags() => DelegateProbeFlags;
 
-    // Must run while the native delegates are still alive, or the bindings outlive the memory they name.
+    // Must run while the native delegates are still alive, since -= reads their listeners.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static void Test_DelegateArgsRelease()
     {
-        for (int Index = 0; Index < DelegateProbeBindings.Length; ++Index)
-        {
-            DelegateProbeBindings[Index].Dispose();
-            DelegateProbeBindings[Index] = default;
-        }
+        Lumina.SDelegateTestHost View = new Lumina.SDelegateTestHost(DelegateProbeHost);
+        View.OnOneString -= OnProbeOne;
+        View.OnTwo -= OnProbeTwo;
+        View.OnThree -= OnProbeThree;
+        DelegateProbeHost = IntPtr.Zero;
+    }
+
+    // A handler added twice and removed once stays bound once, and a handler never added removes nothing.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static void Test_DelegateArgsAddTwiceRemoveOnce(IntPtr Host)
+    {
+        Lumina.SDelegateTestHost View = new Lumina.SDelegateTestHost(Host);
+        View.OnTwo += OnProbeTwo;
+        View.OnTwo += OnProbeTwo;
+        View.OnTwo -= OnProbeTwo;
+        View.OnOneString -= OnProbeOne;
     }
 
     // A blittable argument is read in place, so a two-argument broadcast must not allocate at all.

@@ -1613,6 +1613,10 @@ TEST_F(FFrameMarshalTest, AManagedHandlerReceivesEveryDelegateArgument)
     const int32 Seen = Flags();
     Release();
 
+    EXPECT_FALSE(Host.OnOneString.HasManagedBindings()) << "-= left the one-argument handler bound";
+    EXPECT_FALSE(Host.OnTwo.HasManagedBindings()) << "-= left the two-argument handler bound";
+    EXPECT_FALSE(Host.OnThree.HasManagedBindings()) << "-= left the three-argument handler bound";
+
     EXPECT_EQ(Seen & 1,  1)  << "the one-argument handler never ran";
     EXPECT_EQ(Seen & 2,  2)  << "the lone string argument did not arrive";
     EXPECT_EQ(Seen & 4,  4)  << "the two-argument handler never ran";
@@ -1653,6 +1657,22 @@ TEST_F(FFrameMarshalTest, ABlittableBroadcastReachesManagedWithoutAllocating)
     Release();
 
     EXPECT_EQ(After - Before, 0) << "256 broadcasts allocated " << (After - Before) << " managed bytes";
+}
+
+// -= follows C# event rules, removing one matching handler per call and ignoring one that was never added.
+TEST_F(FFrameMarshalTest, ScriptEventRemoveTakesOneMatchingHandler)
+{
+    using FAddRemoveFn = void(*)(void*);
+    auto* AddRemove = (FAddRemoveFn)DotNet::ResolveManagedExport("Test_DelegateArgsAddTwiceRemoveOnce");
+    ASSERT_NE(AddRemove, nullptr);
+
+    RegisterPendingTypes();
+
+    SDelegateTestHost Host;
+    AddRemove(&Host);
+
+    EXPECT_EQ(Host.OnTwo.GetManagedBindingCount(), 1u);
+    EXPECT_EQ(Host.OnOneString.GetManagedBindingCount(), 0u);
 }
 
 TEST_F(FFrameMarshalTest, ScriptsReadAndSendThroughTheWorldEventQueues)
