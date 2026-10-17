@@ -147,12 +147,12 @@ namespace Lumina::ImGuiX
     RUNTIME_API bool SelectAllCheckbox(const char* Label, uint32 NumChecked, uint32 NumTotal, bool& bOutCheckAll);
     RUNTIME_API bool ToggleSwitch(const char* Label, bool* Value);
 
-    RUNTIME_API inline bool FlatButton( char const* pLabel, ImVec2 const& size = ImVec2( 0, 0 ), const ImColor& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
+    inline bool FlatButton( char const* pLabel, ImVec2 const& size = ImVec2( 0, 0 ), const ImColor& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
     {
         return ButtonEx( nullptr, pLabel, size, ImColor(0), ImColor(0), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]));
     }
 
-    RUNTIME_API inline bool IconButton(char const* pIcon, char const* pLabel, const ImColor& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2(0, 0), bool shouldCenterContents = false )
+    inline bool IconButton(char const* pIcon, char const* pLabel, const ImColor& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2(0, 0), bool shouldCenterContents = false )
     {
         return ButtonEx(pIcon, pLabel, size, ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Button]), iconColor, ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]), shouldCenterContents);
     }
