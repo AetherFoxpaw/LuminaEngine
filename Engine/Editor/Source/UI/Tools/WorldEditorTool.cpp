@@ -2762,6 +2762,11 @@ namespace Lumina
             return;
         }
 
+        if (!ToolContext->ConfirmWritable({ FString(World->GetPackage()->GetPackagePath().c_str()) }, [this] { OnSave(); }))
+        {
+            return;
+        }
+
         // The world editor saves its live CWorld in place, and the thumbnail comes from the viewport.
         if (ShouldGenerateThumbnailOnSave())
         {

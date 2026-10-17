@@ -828,6 +828,10 @@ namespace Lumina
         ImGui::PushStyleColor(ImGuiCol_Text, kMenuAccent);
         ImGui::TextUnformatted(FileInfo.Name.c_str());
         ImGui::PopStyleColor();
+        if (FileInfo.IsReadOnly())
+        {
+            ImGui::TextColored(EditorColors::Warning(), LE_ICON_LOCK " Read-only on disk, so it cannot be saved, renamed, moved or deleted until it is made writable.");
+        }
         ImGui::Separator();
 
         switch (IconKind)
@@ -1196,6 +1200,17 @@ namespace Lumina
             else if (bDrawTypeCard)
             {
                 DrawTypeCard(*DrawList, BodyMin, BodyMax, ContentItem->GetTypeLabel());
+            }
+
+            if (ContentItem->GetFileInfo().IsReadOnly())
+            {
+                constexpr float LockInset = 8.0f;
+                constexpr float LockPad   = 4.0f;
+                const float LockSize = ImGui::GetFontSize();
+                const ImVec2 LockPos(BodyMax.x - LockInset - LockPad - LockSize, BodyMin.y + LockInset + LockPad);
+                DrawList->AddRectFilled(ImVec2(LockPos.x - LockPad, LockPos.y - LockPad), ImVec2(LockPos.x + LockSize + LockPad, LockPos.y + LockSize + LockPad),
+                    IM_COL32(0, 0, 0, 140), 4.0f);
+                DrawList->AddText(ImGui::GetFont(), LockSize, LockPos, ImGui::ColorConvertFloat4ToU32(EditorColors::Warning()), LE_ICON_LOCK);
             }
 
             if (ContentItem->IsMissingType())
@@ -1767,6 +1782,16 @@ namespace Lumina
                 return;
             }
 
+            // Read-only files stay as they are until made writable, and then the same delete runs again.
+            if (TVector<FString> ReadOnly = AssetOps::FindReadOnlyFiles(Destroy.PendingDestroy); !ReadOnly.empty())
+            {
+                ToolContext->ConfirmWritable(Move(ReadOnly), [this, Path = Destroy.PendingDestroy]
+                {
+                    ActionRegistry.EnqueueAction<FPendingDestroy>(FPendingDestroy{ Path });
+                }, false);
+                return;
+            }
+
             if (VFS::IsDirectory(Destroy.PendingDestroy))
             {
                 TVector<FFixedString> LoadedPaths;
@@ -1859,6 +1884,15 @@ namespace Lumina
         
         ActionRegistry.ProcessAllOf<FPendingRename>([&](FPendingRename& Rename)
         {
+            if (TVector<FString> ReadOnly = AssetOps::FindReadOnlyFiles(Rename.OldName); !ReadOnly.empty())
+            {
+                ToolContext->ConfirmWritable(Move(ReadOnly), [this, Retry = Rename]
+                {
+                    ActionRegistry.EnqueueAction<FPendingRename>(FPendingRename(Retry));
+                }, false);
+                return;
+            }
+
             const AssetOps::FPathOpResult Result = AssetOps::MovePath(Rename.OldName, Rename.NewName);
 
             if (!Result.bSucceeded)
@@ -3469,6 +3503,16 @@ namespace Lumina
         if (ImGui::MenuItem(LE_ICON_RENAME " Rename", "F2", false, !bIsProtected))
         {
             ContentBrowserTileView.BeginInlineRename(ContentItem);
+        }
+
+        if (ContentItem->GetFileInfo().IsReadOnly())
+        {
+            if (ImGui::MenuItem(LE_ICON_LOCK_OPEN_VARIANT " Make Writable"))
+            {
+                ToolContext->ConfirmWritable({ FString(ContentItem->GetVirtualPath().data(), ContentItem->GetVirtualPath().size()) },
+                    [this] { RefreshContentBrowser(); }, false);
+            }
+            ImGuiX::TextTooltip("{}", "Clear the read-only flag so it can be saved, renamed, moved or deleted.");
         }
 
         DrawMenuSection("CLIPBOARD");

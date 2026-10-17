@@ -1,4 +1,5 @@
 ﻿
+#include "FileSystem/FileSystem.h"
 #include "Containers/StringFormat.h"
 #include "Renderer/RHICore.h"
 #include "World/ECS/Registry.h"
@@ -574,6 +575,22 @@ namespace Lumina
             }
 
             ImGuiX::TextTooltip("Browse to asset in Content Browser");
+
+            // Polled, since another program can flip the flag without touching the file.
+            if (ImGui::GetFrameCount() % 30 == 0)
+            {
+                bAssetReadOnlyOnDisk = VFS::IsReadOnlyOnDisk(FStringView(AssetVirtualPath.c_str(), AssetVirtualPath.size()));
+            }
+            if (bAssetReadOnlyOnDisk)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, EditorColors::Warning());
+                if (ImGui::MenuItem(LE_ICON_LOCK " Read-only##ReadOnly"))
+                {
+                    ToolContext->ConfirmWritable({ FString(AssetVirtualPath.c_str()) }, {}, false);
+                }
+                ImGui::PopStyleColor();
+                ImGuiX::TextTooltip("{}", "Read-only on disk, so saving will fail. Click to make it writable.");
+            }
         }
 
         ImGui::BeginDisabled(!AllowsUndoRedo() || !CanUndo());
