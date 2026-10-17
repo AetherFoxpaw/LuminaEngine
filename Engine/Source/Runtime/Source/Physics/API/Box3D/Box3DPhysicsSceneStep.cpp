@@ -44,6 +44,8 @@ namespace Lumina::Physics
 
         Registry.GetSignals<SCharacterPhysicsComponent>().OnConstruct.Connect<&FBox3DPhysicsScene::OnCharacterComponentConstructed>(this);
         Registry.GetSignals<SCharacterPhysicsComponent>().OnDestroy.Connect<&FBox3DPhysicsScene::OnCharacterComponentDestroyed>(this);
+        Registry.GetSignals<SCharacterPhysicsComponent>().OnUpdate.Connect<&FBox3DPhysicsScene::OnCharacterComponentUpdated>(this);
+        Registry.GetSignals<SCharacterMovementComponent>().OnUpdate.Connect<&FBox3DPhysicsScene::OnCharacterComponentUpdated>(this);
 
         Registry.GetSignals<SSphereColliderComponent>().OnConstruct.Connect<&FBox3DPhysicsScene::OnColliderComponentAdded>(this);
         Registry.GetSignals<SSphereColliderComponent>().OnUpdate.Connect<&FBox3DPhysicsScene::OnColliderComponentAdded>(this);
@@ -99,6 +101,8 @@ namespace Lumina::Physics
 
         Registry.GetSignals<SCharacterPhysicsComponent>().OnConstruct.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentConstructed>(this);
         Registry.GetSignals<SCharacterPhysicsComponent>().OnDestroy.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentDestroyed>(this);
+        Registry.GetSignals<SCharacterPhysicsComponent>().OnUpdate.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentUpdated>(this);
+        Registry.GetSignals<SCharacterMovementComponent>().OnUpdate.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentUpdated>(this);
 
         Registry.GetSignals<SSphereColliderComponent>().OnConstruct.Disconnect<&FBox3DPhysicsScene::OnColliderComponentAdded>(this);
         Registry.GetSignals<SSphereColliderComponent>().OnUpdate.Disconnect<&FBox3DPhysicsScene::OnColliderComponentAdded>(this);

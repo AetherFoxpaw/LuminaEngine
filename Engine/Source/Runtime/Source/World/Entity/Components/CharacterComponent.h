@@ -146,6 +146,20 @@ namespace Lumina
         FVector3 Velocity = FVector3(0.0f);
     };
 
+    // A character crouched or stood back up, queued for systems and fanned out to its movement component's OnCrouchChanged.
+    REFLECT(Event)
+    struct RUNTIME_API SCharacterCrouchEvent
+    {
+        GENERATED_BODY()
+
+        PROPERTY(Hidden)
+        ECS::FEntity Entity = ECS::NullEntity;
+
+        // True when it crouched, false when it stood up.
+        PROPERTY(Hidden)
+        bool bCrouched = false;
+    };
+
     REFLECT(Component, Category = "Character")
     struct RUNTIME_API SCharacterMovementComponent
     {
@@ -225,12 +239,33 @@ namespace Lumina
         PROPERTY(ReadOnly, Category = "Movement")
         int JumpCount = 0;
 
+        PROPERTY(Editable, Category = "Crouch")
+        bool bCanCrouch = true;
+
+        // Capsule cylinder half height while crouched in meters, measured like the physics component's HalfHeight.
+        PROPERTY(Editable, ClampMin = 0.0f, Category = "Crouch", Units = "m")
+        float CrouchHalfHeight = 0.2f;
+
+        // MoveSpeed and SprintSpeed are multiplied by this while crouched.
+        PROPERTY(Editable, ClampMin = 0.0f, ClampMax = 1.0f, Category = "Crouch")
+        float CrouchSpeedScale = 0.5f;
+
+        PROPERTY(ReadOnly, Category = "Crouch")
+        bool bIsCrouched = false;
+
+        // Set by the controller's Crouch and UnCrouch, or directly by a script that drives the character itself.
+        PROPERTY(Hidden)
+        bool bWantsToCrouch = false;
+
         // Systems that hear every character read the SCharacterLandedEvent queue instead.
         PROPERTY(Hidden)
         TScriptDelegate<SCharacterLandedEvent> OnLanded;
 
         PROPERTY(Hidden)
         TScriptDelegate<SCharacterJumpedEvent> OnJumped;
+
+        PROPERTY(Hidden)
+        TScriptDelegate<SCharacterCrouchEvent> OnCrouchChanged;
 
         // Internal staging: input is latched from the controller once per
         // frame in PrePhysics, then consumed at fixed-step rate in physics.
@@ -261,6 +296,9 @@ namespace Lumina
 
     template<>
     struct TEventFanOut<SCharacterJumpedEvent> : TEntityDelegateFanOut<SCharacterJumpedEvent, &SCharacterMovementComponent::OnJumped> {};
+
+    template<>
+    struct TEventFanOut<SCharacterCrouchEvent> : TEntityDelegateFanOut<SCharacterCrouchEvent, &SCharacterMovementComponent::OnCrouchChanged> {};
 
     
 }

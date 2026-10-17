@@ -4,6 +4,8 @@
 
 #include "Physics/PhysicsScene.h"
 #include "World/World.h"
+#include "World/Entity/Components/CharacterComponent.h"
+#include "World/Entity/Components/PhysicsComponent.h"
 
 namespace Lumina
 {
@@ -282,6 +284,93 @@ namespace Lumina
             return SAABB();
         }
         return Bounds;
+    }
+
+    void CPhysicsLibrary::RebuildPhysics(CWorld* World, ECS::FEntity Entity)
+    {
+        if (World == nullptr || !World->IsValidEntity(Entity))
+        {
+            return;
+        }
+
+        // The patch is what physics listens for, so the scene re-reads every field on its next step.
+        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        if (Registry.HasAll<SRigidBodyComponent>(Entity))
+        {
+            Registry.Patch<SRigidBodyComponent>(Entity);
+        }
+        if (Registry.HasAll<SCharacterPhysicsComponent>(Entity))
+        {
+            Registry.Patch<SCharacterPhysicsComponent>(Entity);
+        }
+    }
+
+    void CPhysicsLibrary::SetCapsuleSize(CWorld* World, ECS::FEntity Entity, float Radius, float HalfHeight)
+    {
+        if (World == nullptr || !World->IsValidEntity(Entity))
+        {
+            return;
+        }
+
+        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        if (SCharacterPhysicsComponent* Character = Registry.TryGet<SCharacterPhysicsComponent>(Entity))
+        {
+            Character->Radius     = Math::Max(Radius, 0.0f);
+            Character->HalfHeight = Math::Max(HalfHeight, 0.0f);
+        }
+        else if (SCapsuleColliderComponent* Capsule = Registry.TryGet<SCapsuleColliderComponent>(Entity))
+        {
+            Capsule->Radius     = Math::Max(Radius, 0.0f);
+            Capsule->HalfHeight = Math::Max(HalfHeight, 0.0f);
+        }
+        RebuildPhysics(World, Entity);
+    }
+
+    void CPhysicsLibrary::SetBoxHalfExtent(CWorld* World, ECS::FEntity Entity, FVector3 HalfExtent)
+    {
+        if (World == nullptr || !World->IsValidEntity(Entity))
+        {
+            return;
+        }
+
+        if (SBoxColliderComponent* Box = ECS::GetWorldRegistry(*World).TryGet<SBoxColliderComponent>(Entity))
+        {
+            Box->HalfExtent = Math::Max(HalfExtent, FVector3(0.0f));
+            RebuildPhysics(World, Entity);
+        }
+    }
+
+    void CPhysicsLibrary::SetSphereRadius(CWorld* World, ECS::FEntity Entity, float Radius)
+    {
+        if (World == nullptr || !World->IsValidEntity(Entity))
+        {
+            return;
+        }
+
+        if (SSphereColliderComponent* Sphere = ECS::GetWorldRegistry(*World).TryGet<SSphereColliderComponent>(Entity))
+        {
+            Sphere->Radius = Math::Max(Radius, 0.0f);
+            RebuildPhysics(World, Entity);
+        }
+    }
+
+    void CPhysicsLibrary::SetCollisionProfile(CWorld* World, ECS::FEntity Entity, SCollisionProfile Profile)
+    {
+        if (World == nullptr || !World->IsValidEntity(Entity))
+        {
+            return;
+        }
+
+        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        if (SRigidBodyComponent* Body = Registry.TryGet<SRigidBodyComponent>(Entity))
+        {
+            Body->CollisionProfile = Profile;
+        }
+        if (SCharacterPhysicsComponent* Character = Registry.TryGet<SCharacterPhysicsComponent>(Entity))
+        {
+            Character->CollisionProfile = Profile;
+        }
+        RebuildPhysics(World, Entity);
     }
 
     float CPhysicsLibrary::GetGroundHeight(CWorld* World, FVector3 Point, float SearchDistance, ECS::FEntity IgnoreEntity, float Fallback,

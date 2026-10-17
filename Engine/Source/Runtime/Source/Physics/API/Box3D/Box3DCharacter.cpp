@@ -113,6 +113,84 @@ namespace Lumina::Physics
             return true;
         }
 
+        // The crouched capsule drops its center by the height it loses, so the feet stay where they were.
+        void ApplyCharacterShape(FPhysicsCharacterHandle& Character, const SCharacterPhysicsComponent& Physics,
+                                 const SCharacterMovementComponent* Movement)
+        {
+            const bool  bCrouched = Movement != nullptr && Movement->bIsCrouched;
+            const float Standing  = Physics.HalfHeight;
+            Character.HalfHeight        = bCrouched ? Math::Min(Movement->CrouchHalfHeight, Standing) : Standing;
+            Character.CrouchDrop        = Standing - Character.HalfHeight;
+            Character.Radius            = Physics.Radius;
+            Character.TranslationOffset = Physics.TranslationOffset;
+
+            if (b3Shape_IsValid(Character.ProxyShape))
+            {
+                const b3Capsule Capsule = Character.MakeBodyCapsule();
+                b3Shape_SetCapsule(Character.ProxyShape, &Capsule);
+            }
+        }
+
+        // Everything the mover reads from the component, so a patch takes effect without rebuilding the character.
+        void ApplyCharacterSettings(FPhysicsCharacterHandle& Character, const SCharacterPhysicsComponent& Physics,
+                                    const SCharacterMovementComponent* Movement)
+        {
+            Character.Padding                = Physics.Padding;
+            Character.StepHeight             = Physics.StepHeight;
+            Character.StickToFloorDistance   = Physics.StickToFloorDistance;
+            Character.CosMaxSlope            = Math::Cos(Math::Radians(Physics.MaxSlopeAngle));
+            Character.MaxStrength            = Physics.MaxStrength;
+            Character.Mass                   = Physics.Mass;
+            Character.MaxCollisionIterations = (int32)Math::Max(Physics.MaxCollisionIterations, 1u);
+            Character.bCollideWithCharacters = Physics.bCollideWithCharacters;
+            Character.Profile                = Physics.CollisionProfile;
+            Character.Filter                 = Box3DUtils::MakeQueryFilter(Physics.CollisionProfile);
+
+            if (b3Shape_IsValid(Character.ProxyShape))
+            {
+                b3Shape_SetFilter(Character.ProxyShape, Box3DUtils::MakeShapeFilter(Physics.CollisionProfile), true);
+                b3Shape_SetUserData(Character.ProxyShape, Box3DUtils::PackProfileUserData(Physics.CollisionProfile, true));
+            }
+
+            ApplyCharacterShape(Character, Physics, Movement);
+        }
+
+        // A surface facing down that reaches into the standing capsule, which is all that can stop a crouched character standing.
+        bool HasRoomToStand(const FPhysicsCharacterHandle& Character, float StandingHalfHeight)
+        {
+            constexpr float CeilingNormalY = -0.1f;
+            constexpr float StandClearance = 0.01f;
+
+            const FVector3& Offset = Character.TranslationOffset;
+            const b3Capsule Standing{ b3Vec3{ Offset.x, Offset.y - StandingHalfHeight, Offset.z },
+                                      b3Vec3{ Offset.x, Offset.y + StandingHalfHeight, Offset.z }, Character.Radius };
+
+            FMoverPlanes Gathered;
+            Gathered.IgnoreBody             = Character.ProxyBody;
+            Gathered.Profile                = Character.Profile;
+            Gathered.bPermissive            = Box3DUtils::UsesPermissiveCollisionFilter();
+            Gathered.bCollideWithCharacters = Character.bCollideWithCharacters;
+            Gathered.CosMaxSlope            = Character.CosMaxSlope;
+            Gathered.Origin                 = Box3DUtils::ToB3Vec3(Character.Position);
+            b3World_CollideMover(Character.WorldId, Gathered.Origin, &Standing, Character.Filter, &GatherPlanes, &Gathered);
+
+            const FVector3 Center = Character.Position + Offset;
+            for (int32 i = 0; i < Gathered.Count; ++i)
+            {
+                if (Gathered.Planes[i].plane.normal.y > CeilingNormalY)
+                {
+                    continue;
+                }
+                const FVector3 Point(Gathered.Points[i].x, Gathered.Points[i].y, Gathered.Points[i].z);
+                const FVector3 OnAxis(Center.x, Math::Clamp(Point.y, Center.y - StandingHalfHeight, Center.y + StandingHalfHeight), Center.z);
+                if (Math::Length(Point - OnAxis) < Character.Radius - StandClearance)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         bool MoverCastFilter(b3ShapeId ShapeId, void* Context)
         {
             return MoverAcceptsShape(*static_cast<const FMoverPlanes*>(Context), ShapeId);
@@ -197,19 +275,7 @@ namespace Lumina::Physics
         Handle->WorldId = WorldId;
         Handle->Position = Transform->GetLocation();
         Handle->Rotation = Transform->GetRotation();
-        Handle->Radius = Component->Radius;
-        Handle->HalfHeight = Component->HalfHeight;
-        Handle->Padding = Component->Padding;
-        Handle->TranslationOffset = Component->TranslationOffset;
-        Handle->StepHeight = Component->StepHeight;
-        Handle->StickToFloorDistance = Component->StickToFloorDistance;
-        Handle->CosMaxSlope = Math::Cos(Math::Radians(Component->MaxSlopeAngle));
-        Handle->MaxStrength = Component->MaxStrength;
-        Handle->Mass = Component->Mass;
-        Handle->MaxCollisionIterations = (int32)Math::Max(Component->MaxCollisionIterations, 1u);
-        Handle->bCollideWithCharacters = Component->bCollideWithCharacters;
-        Handle->Profile = Component->CollisionProfile;
-        Handle->Filter = Box3DUtils::MakeQueryFilter(Component->CollisionProfile);
+        ApplyCharacterSettings(*Handle, *Component, Registry.TryGet<SCharacterMovementComponent>(Entity));
 
         Handle->SpawnPosition = Handle->Position;
 
@@ -245,6 +311,48 @@ namespace Lumina::Physics
         Component->Character = Move(Handle);
         Component->LastBodyPosition = Component->Character->Position;
         Component->LastBodyRotation = Component->Character->Rotation;
+    }
+
+    void FBox3DPhysicsScene::OnCharacterComponentUpdated(ECS::FRegistry& Registry, ECS::FEntity Entity)
+    {
+        PendingCharacterUpdates.push_back(Entity);
+    }
+
+    void FBox3DPhysicsScene::ApplyPendingCharacterUpdates(ECS::FRegistry& Registry)
+    {
+        for (ECS::FEntity Entity : PendingCharacterUpdates)
+        {
+            SCharacterPhysicsComponent* Physics = Registry.IsValid(Entity) ? Registry.TryGet<SCharacterPhysicsComponent>(Entity) : nullptr;
+            if (Physics != nullptr && Physics->Character)
+            {
+                ApplyCharacterSettings(*Physics->Character, *Physics, Registry.TryGet<SCharacterMovementComponent>(Entity));
+                Physics->Character->bResting = false;
+            }
+        }
+        PendingCharacterUpdates.clear();
+    }
+
+    void FBox3DPhysicsScene::UpdateCrouch(ECS::FEntity Entity, SCharacterPhysicsComponent& Physics, SCharacterMovementComponent& Movement)
+    {
+        const bool bWantsCrouched = Movement.bWantsToCrouch && Movement.bCanCrouch;
+        if (bWantsCrouched == Movement.bIsCrouched)
+        {
+            return;
+        }
+
+        FPhysicsCharacterHandle& Character = *Physics.Character;
+        if (!bWantsCrouched && !HasRoomToStand(Character, Physics.HalfHeight))
+        {
+            return;
+        }
+
+        Movement.bIsCrouched = bWantsCrouched;
+        ApplyCharacterShape(Character, Physics, &Movement);
+        Character.bResting = false;
+
+        SCharacterCrouchEvent& Event = CrouchEvents.emplace_back();
+        Event.Entity    = Entity;
+        Event.bCrouched = bWantsCrouched;
     }
 
     void FBox3DPhysicsScene::OnCharacterComponentDestroyed(ECS::FRegistry& Registry, ECS::FEntity Entity)
@@ -325,6 +433,8 @@ namespace Lumina::Physics
                 Controller.bJumpPressed = false;
             }
 
+            Movement.bWantsToCrouch = Controller.bWantsToCrouch;
+
             if (Controller.bLaunchRequested)
             {
                 Controller.bLaunchRequested = false;
@@ -388,6 +498,9 @@ namespace Lumina::Physics
                 return;
             }
 
+            // Serial, because resizing the proxy shape writes Box3D state the parallel step below only reads.
+            UpdateCrouch(Entity, Physics, Movement);
+
             if (Character.bResting)
             {
                 const bool bPollDue = ((CharacterStepCounter + (uint64)(Entity).Value) & kRestPollMask) == 0;
@@ -412,6 +525,12 @@ namespace Lumina::Physics
 
             CharacterWorkScratch.push_back({ &Physics, &Movement, Entity });
         });
+
+        if (!CrouchEvents.empty())
+        {
+            ECS::SendEvents(World->GetEvents(), TSpan<const SCharacterCrouchEvent>(CrouchEvents.data(), CrouchEvents.size()));
+            CrouchEvents.clear();
+        }
 
         const uint32 WorkCount = (uint32)CharacterWorkScratch.size();
 
@@ -704,7 +823,7 @@ namespace Lumina::Physics
         const bool bHasMovementInput = Movement.bHasPendingMoveInput;
         const FVector3 DesiredDirection = Movement.PendingMoveDirection;
         const bool bSprinting = Movement.SprintSpeed > 0.0f && (Movement.PendingButtons & Movement.SprintButtons) != 0;
-        const float Speed = bSprinting ? Movement.SprintSpeed : Movement.MoveSpeed;
+        const float Speed = (bSprinting ? Movement.SprintSpeed : Movement.MoveSpeed) * (Movement.bIsCrouched ? Movement.CrouchSpeedScale : 1.0f);
         const float TargetSpeed = bHasMovementInput ? Speed * Movement.PendingMoveThrottle : 0.0f;
         const FVector3 TargetVelocity = DesiredDirection * TargetSpeed;
 

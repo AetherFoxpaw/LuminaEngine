@@ -143,6 +143,26 @@ namespace Lumina
         FUNCTION()
         static SAABB GetBodyBounds(CWorld* World, ECS::FEntity Entity);
 
+        //~ Shape and settings. A direct field write on a physics component takes effect once the entity is rebuilt.
+
+        // Re-applies the entity's body, collider and character settings after their fields were written directly, keeping its motion.
+        FUNCTION()
+        static void RebuildPhysics(CWorld* World, ECS::FEntity Entity);
+
+        // Resizes the entity's character capsule, or its capsule collider when it is not a character.
+        FUNCTION()
+        static void SetCapsuleSize(CWorld* World, ECS::FEntity Entity, float Radius, float HalfHeight);
+
+        FUNCTION()
+        static void SetBoxHalfExtent(CWorld* World, ECS::FEntity Entity, FVector3 HalfExtent);
+
+        FUNCTION()
+        static void SetSphereRadius(CWorld* World, ECS::FEntity Entity, float Radius);
+
+        // Moves the entity's body or character onto another profile, which changes what it collides with.
+        FUNCTION()
+        static void SetCollisionProfile(CWorld* World, ECS::FEntity Entity, SCollisionProfile Profile);
+
         // The height of the first surface straight down through Point, searching SearchDistance above and below it.
         FUNCTION()
         static float GetGroundHeight(CWorld* World, FVector3 Point, float SearchDistance, ECS::FEntity IgnoreEntity, float Fallback,
