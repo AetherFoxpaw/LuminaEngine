@@ -295,6 +295,9 @@ namespace Lumina
 
     private:
 
+        // How far a Shift drag has carried the camera, taken back off the gizmo's target.
+        FVector3 GizmoFollowOffset = FVector3(0.0f);
+
         struct FSelectionBox
         {
             bool bActive = false;

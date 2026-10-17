@@ -1567,6 +1567,27 @@ namespace Lumina
         }
     }
 
+    void FEditorTool::MoveEditorCameraBy(const FVector3& Delta)
+    {
+        if (!HasWorld() || EditorEntity == ECS::NullEntity || !World->IsValidEntity(EditorEntity))
+        {
+            return;
+        }
+
+        CameraState.bFocusInterp = false;
+        if (CameraState.Mode == EEditorCameraMode::Orbit)
+        {
+            // The anchor rides along too, so Reset Pan returns to the dragged object rather than where the drag began.
+            CameraState.OrbitTarget += Delta;
+            CameraState.OrbitAnchor += Delta;
+            ApplyOrbitTransform();
+            return;
+        }
+
+        STransformComponent& Transform = World->GetComponent<STransformComponent>(EditorEntity);
+        Transform.SetLocation(Transform.GetLocation() + Delta);
+    }
+
     void FEditorTool::ApplyOrbitTransform()
     {
         if (!HasWorld() || EditorEntity == ECS::NullEntity)

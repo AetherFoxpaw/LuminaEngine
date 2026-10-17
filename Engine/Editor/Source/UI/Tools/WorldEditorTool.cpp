@@ -1265,6 +1265,9 @@ namespace Lumina
 
         RegisterAction({"Drag a Copy", "Selection", "Alt-drag the transform gizmo to drag a duplicate of the selection",
             FInputChord{}, nullptr});
+
+        RegisterAction({"Camera Follows Drag", "Selection", "Hold Shift while moving the selection with the gizmo to bring the camera along",
+            FInputChord{}, nullptr});
         
         RegisterAction({"Paste Entities", "Selection", "Paste previously-copied entities",
             FInputChord{ImGuiKey_V, true}, nullptr});
@@ -1638,7 +1641,7 @@ namespace Lumina
         // TickEditorCamera runs in Update before this draw, so the flag is current-frame.
         const bool bCameraOwnsInput = ShouldSuppressViewportClickInput();
 
-        // Alt on the gizmo drags a copy as Unreal does, so the copies become the selection before the gizmo takes the press.
+        // Alt on the gizmo drags a copy, so the copies become the selection before the gizmo takes the press.
         const bool bAltGrabsGizmo = ImGui::GetIO().KeyAlt && GetCameraState().bGizmoHovered && !bImGuizmoUsedOnce && !bModeOwnsInput;
         if (bAltGrabsGizmo && bViewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
@@ -1756,6 +1759,9 @@ namespace Lumina
                         ImGuizmo::Enable(false);
                     }
 
+                    // The camera's ride so far, which the follow below put into the cursor ray and the drag must not count again.
+                    ImGuizmo::SetTranslationOffset(&GizmoFollowOffset.x);
+
                     FMatrix4 GizmoDeltaMatrix(1.0f);
                     ImGuizmo::Manipulate(Math::ValuePtr(ViewMatrix), Math::ValuePtr(ProjectionMatrix),
                         GuizmoOp, GuizmoMode, Math::ValuePtr(EntityMatrix), Math::ValuePtr(GizmoDeltaMatrix), SnapValues);
@@ -1780,6 +1786,7 @@ namespace Lumina
                             BeginTransformTransaction(Dragged);
 
                             bImGuizmoUsedOnce = true;
+                            GizmoFollowOffset = FVector3(0.0f);
                             // Click landed on the gizmo, not empty space, kill the marquee armed by IsMouseClicked.
                             SelectionBox.bActive = false;
                         }
@@ -2016,6 +2023,16 @@ namespace Lumina
                         for (ECS::FEntity Selected : SelectionView)
                         {
                             ECS::GetWorldRegistry(*World).EmplaceOrReplace<FNeedsTransformUpdate>(Selected);
+                        }
+
+                        // Shift keeps the camera with the moved selection, so a long drag never leaves the view.
+                        if (GuizmoOp == ImGuizmo::TRANSLATE && ImGui::GetIO().KeyShift)
+                        {
+                            const FVector3 PivotDelta = GuizmoMode == ImGuizmo::LOCAL
+                                ? FVector3(EntityMatrix[3]) - FVector3(PreManipulateMatrix[3])
+                                : DeltaTranslation;
+                            MoveEditorCameraBy(PivotDelta);
+                            GizmoFollowOffset += PivotDelta;
                         }
                     }
                     else if (bImGuizmoUsedOnce)

@@ -302,6 +302,9 @@ namespace Lumina
         /** Snap OrbitTarget back to OrbitAnchor (undo MMB-drag pan). */
         void ResetOrbitPan();
 
+        // Carries the camera along by a world delta in either mode, so it can ride with something being dragged.
+        void MoveEditorCameraBy(const FVector3& Delta);
+
     private:
 
         /** Push current orbit state onto the editor entity's transform. */
