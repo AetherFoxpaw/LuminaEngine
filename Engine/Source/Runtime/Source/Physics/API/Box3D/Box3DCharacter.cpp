@@ -117,10 +117,7 @@ namespace Lumina::Physics
         void ApplyCharacterShape(FPhysicsCharacterHandle& Character, const SCharacterPhysicsComponent& Physics,
                                  const SCharacterMovementComponent* Movement)
         {
-            const bool  bCrouched = Movement != nullptr && Movement->bIsCrouched;
-            const float Standing  = Physics.HalfHeight;
-            Character.HalfHeight        = bCrouched ? Math::Min(Movement->CrouchHalfHeight, Standing) : Standing;
-            Character.CrouchDrop        = Standing - Character.HalfHeight;
+            Physics.GetActiveCapsule(Movement, Character.HalfHeight, Character.CrouchDrop);
             Character.Radius            = Physics.Radius;
             Character.TranslationOffset = Physics.TranslationOffset;
 

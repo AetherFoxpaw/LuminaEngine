@@ -35,6 +35,8 @@ namespace Lumina
         void reset() { Handle.reset(); }
     };
     
+    struct SCharacterMovementComponent;
+
     REFLECT(Component, Category = "Character")
     struct RUNTIME_API SCharacterPhysicsComponent
     {
@@ -48,6 +50,9 @@ namespace Lumina
         SCharacterPhysicsComponent& operator=(SCharacterPhysicsComponent&&) noexcept;
         
         FCharacterHandleRef Character;
+
+        // The capsule physics uses right now, crouch included, so debug drawing and the mover never disagree about its size.
+        void GetActiveCapsule(const SCharacterMovementComponent* Movement, float& OutHalfHeight, float& OutCenterDrop) const;
 
         // Snapshots for interpolation.
         FVector3 LastBodyPosition;
