@@ -1132,6 +1132,53 @@ namespace Lumina
         return Copy;
     }
 
+    void FSceneEditorTool::DuplicateAndSelect(TSpan<const ECS::FEntity> Entities, FName Label)
+    {
+        BeginCreationTransaction();
+
+        TFixedVector<ECS::FEntity, 64> Duplicates;
+        for (ECS::FEntity Entity : Entities)
+        {
+            if (!GetSceneRegistry().IsValid(Entity) || !CanDuplicateEntity(Entity))
+            {
+                continue;
+            }
+            const ECS::FEntity New = DuplicateEntityForScene(Entity);
+            if (New != ECS::NullEntity)
+            {
+                Duplicates.push_back(New);
+            }
+        }
+
+        if (Duplicates.empty())
+        {
+            AbortTransaction();
+            return;
+        }
+
+        // Selecting the copies is what lets a second Ctrl+D, or an Alt drag, move the new ones.
+        ClearSelectedEntities();
+        for (ECS::FEntity New : Duplicates)
+        {
+            AddSelectedEntity(New, false);
+        }
+        EndTransaction(Label);
+        MarkSceneDirty();
+        OutlinerListView.MarkTreeDirty();
+    }
+
+    bool FSceneEditorTool::HandleAltDragCopy(bool bInputTaken)
+    {
+        const bool bAltGrabsGizmo = ImGui::GetIO().KeyAlt && GetCameraState().bGizmoHovered && !bImGuizmoUsedOnce && !bInputTaken;
+        if (bAltGrabsGizmo && bViewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            const TVector<ECS::FEntity> ToCopy(SelectedEntities.begin(), SelectedEntities.end());
+            DuplicateAndSelect(TSpan<const ECS::FEntity>(ToCopy.data(), ToCopy.size()));
+        }
+        GetCameraState().bGizmoHovered = false;
+        return bAltGrabsGizmo;
+    }
+
     void FSceneEditorTool::RemoveComponent(ECS::FEntity Entity, const CStruct* ComponentType)
     {
         bool bWasRemoved = false;

@@ -1034,65 +1034,18 @@ namespace Lumina
             });
         }
 
-        auto DuplicateBatch = [&](TFixedVector<ECS::FEntity, 64>& Sources, FName Label)
-        {
-            if (Sources.empty())
-            {
-                return;
-            }
-
-            BeginTransaction();
-            TFixedVector<ECS::FEntity, 64> NewlyCreated;
-            for (ECS::FEntity Source : Sources)
-            {
-                ECS::FEntity New = DuplicatePrefabEntity(Source);
-                if (New != ECS::NullEntity)
-                {
-                    NewlyCreated.push_back(New);
-                }
-            }
-
-            if (!NewlyCreated.empty())
-            {
-                ClearSelectedEntities();
-                for (ECS::FEntity New : NewlyCreated)
-                {
-                    AddSelectedEntity(New, false);
-                }
-                EndTransaction(Label);
-                OutlinerListView.MarkTreeDirty();
-                Asset->GetPackage()->MarkDirty();
-            }
-            else
-            {
-                AbortTransaction();
-            }
-        };
-
         if (bDuplicatePressed)
         {
             TFixedVector<ECS::FEntity, 64> Sources;
-            Registry.View<FSelectedInEditorComponent>().ForEach([&](ECS::FEntity Selected)
-            {
-                if (Selected != Root)
-                {
-                    Sources.push_back(Selected);
-                }
-            });
-            DuplicateBatch(Sources, "Duplicate");
+            Registry.View<FSelectedInEditorComponent>().ForEach([&](ECS::FEntity Selected) { Sources.push_back(Selected); });
+            DuplicateAndSelect(TSpan<const ECS::FEntity>(Sources.data(), Sources.size()), "Duplicate");
         }
 
         if (bPastePressed)
         {
             TFixedVector<ECS::FEntity, 64> Sources;
-            Registry.View<FCopiedTag>().ForEach([&](ECS::FEntity Tagged)
-            {
-                if (Tagged != Root)
-                {
-                    Sources.push_back(Tagged);
-                }
-            });
-            DuplicateBatch(Sources, "Paste");
+            Registry.View<FCopiedTag>().ForEach([&](ECS::FEntity Tagged) { Sources.push_back(Tagged); });
+            DuplicateAndSelect(TSpan<const ECS::FEntity>(Sources.data(), Sources.size()), "Paste");
         }
     }
 
@@ -1140,6 +1093,7 @@ namespace Lumina
         // ImGuizmo only raises IsUsing() inside Manipulate, so picking that ran first stole the click.
         [&]
         {
+            const bool bAltGrabsGizmo = HandleAltDragCopy(false);
             const ECS::FEntity PivotEntity = GetLastSelectedEntity();
             const bool bGizmoTargetValid = PivotEntity != ECS::NullEntity && World->IsValidEntity(PivotEntity);
 
@@ -1190,7 +1144,7 @@ namespace Lumina
             }
 
             // Never applied mid-drag, since clearing the using state without a release strands the transaction.
-            const bool bGizmoInert = ShouldSuppressViewportClickInput() && !bImGuizmoUsedOnce;
+            const bool bGizmoInert = ShouldSuppressViewportClickInput() && !bImGuizmoUsedOnce && !bAltGrabsGizmo;
             if (bGizmoInert)
             {
                 ImGuizmo::Enable(false);
@@ -1203,6 +1157,7 @@ namespace Lumina
             {
                 ImGuizmo::Enable(true);
             }
+            GetCameraState().bGizmoHovered = ImGuizmo::IsOver();
 
             if (ImGuizmo::IsUsing())
             {
