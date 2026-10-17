@@ -980,15 +980,6 @@ namespace Lumina
                 }
             }
 
-            TFixedVector<ECS::FEntity, 64> NewlyDuplicated;
-
-            // Snapshot once so a Ctrl+D batch is a single undo.
-            const bool bWantDuplicateTransaction = bDuplicatePressed;
-            if (bWantDuplicateTransaction)
-            {
-                BeginCreationTransaction();
-            }
-
             for (ECS::FEntity SelectedEntity : CurrentSelection)
             {
                 const bool bLocked = IsLockedPrefabChild(ECS::GetWorldRegistry(*World), SelectedEntity);
@@ -998,42 +989,15 @@ namespace Lumina
                     AddEntityToCopies(SelectedEntity);
                 }
 
-                if (bDuplicatePressed && !bLocked)
-                {
-                    ECS::FEntity New = ECS::NullEntity;
-                    CopyEntity(New, SelectedEntity);
-                    if (New != ECS::NullEntity)
-                    {
-                        NewlyDuplicated.push_back(New);
-                    }
-                }
-
                 if (bDeletePressed && !bLocked)
                 {
                     EntityDestroyRequests.push(SelectedEntity);
                 }
             }
 
-            // Select the duplicates so Ctrl+D twice keeps moving the new copies.
-            if (bDuplicatePressed && !NewlyDuplicated.empty())
+            if (bDuplicatePressed)
             {
-                ClearSelectedEntities();
-                for (ECS::FEntity New : NewlyDuplicated)
-                {
-                    AddSelectedEntity(New, false);
-                }
-            }
-
-            if (bWantDuplicateTransaction)
-            {
-                if (!NewlyDuplicated.empty())
-                {
-                    EndTransaction("Duplicate");
-                }
-                else
-                {
-                    AbortTransaction();
-                }
+                DuplicateAndSelect(TSpan<const ECS::FEntity>(CurrentSelection.data(), CurrentSelection.size()));
             }
         }
         
@@ -1298,6 +1262,9 @@ namespace Lumina
         
         RegisterAction({"Duplicate Entities", "Selection", "Duplicate the selection in place",
             FInputChord{ImGuiKey_D, true}, nullptr});
+
+        RegisterAction({"Drag a Copy", "Selection", "Alt-drag the transform gizmo to drag a duplicate of the selection",
+            FInputChord{}, nullptr});
         
         RegisterAction({"Paste Entities", "Selection", "Paste previously-copied entities",
             FInputChord{ImGuiKey_V, true}, nullptr});
@@ -1458,6 +1425,40 @@ namespace Lumina
         if (EditorModes.empty()) return nullptr;
         const int32 Idx = Math::Clamp(ActiveModeIndex, 0, (int32)EditorModes.size() - 1);
         return EditorModes[Idx].get();
+    }
+
+    void FWorldEditorTool::DuplicateAndSelect(TSpan<const ECS::FEntity> Entities)
+    {
+        BeginCreationTransaction();
+
+        TFixedVector<ECS::FEntity, 64> Duplicates;
+        for (ECS::FEntity Entity : Entities)
+        {
+            if (IsLockedPrefabChild(ECS::GetWorldRegistry(*World), Entity))
+            {
+                continue;
+            }
+            ECS::FEntity New = ECS::NullEntity;
+            CopyEntity(New, Entity);
+            if (New != ECS::NullEntity)
+            {
+                Duplicates.push_back(New);
+            }
+        }
+
+        if (Duplicates.empty())
+        {
+            AbortTransaction();
+            return;
+        }
+
+        // Selecting the copies is what lets a second Ctrl+D, or an Alt drag, move the new ones.
+        ClearSelectedEntities();
+        for (ECS::FEntity New : Duplicates)
+        {
+            AddSelectedEntity(New, false);
+        }
+        EndTransaction("Duplicate");
     }
 
     void FWorldEditorTool::SetActiveMode(int32 NewIndex)
@@ -1637,6 +1638,22 @@ namespace Lumina
         // TickEditorCamera runs in Update before this draw, so the flag is current-frame.
         const bool bCameraOwnsInput = ShouldSuppressViewportClickInput();
 
+        // Alt on the gizmo drags a copy as Unreal does, so the copies become the selection before the gizmo takes the press.
+        const bool bAltGrabsGizmo = ImGui::GetIO().KeyAlt && GetCameraState().bGizmoHovered && !bImGuizmoUsedOnce && !bModeOwnsInput;
+        if (bAltGrabsGizmo && bViewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            TFixedVector<ECS::FEntity, 64> ToCopy;
+            for (ECS::FEntity Selected : SelectedEntities)
+            {
+                if (ECS::GetWorldRegistry(*World).IsValid(Selected))
+                {
+                    ToCopy.push_back(Selected);
+                }
+            }
+            DuplicateAndSelect(TSpan<const ECS::FEntity>(ToCopy.data(), ToCopy.size()));
+        }
+        GetCameraState().bGizmoHovered = false;
+
         auto SelectionView = ECS::GetWorldRegistry(*World).View<FSelectedInEditorComponent, STransformComponent>();
 
         const ECS::FEntity PivotEntityForGizmo = GetLastSelectedEntity();
@@ -1733,7 +1750,7 @@ namespace Lumina
                     }
 
                     // Never applied mid-drag, since clearing the using state without a release strands the transaction.
-                    const bool bGizmoInert = bCameraOwnsInput && !bImGuizmoUsedOnce;
+                    const bool bGizmoInert = bCameraOwnsInput && !bImGuizmoUsedOnce && !bAltGrabsGizmo;
                     if (bGizmoInert)
                     {
                         ImGuizmo::Enable(false);
@@ -1747,6 +1764,7 @@ namespace Lumina
                     {
                         ImGuizmo::Enable(true);
                     }
+                    GetCameraState().bGizmoHovered = ImGuizmo::IsOver();
 
                     if (ImGuizmo::IsUsing())
                     {

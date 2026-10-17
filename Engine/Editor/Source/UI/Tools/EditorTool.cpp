@@ -1668,7 +1668,7 @@ namespace Lumina
         // Latched out until release, so adding Alt mid-gizmo-drag cannot also start a camera gesture.
         if (bLeftDown && !CameraState.bLeftMouseDownPrev)
         {
-            CameraState.bLeftGestureBlocked = !bAltDown && !bRightDown;
+            CameraState.bLeftGestureBlocked = (!bAltDown && !bRightDown) || (bAltDown && CameraState.bGizmoHovered);
         }
         else if (!bLeftDown)
         {

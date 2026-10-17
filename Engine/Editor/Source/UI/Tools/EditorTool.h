@@ -78,6 +78,8 @@ namespace Lumina
         // and is latched out of camera gestures until release.
         bool        bLeftMouseDownPrev  = false;
         bool        bLeftGestureBlocked = false;
+        // Set by a tool's transform gizmo from last frame's hover, so an Alt press on it grabs the gizmo instead of orbiting.
+        bool        bGizmoHovered       = false;
         // Published for the viewport picking/gizmo code, which draws later in the same frame.
         bool        bLeftDragGesture    = false;
 
