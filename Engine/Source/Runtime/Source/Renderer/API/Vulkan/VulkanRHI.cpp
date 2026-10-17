@@ -2425,7 +2425,7 @@ namespace Lumina::RHI
         GDevice->bMeshShaderSupported     = Chosen.bMeshCapable;
         GDevice->MeshRequiredSubgroupSize = Chosen.MeshRequiredSubgroupSize;
 
-        // MeshletCull votes a 32-thread block visible with one wave op, which a 16-lane Intel subgroup splits in two.
+        // Every compute pass runs 32 wide as on NVIDIA, since Intel can go 16 and AMD picks 64 on its own.
         {
             constexpr uint32 ComputeSubgroupWidth = 32;
             VkPhysicalDeviceSubgroupSizeControlProperties SubgroupProps
@@ -2440,7 +2440,8 @@ namespace Lumina::RHI
                 { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &Supported13 };
             vkGetPhysicalDeviceFeatures2(Best, &FeatureQuery);
 
-            if (SubgroupProps.minSubgroupSize < ComputeSubgroupWidth && SubgroupProps.maxSubgroupSize >= ComputeSubgroupWidth
+            const bool bWidthVaries = SubgroupProps.minSubgroupSize < SubgroupProps.maxSubgroupSize;
+            if (bWidthVaries && SubgroupProps.minSubgroupSize <= ComputeSubgroupWidth && SubgroupProps.maxSubgroupSize >= ComputeSubgroupWidth
                 && Supported13.subgroupSizeControl && (SubgroupProps.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0)
             {
                 GDevice->ComputeRequiredSubgroupSize = ComputeSubgroupWidth;
