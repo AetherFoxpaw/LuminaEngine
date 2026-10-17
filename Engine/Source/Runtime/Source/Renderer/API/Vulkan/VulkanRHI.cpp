@@ -2740,7 +2740,9 @@ namespace Lumina::RHI
                 EnableIfPresent(VK_EXT_MESH_SHADER_EXTENSION_NAME);
             }
 
-            bDeviceAddressCommands = EnableIfPresent(VK_KHR_DEVICE_ADDRESS_COMMANDS_EXTENSION_NAME);
+            // -noaddresscommands forces the buffer-resolve fallback, which is what a driver without the extension runs.
+            const bool bAddressCommandsDisabled = GCommandLine != nullptr && GCommandLine->Has("noaddresscommands");
+            bDeviceAddressCommands = !bAddressCommandsDisabled && EnableIfPresent(VK_KHR_DEVICE_ADDRESS_COMMANDS_EXTENSION_NAME);
 
 #if USING(WITH_EDITOR)
             bPipelineStats = EnableIfPresent(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME);
