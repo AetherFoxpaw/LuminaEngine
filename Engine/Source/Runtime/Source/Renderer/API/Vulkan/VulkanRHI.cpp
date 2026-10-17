@@ -656,6 +656,8 @@ namespace Lumina::RHI
         // The CPU can write straight into an optimally-tiled image, with no staging buffer and no copy pass.
         bool                            bHostImageCopy = false;
         bool                            bHostQueryReset = false;
+        // A mesh shader may write its viewport index, which lets one draw cover several shadow tiles.
+        bool                            bShaderOutputViewportIndex = false;
 #if USING(WITH_EDITOR)
         bool                            bPipelineStats = false;
         // Capture the driver's internal representations too, which costs pipeline creation time.
@@ -2828,6 +2830,9 @@ namespace Lumina::RHI
         Features12.runtimeDescriptorArray                       = VK_TRUE;
         Features12.hostQueryReset                               = Supported12.hostQueryReset;
         GDevice->bHostQueryReset                                = Supported12.hostQueryReset == VK_TRUE;
+        // Slang declares ShaderViewportIndex for SV_ViewportArrayIndex, which is only legal with this enabled.
+        Features12.shaderOutputViewportIndex                    = Supported12.shaderOutputViewportIndex;
+        GDevice->bShaderOutputViewportIndex                     = Supported12.shaderOutputViewportIndex == VK_TRUE;
         // Heap indices vary per lane in batched draws, and AMD otherwise samples the first lane's descriptor for the wave.
         Features12.shaderSampledImageArrayNonUniformIndexing    = Supported12.shaderSampledImageArrayNonUniformIndexing;
         Features12.shaderInt8                                   = VK_TRUE;
@@ -4860,7 +4865,8 @@ namespace Lumina::RHI
 
     uint32 GetMaxViewports()
     {
-        return GDevice->Properties.limits.maxViewports;
+        // Without the feature a shader cannot pick a viewport, so a draw only ever reaches the first.
+        return GDevice->bShaderOutputViewportIndex ? GDevice->Properties.limits.maxViewports : 1u;
     }
 
     bool SupportsAsyncTransfer()
