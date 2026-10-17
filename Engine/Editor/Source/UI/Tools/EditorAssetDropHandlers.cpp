@@ -140,8 +140,15 @@ namespace Lumina
         {
             RegisterTyped<CStaticMesh>(Instance, [](CWorld* World, CStaticMesh* Mesh, const FTransform& SpawnTransform, ECS::FEntity DropTarget, bool bAttachToTarget)
             {
-                return RetargetOrSpawn<SStaticMeshComponent>(World, Mesh, SpawnTransform, DropTarget, bAttachToTarget,
-                    [Mesh](SStaticMeshComponent& Component, bool) { Component.SetStaticMesh(Mesh); });
+                bool bSpawned = false;
+                const ECS::FEntity Entity = RetargetOrSpawn<SStaticMeshComponent>(World, Mesh, SpawnTransform, DropTarget, bAttachToTarget,
+                    [Mesh, &bSpawned](SStaticMeshComponent& Component, bool bNew) { Component.SetStaticMesh(Mesh); bSpawned = bNew; });
+
+                if (bSpawned)
+                {
+                    SceneOps::AddPlacementCollision(ECS::GetWorldRegistry(*World), Entity);
+                }
+                return Entity;
             }, /*bPlacesEntity*/ true);
 
             // A material is only meaningful on an existing mesh entity, and sets slot 0.

@@ -426,6 +426,7 @@ namespace Lumina
 
             // --- Components & scripts ---
             DrawAddComponentMenu(Data.Entity);
+            DrawAddCollisionMenuItem(Data.Entity);
             DrawScriptAttachMenuItems(Data.Entity);
 
             ImGui::Separator();
@@ -2375,6 +2376,7 @@ namespace Lumina
 
                 // Components.
                 DrawAddComponentMenu(LastSelected);
+                DrawAddCollisionMenuItem(LastSelected);
                 DrawScriptAttachMenuItems(LastSelected);
 
                 if (ImGui::BeginMenu("Remove Component"))

@@ -2,6 +2,7 @@
 #include "Core/Object/ObjectCore.h"
 #include "Physics/API/Box3D/Box3DPhysicsScene.h"
 #include "Physics/API/Box3D/Box3DRagdollHandle.h"
+#include "Renderer/SkeletonResource.h"
 #include "World/World.h"
 #include "World/Entity/Components/CharacterComponent.h"
 #include "World/Entity/Components/PhysicsComponent.h"
@@ -238,6 +239,69 @@ TEST_F(PhysicsSceneLifecycle, RagdollRequestsOwnTemporaryPoseDataAndFilterByOwne
     EXPECT_EQ(Scene->GetBodyCount(), 0u);
 }
 
+
+// Entity calls reach every limb of a simulating ragdoll, and one limb can be driven alone through its bone's body target.
+TEST_F(PhysicsSceneLifecycle, RagdollTakesEntityVelocityAndPerLimbTargets)
+{
+    const ECS::FEntity Owner = Registry->Create();
+    TSharedPtr<FPhysicsRagdollHandle> Handle;
+    {
+        FSkeletonResource Skeleton;
+        const FMatrix4 ChildGlobal = Math::Translate(FMatrix4(1.0f), FVector3(0.0f, 1.0f, 0.0f));
+        const char* Names[] = { "root", "child" };
+        const FMatrix4 Globals[] = { FMatrix4(1.0f), ChildGlobal };
+        for (int32 Index = 0; Index < 2; ++Index)
+        {
+            FSkeletonResource::FBoneInfo Bone;
+            Bone.Name = FName(Names[Index]);
+            Bone.ParentIndex = Index == 0 ? Constants::kIndexNone : 0;
+            Bone.LocalTransform = Globals[Index];
+            Bone.InvBindMatrix = Math::Inverse(Globals[Index]);
+            Skeleton.Bones.push_back(Bone);
+            Skeleton.BoneNameToIndex[Bone.Name] = Index;
+        }
+        TVector<FMatrix4> BoneGlobals{ Globals[0], Globals[1] };
+        Physics::FRagdollDesc Desc;
+        Desc.Entity = Owner;
+        Desc.Skeleton = &Skeleton;
+        Desc.ComponentBoneGlobals = &BoneGlobals;
+        Desc.EntityToWorld = FMatrix4(1.0f);
+        Handle = Scene->CreateRagdoll(Desc);
+    }
+    ASSERT_TRUE(Handle);
+    EXPECT_FALSE(Scene->GetRagdollBoneTarget(Owner, FName("child")).IsSet());
+    Scene->Update(0.0);
+    ASSERT_TRUE(Scene->IsRagdollReady(*Handle));
+
+    const SPhysicsBodyTarget Root = Scene->GetRagdollBoneTarget(Owner, FName("root"));
+    const SPhysicsBodyTarget Child = Scene->GetRagdollBoneTarget(Owner, FName("child"));
+    ASSERT_TRUE(Root.IsSet());
+    ASSERT_TRUE(Child.IsSet());
+    EXPECT_NE(Root.Slot, Child.Slot);
+    EXPECT_FALSE(Scene->GetRagdollBoneTarget(Owner, FName("missing")).IsSet());
+    EXPECT_GT(Scene->GetBodyMass(Owner), 0.0f);
+
+    Scene->SetLinearVelocity(Owner, FVector3(3.0f, 0.0f, 0.0f));
+    Scene->Update(Dt);
+    Physics::FPhysicsBodyState RootState, ChildState;
+    ASSERT_TRUE(Scene->TryGetTargetState(Root, RootState));
+    ASSERT_TRUE(Scene->TryGetTargetState(Child, ChildState));
+    EXPECT_NEAR(RootState.LinearVelocity.x, 3.0f, 0.05f);
+    EXPECT_NEAR(ChildState.LinearVelocity.x, 3.0f, 0.05f);
+    EXPECT_NEAR(Scene->GetLinearVelocity(Owner).x, 3.0f, 0.05f);
+
+    // The joint shares the limb's push with the rest of the ragdoll, so only the momentum it added is conserved.
+    const float ChildMass = ChildState.Mass;
+    Scene->SetTargetLinearVelocity(Child, FVector3(0.0f, 0.0f, 5.0f));
+    Scene->Update(Dt);
+    EXPECT_NEAR(Scene->GetLinearVelocity(Owner).z * Scene->GetBodyMass(Owner), ChildMass * 5.0f, ChildMass * 0.25f);
+    EXPECT_NEAR(Scene->GetLinearVelocity(Owner).x, 3.0f, 0.05f);
+
+    Scene->DestroyRagdoll(Handle);
+    Scene->Update(0.0);
+    EXPECT_FALSE(Scene->GetRagdollBoneTarget(Owner, FName("root")).IsSet());
+    EXPECT_FALSE(Scene->TryGetTargetState(Root, RootState));
+}
 
 // A sweep's radius reaches bodies the bare ray along the same line misses.
 TEST_F(PhysicsSceneLifecycle, ShapeSweepsReachPastTheRayLine)

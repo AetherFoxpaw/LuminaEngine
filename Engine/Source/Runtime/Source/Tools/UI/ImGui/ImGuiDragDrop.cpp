@@ -119,6 +119,15 @@ namespace Lumina::DragDrop
         ImGui::SetDragDropPayload(GImGuiPayloadType, &GSentinel, 1, ImGuiCond_Once);
     }
 
+    void SetPaletteItemPayload(FName Palette, int32 Index)
+    {
+        Reset();
+        GPayload.Kind = EPayloadKind::PaletteItem;
+        GPayload.PaletteName = Palette;
+        GPayload.PaletteIndex = Index;
+        ImGui::SetDragDropPayload(GImGuiPayloadType, &GSentinel, 1, ImGuiCond_Once);
+    }
+
     void MarkSourceClosed()
     {
         if (GPayload.Kind != EPayloadKind::None)
@@ -176,6 +185,23 @@ namespace Lumina::DragDrop
             return StaticLoadObject(FStringView(GPayload.AssetPath.c_str(), GPayload.AssetPath.size()));
         }
         return nullptr;
+    }
+
+    bool AcceptPaletteItem(FName Palette, int32& OutIndex)
+    {
+        if (GPayload.Kind != EPayloadKind::PaletteItem || GPayload.PaletteName != Palette)
+        {
+            return false;
+        }
+
+        const ImGuiPayload* P = ImGui::AcceptDragDropPayload(GImGuiPayloadType, ImGuiDragDropFlags_AcceptBeforeDelivery);
+        if (P == nullptr || !P->IsDelivery())
+        {
+            return false;
+        }
+
+        OutIndex = GPayload.PaletteIndex;
+        return true;
     }
 
     bool AcceptEntity(CWorld** OutWorld, ECS::FEntity* OutEntity)

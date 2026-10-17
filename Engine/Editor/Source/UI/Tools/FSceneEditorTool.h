@@ -25,6 +25,7 @@ namespace Lumina
     class IRenderScene;
     class CComponentVisualizer;
     struct SSceneFolderComponent;
+    struct SStaticMeshComponent;
     struct FPropertyChangedEvent;
 
     class EDITOR_API FSceneEditorTool : public FAssetEditorTool, public IComponentVisualizerHost
@@ -392,6 +393,13 @@ namespace Lumina
 
         ImGuiTextFilter DetailsFilter;
         void DrawComponentHeader(FComponentTableEntry& Entry, ECS::FEntity Entity);
+
+        // Under a static mesh with nothing to collide with, the one-click ways to give it collision.
+        void DrawStaticMeshCollisionHint(ECS::FEntity Entity, const SStaticMeshComponent& MeshComponent);
+        void AddMeshCollisionTransacted(const TVector<ECS::FEntity>& Entities);
+
+        // Right-click entry that gives the entity, or every selected one, collision from its static mesh.
+        void DrawAddCollisionMenuItem(ECS::FEntity Entity);
         // Sockets/bones on Entity's parent's mesh, for SocketPicker FName properties in the details.
         void BuildSocketPickerData(ECS::FEntity Entity, FSocketEditContext& Out);
 

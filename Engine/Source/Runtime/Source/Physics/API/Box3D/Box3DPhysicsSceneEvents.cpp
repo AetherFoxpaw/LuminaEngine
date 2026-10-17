@@ -368,6 +368,10 @@ namespace Lumina::Physics
         {
             if (Ragdoll.Handle->bPendingDestroy || !Registry.IsValid(Ragdoll.Owner))
             {
+                if (FPhysicsRagdollHandle** Live = SimulatingRagdolls.Find(Ragdoll.Owner); Live != nullptr && *Live == Ragdoll.Handle.get())
+                {
+                    SimulatingRagdolls.Remove(Ragdoll.Owner);
+                }
                 for (uint32 Handle : Ragdoll.Handle->BodyHandles) { DestroyBodyHandle(Handle); }
                 Ragdoll.Handle->BodyHandles.clear();
                 Ragdoll.Handle->Release();

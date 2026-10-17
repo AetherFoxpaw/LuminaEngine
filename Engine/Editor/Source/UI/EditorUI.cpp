@@ -151,7 +151,6 @@
 #include "Tools/AssetEditors/AudioStream/AudioStreamEditorTool.h"
 #include "Tools/AssetEditors/AnimationMontage/AnimationMontageEditorTool.h"
 #include "Tools/AssetEditors/BlendSpace/BlendSpaceEditorTool.h"
-#include "Tools/AssetEditors/CollisionShape/CollisionShapeEditorTool.h"
 #include "Tools/AssetEditors/PhysicsAsset/PhysicsAssetEditorTool.h"
 #include "Tools/AssetEditors/SoundAttenuation/SoundAttenuationEditorTool.h"
 #include "Tools/AssetEditors/PhysicsMaterial/PhysicsMaterialEditorTool.h"
@@ -1485,11 +1484,17 @@ namespace Lumina
                 }
 
                 // Only a miss AFTER the registry has assets counts as gone, or a cold start loses tabs silently.
-                if (FAssetRegistry::Get().GetAssetByGUID(*Guid) == nullptr)
+                const FAssetData* Data = FAssetRegistry::Get().GetAssetByGUID(*Guid);
+                if (Data == nullptr)
                 {
                     Survivors.push_back(Tab);
                     ++NumUnscanned;
                     continue;
+                }
+
+                if (Data->IsClassMissing())
+                {
+                    continue;   // its type was removed, so it can never open again
                 }
 
                 Survivors.push_back(Tab);
@@ -1567,7 +1572,6 @@ namespace Lumina
         Registry.RegisterAssetEditor<CPhysicsAsset,       FPhysicsAssetEditorTool>(Owner);
         Registry.RegisterAssetEditor<CBlendSpace,         FBlendSpaceEditorTool>(Owner);
         Registry.RegisterAssetEditor<CAnimationMontage,   FAnimationMontageEditorTool>(Owner);
-        Registry.RegisterAssetEditor<CCollisionShape,     FCollisionShapeEditorTool>(Owner);
         Registry.RegisterAssetEditor<CCurveAsset,         FCurveAssetEditorTool>(Owner);
         Registry.RegisterAssetEditor<CAudioStream,        FAudioStreamEditorTool>(Owner);
         Registry.RegisterAssetEditor<CAudioGraph,         FAudioGraphEditorTool>(Owner);
@@ -1742,6 +1746,12 @@ namespace Lumina
 
     void FEditorUI::OpenAssetEditor(const FGuid& AssetGUID)
     {
+        if (const FAssetData* Data = FAssetRegistry::Get().GetAssetByGUID(AssetGUID); Data != nullptr && Data->IsClassMissing())
+        {
+            ImGuiX::Notifications::NotifyWarning("'{0}' cannot be opened because its type '{1}' no longer exists.", Data->AssetName.c_str(), Data->AssetClass.c_str());
+            return;
+        }
+
         // Fans the whole Hard and Owned closure across workers instead of an inline depth-first walk.
         CObject* Asset = CPackage::LoadAssetGraph(AssetGUID);
 

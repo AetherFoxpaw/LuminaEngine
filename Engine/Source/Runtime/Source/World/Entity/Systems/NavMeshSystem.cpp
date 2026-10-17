@@ -14,9 +14,9 @@
 #include "Config/NavigationSettings.h"
 #include "World/Entity/Systems/SignificanceSystem.h"
 #include "Assets/AssetTypes/Mesh/StaticMesh/StaticMesh.h"
-#include "Assets/AssetTypes/Physics/CollisionShape.h"
+#include "Assets/AssetTypes/Mesh/MeshCollision.h"
 #include "Core/Console/ConsoleVariable.h"
-#include "Physics/CollisionShapeGen.h"
+#include "Physics/CollisionGen.h"
 #include "Renderer/MeshData.h"
 #include "Renderer/Vertex.h"
 #include "TaskSystem/TaskSystem.h"
@@ -43,7 +43,7 @@ namespace Lumina
         RequireUpdate(EUpdateStage::FrameStart);
         RequireUpdate(EUpdateStage::Paused);
         Writes<SNavMeshComponent>();
-        Reads<SRigidBodyComponent, SBoxColliderComponent, SSphereColliderComponent, SMeshColliderComponent, SCapsuleColliderComponent, SCylinderColliderComponent, SCharacterPhysicsComponent, STerrainColliderComponent, STerrainComponent, STransformComponent, SStaticMeshComponent, SDynamicMeshColliderComponent, SDynamicMeshComponent, SCompoundColliderComponent, SNavModifierComponent, SNavLinkComponent, SFoliageComponent, SCollisionShapeComponent>();
+        Reads<SRigidBodyComponent, SBoxColliderComponent, SSphereColliderComponent, SMeshColliderComponent, SCapsuleColliderComponent, SCylinderColliderComponent, SCharacterPhysicsComponent, STerrainColliderComponent, STerrainComponent, STransformComponent, SStaticMeshComponent, SDynamicMeshColliderComponent, SDynamicMeshComponent, SCompoundColliderComponent, SNavModifierComponent, SNavLinkComponent, SFoliageComponent>();
     }
 
     // NOLINTBEGIN(bugprone-throwing-static-initialization)
@@ -274,7 +274,7 @@ namespace Lumina
         // Tag-bit packed into cache key so one entity may track one collider of each type.
         enum class ENavColliderType : uint8 { Box = 0, Sphere = 1, Mesh = 2, CharacterCapsule = 3, Capsule = 4, Cylinder = 5, Terrain = 6, TriangleSoup = 7, DynamicMesh = 8, AreaVolume = 9, OffMeshLink = 10, Foliage = 11 };
 
-        // Compound children reuse the primitive types, so their sub-indices sit above a collision shape asset's.
+        // Compound children reuse the primitive types, so their sub-indices sit above any mesh collision primitive's.
         constexpr uint32 CompoundSubIndexBase = 1u << 23;
 
         FORCEINLINE uint64 PackSourceKey(ECS::FEntity E, ENavColliderType T)
@@ -866,7 +866,7 @@ namespace Lumina
 
         // One source per collision piece, so nav sees the same decomposed shape physics does. Emit takes the key type and sub-index.
         template<typename FnEmit>
-        void ForEachCollisionShapePrim(const CCollisionShape& Asset, const FMatrix4& ColliderWorld, FnEmit&& Emit)
+        void ForEachMeshCollisionPrim(const SMeshCollision& Asset, const FMatrix4& ColliderWorld, FnEmit&& Emit)
         {
             if (Asset.IsConcave())
             {
@@ -983,9 +983,9 @@ namespace Lumina
             }
 
             auto Children = MakeShared<TVector<FNavSourcePrim>>();
-            if (const CCollisionShape* Shape = Type.GetDefaultCollisionShape())
+            if (const SMeshCollision* Shape = Type.GetCollision())
             {
-                ForEachCollisionShapePrim(*Shape, FMatrix4(1.0f), [&](ENavColliderType, uint32, FNavSourceEntry&& Entry)
+                ForEachMeshCollisionPrim(*Shape, FMatrix4(1.0f), [&](ENavColliderType, uint32, FNavSourceEntry&& Entry)
                 {
                     Template.LocalMin = Math::Min(Template.LocalMin, Entry.AABBMin);
                     Template.LocalMax = Math::Max(Template.LocalMax, Entry.AABBMax);
@@ -1019,7 +1019,7 @@ namespace Lumina
             for (const SFoliageType& Type : Foliage.Types)
             {
                 Hash::HashCombine(Seed, (size_t)Type.bEnableCollision);
-                const CCollisionShape* Shape = Type.GetDefaultCollisionShape();
+                const SMeshCollision* Shape = Type.GetCollision();
                 Hash::HashCombine(Seed, (size_t)(uintptr_t)Shape);
                 if (Shape != nullptr)
                 {
@@ -1197,32 +1197,6 @@ namespace Lumina
                 Out.push_back(std::move(Entry));
             });
 
-            // One source per collision piece, so nav sees the same decomposed shape physics does.
-            ForEachNavSource<SCollisionShapeComponent>(Context, Only, [&](ECS::FEntity E, SCollisionShapeComponent& CSC, STransformComponent& X)
-            {
-                if (!CSC.bAffectsNavigation || IsSimulated(E))
-                {
-                    return;
-                }
-
-                const CCollisionShape* Asset = CSC.CollisionShape.Get();
-                if (Asset == nullptr || !Asset->HasCollision())
-                {
-                    return;
-                }
-
-                const FMatrix4 ColliderWorld = ColliderToWorld(X,
-                                                               CSC.TranslationOffset, CSC.RotationOffset);
-
-                const uint64 AssetContentId = MakeContentId(Asset, Asset->TriangleIndices.size(), Asset->Primitives.size());
-                ForEachCollisionShapePrim(*Asset, ColliderWorld, [&](ENavColliderType KeyType, uint32 SubIndex, FNavSourceEntry&& Entry)
-                {
-                    Entry.Key = PackSourceKey(E, KeyType, SubIndex);
-                    Entry.ContentId = AssetContentId;
-                    Out.push_back(std::move(Entry));
-                });
-            });
-
             // Painted instances are world space, and erasing one shifts or swaps indices, which the detector sees as a move.
             if (FoliageCache != nullptr)
             {
@@ -1262,11 +1236,11 @@ namespace Lumina
                 if (!Mesh || Mesh->GetMeshResource().bSkinnedMesh) return;
 
                 // The mesh's simplified collision replaces its render triangles, as it does for the physics body.
-                if (const CCollisionShape* Asset = Mesh->GetDefaultCollisionShape())
+                if (const SMeshCollision* Collision = Mesh->GetCollision())
                 {
                     const FMatrix4 ColliderWorld = ColliderToWorld(X, MC.TranslationOffset, MC.RotationOffset);
-                    const uint64 AssetContentId = MakeContentId(Asset, Asset->TriangleIndices.size(), Asset->Primitives.size());
-                    ForEachCollisionShapePrim(*Asset, ColliderWorld, [&](ENavColliderType KeyType, uint32 SubIndex, FNavSourceEntry&& Entry)
+                    const uint64 AssetContentId = MakeContentId(Collision, Collision->TriangleIndices.size(), Collision->Primitives.size());
+                    ForEachMeshCollisionPrim(*Collision, ColliderWorld, [&](ENavColliderType KeyType, uint32 SubIndex, FNavSourceEntry&& Entry)
                     {
                         Entry.Key = PackSourceKey(E, KeyType, SubIndex);
                         Entry.ContentId = AssetContentId;
@@ -2583,7 +2557,7 @@ namespace Lumina
         }
         WatchSourceComponents<SBoxColliderComponent, SSphereColliderComponent, SMeshColliderComponent, SCapsuleColliderComponent, SCylinderColliderComponent,
             SCharacterPhysicsComponent, STerrainColliderComponent, STerrainComponent, SStaticMeshComponent, SDynamicMeshColliderComponent, SDynamicMeshComponent,
-            SCompoundColliderComponent, SNavModifierComponent, SNavLinkComponent, SFoliageComponent, SCollisionShapeComponent, SRigidBodyComponent>(Registry);
+            SCompoundColliderComponent, SNavModifierComponent, SNavLinkComponent, SFoliageComponent, SRigidBodyComponent>(Registry);
 
         FNavSourceTracker& Sources = *FindSourceTracker(Context);
         UpdateSources(Context, Sources);

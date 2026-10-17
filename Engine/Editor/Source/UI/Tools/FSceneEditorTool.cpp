@@ -21,6 +21,8 @@
 #include "World/Scene/RenderScene/RenderScene.h"
 #include "World/Scene/RenderScene/SceneRenderTypes.h"
 #include "World/Entity/Components/StaticMeshComponent.h"
+#include "World/Entity/Components/PhysicsComponent.h"
+#include "Assets/AssetTypes/Mesh/StaticMesh/StaticMesh.h"
 #include "World/Entity/Components/SkeletalMeshComponent.h"
 #include "Animation/SkeletalMeshUtils.h"
 #include "Assets/AssetTypes/Mesh/Mesh.h"
@@ -252,6 +254,7 @@ namespace Lumina
         SpawnEntityTransacted(Payload.EntityName, "Place Entity", [&](ECS::FEntity Created)
         {
             DecorateNewEntity(Payload, Created);
+            SceneOps::AddPlacementCollision(Registry, Created);
             if (bAttachToTarget && Registry.IsValid(DropTarget))
             {
                 ECS::Utils::ReparentEntity(Registry, Created, DropTarget);
@@ -862,6 +865,75 @@ namespace Lumina
         }
     }
 
+    void FSceneEditorTool::AddMeshCollisionTransacted(const TVector<ECS::FEntity>& Entities)
+    {
+        BeginComponentTransaction(Entities, SMeshColliderComponent::StaticStruct());
+        RecordComponentSnapshot(Entities, SRigidBodyComponent::StaticStruct());
+        RecordPrefabOverrideSnapshot(Entities);
+        for (ECS::FEntity Entity : Entities)
+        {
+            SceneOps::AddMeshCollision(GetSceneRegistry(), Entity);
+        }
+        EndTransaction("Add Collision");
+
+        MarkSceneDirty();
+        OutlinerListView.MarkTreeDirty();
+        bDetailsDirty = true;
+    }
+
+    void FSceneEditorTool::DrawAddCollisionMenuItem(ECS::FEntity Entity)
+    {
+        TVector<ECS::FEntity> Targets = GetComponentEditTargets(Entity);
+        const ECS::FRegistry& Registry = GetSceneRegistry();
+        Targets.erase(Algo::RemoveIf(Targets, [&Registry](ECS::FEntity Target) { return !SceneOps::CanAddMeshCollision(Registry, Target); }), Targets.end());
+        if (Targets.empty())
+        {
+            return;
+        }
+
+        if (ImGui::MenuItem(LE_ICON_CUBE_OUTLINE " Add Collision"))
+        {
+            AddMeshCollisionTransacted(Targets);
+        }
+        ImGuiX::TextTooltip("{}", "A static body colliding with the mesh's own collision, or its triangles when it has none.");
+    }
+
+    void FSceneEditorTool::DrawStaticMeshCollisionHint(ECS::FEntity Entity, const SStaticMeshComponent& MeshComponent)
+    {
+        CStaticMesh* Mesh = MeshComponent.StaticMesh.Get();
+        if (Mesh == nullptr || SceneOps::HasCollider(GetSceneRegistry(), Entity))
+        {
+            return;
+        }
+
+        ImGui::Spacing();
+        ImGui::TextColored(EditorColors::Warning(), LE_ICON_CUBE_OFF_OUTLINE " No collision");
+        ImGuiX::TextTooltip("{}", "Nothing collides with this entity in game.");
+        ImGui::SameLine();
+
+        if (Mesh->Collision.HasCollision())
+        {
+            if (ImGui::SmallButton(LE_ICON_PLUS " Add Collision"))
+            {
+                AddMeshCollisionTransacted({ Entity });
+            }
+            ImGuiX::TextTooltip("{}", "Use the collision authored on this mesh, as a static body. Set the Rigid Body to Dynamic for a prop that should move.");
+            return;
+        }
+
+        if (ImGui::SmallButton(LE_ICON_PENCIL " Make Collision"))
+        {
+            ToolContext->OpenAssetEditor(Mesh->GetGUID());
+        }
+        ImGuiX::TextTooltip("{}", "This mesh has no collision yet. Opens the mesh, where its Collision tab adds some.");
+        ImGui::SameLine();
+        if (ImGui::SmallButton(LE_ICON_VECTOR_TRIANGLE " Use Mesh Triangles"))
+        {
+            AddMeshCollisionTransacted({ Entity });
+        }
+        ImGuiX::TextTooltip("{}", "Collide against the mesh's exact triangles. Right for static level geometry, but it can never move.");
+    }
+
     void FSceneEditorTool::DrawComponentHeader(FComponentTableEntry& Entry, ECS::FEntity Entity)
     {
         // Existence check via meta; drop this row if the entity no longer holds the component.
@@ -998,6 +1070,11 @@ namespace Lumina
 
             Entry.Table->SetContext(&PropertyContext);
             Entry.Table->DrawTree();
+
+            if (Type == SStaticMeshComponent::StaticStruct() && Data != nullptr)
+            {
+                DrawStaticMeshCollisionHint(Entity, *static_cast<const SStaticMeshComponent*>(Data));
+            }
 
             ImGui::Unindent(8.0f);
 
@@ -2775,6 +2852,7 @@ namespace Lumina
         SpawnEntityTransacted(DisplayName, "New Primitive", [this, PrimitiveMesh](ECS::FEntity Created)
         {
             GetSceneRegistry().Emplace<SStaticMeshComponent>(Created).SetStaticMesh(PrimitiveMesh);
+            SceneOps::AddPlacementCollision(GetSceneRegistry(), Created);
         });
     }
 

@@ -29,7 +29,7 @@ namespace Lumina
     struct SCompoundColliderComponent;
     struct SDefaultWorldSettings;
     struct STransformComponent;
-    class CCollisionShape;
+    struct SMeshCollision;
     class CMesh;
     class CWorld;
 }
@@ -186,6 +186,9 @@ namespace Lumina::Physics
         bool TryGetBodyState(ECS::FEntity Entity, FPhysicsBodyState& Out) const override;
         bool TryGetTargetState(const SPhysicsBodyTarget& Target, FPhysicsBodyState& Out) const override;
         void AddForceAtTarget(const SPhysicsBodyTarget& Target, const FVector3& Force, const FVector3& Point) override;
+        void AddImpulseAtTarget(const SPhysicsBodyTarget& Target, const FVector3& Impulse, const FVector3& Point) override;
+        void SetTargetLinearVelocity(const SPhysicsBodyTarget& Target, const FVector3& Velocity) override;
+        void SetTargetAngularVelocity(const SPhysicsBodyTarget& Target, const FVector3& Velocity) override;
         SPhysicsBodyTarget MakeBodyTarget(uint32 Handle) const;
 
         TOptional<SRayResult> CastRay(const SRayCastSettings& Settings) override;
@@ -251,6 +254,7 @@ namespace Lumina::Physics
         void ReadRagdollPose(const FPhysicsRagdollHandle& Handle, const FMatrix4& WorldToEntity, const FSkeletonResource* Skeleton, TVector<FMatrix4>& OutBoneTransforms) override;
         void DestroyRagdoll(const TSharedPtr<FPhysicsRagdollHandle>& Handle) override;
         void GetRagdollRootTransform(const FPhysicsRagdollHandle& Handle, FVector3& OutPosition, FQuat& OutRotation) override;
+        SPhysicsBodyTarget GetRagdollBoneTarget(ECS::FEntity Entity, FName Bone) const override;
         uint32 AllocateRagdollGroupID() override { return NextRagdollGroupID++; }
 
         uint32 CreateConstraint(const SConstraintDesc& Desc) override;
@@ -276,7 +280,7 @@ namespace Lumina::Physics
         const b3MeshData* GetOrCreateTriangleMesh(const CMesh* Mesh);
 
         bool BuildCompoundShapes(const SCompoundColliderComponent& Comp, const STransformComponent& Transform, TVector<FPendingShape>& OutShapes);
-        bool BuildCollisionShapeAsset(const CCollisionShape& Asset, const FVector3& Scale, TVector<FPendingShape>& OutShapes);
+        bool BuildMeshCollision(const SMeshCollision& Collision, const FVector3& Scale, TVector<FPendingShape>& OutShapes);
 
         struct FBodyMaterialEntry
         {
@@ -324,9 +328,23 @@ namespace Lumina::Physics
             TSharedPtr<FPhysicsRagdollHandle> Handle;
         };
         TVector<FOwnedRagdoll> OwnedRagdolls;
+
+        // Each entity's committed ragdoll, so commands and getters aimed at the entity reach its limbs.
+        ECS::TEntityMap<FPhysicsRagdollHandle*> SimulatingRagdolls;
+        const FPhysicsRagdollHandle* FindSimulatingRagdoll(ECS::FEntity Entity) const;
+
+        // A ragdoll read as one body, its limbs weighted by mass.
+        struct FRagdollMotion
+        {
+            float    Mass = 0.0f;
+            FVector3 CenterOfMass = FVector3(0.0f);
+            FVector3 LinearVelocity = FVector3(0.0f);
+            FVector3 AngularVelocity = FVector3(0.0f);
+        };
+        FRagdollMotion MeasureRagdoll(const FPhysicsRagdollHandle& Ragdoll) const;
         void DestroyBodyHandle(uint32 Handle);
         void CreateCharacter(ECS::FRegistry& Registry, ECS::FEntity Entity);
-        void ApplyBuoyancy(ECS::FEntity Entity, const FVector3& SurfacePosition, const FVector3& SurfaceNormal,
+        void ApplyBuoyancy(b3BodyId BodyId, const FVector3& SurfacePosition, const FVector3& SurfaceNormal,
             float Buoyancy, float LinearDrag, float AngularDrag, const FVector3& FluidVelocity, float DeltaTime);
         void ApplySurfaceVelocity(b3BodyId Body, const FVector3& Linear, const FVector3& Angular);
         void DispatchContactEvents();
@@ -487,7 +505,7 @@ namespace Lumina::Physics
         {
             Impulse, Force, Torque, AngularImpulse, LinearVelocity, AngularVelocity,
             ImpulseAtPosition, ForceAtPosition, Gravity, Activate, Deactivate, MotionType,
-            SurfaceVelocity, Buoyancy, TargetForce
+            SurfaceVelocity, Buoyancy
         };
 
         struct FBodyCommand
@@ -509,6 +527,10 @@ namespace Lumina::Physics
         void QueueBodyCommand(const FBodyCommand& Command);
         void ApplyBodyCommands();
         EBodyCommandResult ApplyBodyCommand(const FBodyCommand& Command);
+
+        // Share scales a push, so a ragdoll split by limb mass still changes velocity as one body.
+        void ApplyCommandToBody(b3BodyId Body, const FBodyCommand& Command, float Share);
+        void ApplyRagdollCommand(const FPhysicsRagdollHandle& Ragdoll, const FBodyCommand& Command);
 
         // One queue per job thread slot, so callers on any worker push without a lock.
         TVector<TVector<FBodyCommand>> ThreadBodyCommands;
