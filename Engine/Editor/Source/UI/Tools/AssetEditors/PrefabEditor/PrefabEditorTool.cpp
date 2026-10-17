@@ -141,6 +141,8 @@ namespace Lumina
                 ImGui::SetClipboardText(Format("{}", (Data.Entity).Value).c_str());
             }
 
+            DrawAddCollisionMenuItem(Data.Entity);
+
             if (!bIsRoot && Registry.GetHierarchy().GetParent(Data.Entity) != ECS::NullEntity)
             {
                 if (ImGui::MenuItem("Unparent"))
