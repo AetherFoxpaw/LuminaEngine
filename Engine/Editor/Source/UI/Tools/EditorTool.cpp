@@ -626,7 +626,10 @@ namespace Lumina
         {
             ImGuiX::TextTooltip("Nothing to redo");
         }
-        
+
+        // In a menu bar this draws upright, parting the document actions from the menus.
+        ImGui::Separator();
+
 
         if (ImGui::BeginMenu(LE_ICON_HELP_CIRCLE_OUTLINE" Help"))
         {
@@ -961,7 +964,12 @@ namespace Lumina
 
         if (World != nullptr)
         {
-            RmlUi::SetWorldDisplaySize(World.Get(), FUIntVector2(uint32(Math::Max(ViewportSize.x, 1.0f)), uint32(Math::Max(ViewportSize.y, 1.0f))));
+            uint32 RecordingWidth = 0;
+            uint32 RecordingHeight = 0;
+            const bool bRecording = MovieCapture::GetRecordingSize(World->GetRenderer(), RecordingWidth, RecordingHeight);
+            RmlUi::SetWorldDisplaySize(World.Get(), bRecording
+                ? FUIntVector2(RecordingWidth, RecordingHeight)
+                : FUIntVector2(uint32(Math::Max(ViewportSize.x, 1.0f)), uint32(Math::Max(ViewportSize.y, 1.0f))));
         }
 
         FInputViewportRegistry::Get().UpdateViewportFocus(InputViewport.get(), bViewportHovered, bViewportFocused);

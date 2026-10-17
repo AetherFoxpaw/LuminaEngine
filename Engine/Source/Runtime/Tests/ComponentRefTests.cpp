@@ -71,6 +71,23 @@ TEST(ComponentRef, GetLeavesAMissingComponentAlone)
     EXPECT_EQ(Found->Name.Get(), Registry.TryGet<SNameComponent>(Named));
 }
 
+// A Get reference made before the component exists finds it once something adds it, as a prefab can after the script attaches.
+TEST(ComponentRef, GetFindsAComponentAddedAfterTheBind)
+{
+    CWorld* World = NewRefTestWorld();
+    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    const ECS::FEntity Entity = Registry.Create();
+
+    CComponentRefScriptTest* Script = AttachRefScript(Registry, Entity);
+    ASSERT_NE(Script, nullptr);
+    EXPECT_EQ(Script->Name.Get(), nullptr);
+    EXPECT_FALSE(Script->Name.IsBound());
+
+    Registry.Emplace<SNameComponent>(Entity);
+    EXPECT_EQ(Script->Name.Get(), Registry.TryGet<SNameComponent>(Entity));
+    EXPECT_TRUE(Script->Name.IsBound());
+}
+
 // Another entity losing the component changes the pool's layout epoch, and the reference has to find its own again rather than give up.
 TEST(ComponentRef, FindsTheComponentAgainAfterThePoolChanges)
 {

@@ -649,7 +649,6 @@ namespace Lumina
         PROPERTY()
         FString PngDirectory;
 
-        // Size of the picture being read back before it is cropped and scaled.
         PROPERTY()
         int32 SourceWidth = 0;
 

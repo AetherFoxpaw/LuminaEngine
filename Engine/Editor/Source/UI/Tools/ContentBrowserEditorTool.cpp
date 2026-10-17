@@ -78,8 +78,6 @@ namespace Lumina
     namespace
     {
 
-        constexpr ImVec4 kMenuBg            = ImVec4(0.10f, 0.10f, 0.12f, 0.98f);
-        constexpr ImVec4 kMenuBorder        = ImVec4(0.22f, 0.23f, 0.27f, 1.00f);
         constexpr ImVec4 kMenuText          = ImVec4(0.90f, 0.90f, 0.93f, 1.00f);
         constexpr ImVec4 kMenuTextDim       = ImVec4(0.55f, 0.56f, 0.62f, 1.00f);
         constexpr ImVec4 kMenuTextSection   = ImVec4(0.50f, 0.58f, 0.72f, 1.00f);
@@ -88,47 +86,7 @@ namespace Lumina
         constexpr ImVec4 kMenuAccentScript  = ImVec4(0.52f, 0.85f, 0.55f, 1.00f);
         constexpr ImVec4 kMenuDanger        = ImVec4(0.96f, 0.36f, 0.38f, 1.00f);
         constexpr ImVec4 kMenuDangerHover   = ImVec4(0.85f, 0.22f, 0.24f, 0.45f);
-        constexpr ImVec4 kMenuHeaderHover   = ImVec4(0.24f, 0.46f, 0.78f, 0.55f);
-        constexpr ImVec4 kMenuHeader        = ImVec4(0.24f, 0.46f, 0.78f, 0.30f);
-        constexpr ImVec4 kMenuHeaderActive  = ImVec4(0.24f, 0.46f, 0.78f, 0.85f);
-        constexpr ImVec4 kMenuSeparator     = ImVec4(0.24f, 0.25f, 0.30f, 0.65f);
         constexpr ImVec4 kMenuHeaderBg      = ImVec4(0.16f, 0.17f, 0.20f, 1.00f);
-
-        // Popup-window-level styles. Push BEFORE BeginPopup* so the popup window picks them up.
-        void PushContextMenuWindowStyle()
-        {
-            ImGui::PushStyleColor(ImGuiCol_PopupBg, kMenuBg);
-            ImGui::PushStyleColor(ImGuiCol_Border,  kMenuBorder);
-            ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding,   8.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 1.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,   ImVec2(6.0f, 6.0f));
-        }
-
-        void PopContextMenuWindowStyle()
-        {
-            ImGui::PopStyleVar(3);
-            ImGui::PopStyleColor(2);
-        }
-
-        // Per-item styles. Push inside BeginPopup..EndPopup for consistent menu items.
-        void PushContextMenuItemStyle()
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text,          kMenuText);
-            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, kMenuHeaderHover);
-            ImGui::PushStyleColor(ImGuiCol_Header,        kMenuHeader);
-            ImGui::PushStyleColor(ImGuiCol_HeaderActive,  kMenuHeaderActive);
-            ImGui::PushStyleColor(ImGuiCol_Separator,     kMenuSeparator);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,    4.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      ImVec2(8.0f, 3.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     ImVec2(10.0f, 5.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(8.0f, 4.0f));
-        }
-
-        void PopContextMenuItemStyle()
-        {
-            ImGui::PopStyleVar(4);
-            ImGui::PopStyleColor(5);
-        }
 
         void DrawMenuSection(const char* Label)
         {
@@ -1565,9 +1523,9 @@ namespace Lumina
         // The tree selects on right-click first, so SelectedPath already names the folder under the cursor.
         DirectoryContext.ItemContextMenuFunction = [this](FTreeListView&, FTreeNodeID)
         {
-            PushContextMenuItemStyle();
+            ImGuiX::PushMenuItemStyle();
             DrawContentDirectoryContextMenu();
-            PopContextMenuItemStyle();
+            ImGuiX::PopMenuItemStyle();
         };
 
         DirectoryContext.DragDropFunction = [this](FTreeListView& Tree, FTreeNodeID Item)
@@ -2747,7 +2705,7 @@ namespace Lumina
         ImGui::BeginChild("Directories", Size, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_HorizontalScrollbar);
 
         // The widget owns the popup, so pushing here is the only way it picks up the same styling.
-        PushContextMenuWindowStyle();
+        ImGuiX::PushMenuWindowStyle();
 
         DirectoryListView.Draw(DirectoryContext);
 
@@ -2760,14 +2718,14 @@ namespace Lumina
 
         if (ImGui::BeginPopup("DirectoryPaneContextMenu"))
         {
-            PushContextMenuItemStyle();
+            ImGuiX::PushMenuItemStyle();
             DrawContentDirectoryContextMenu();
-            PopContextMenuItemStyle();
+            ImGuiX::PopMenuItemStyle();
 
             ImGui::EndPopup();
         }
 
-        PopContextMenuWindowStyle();
+        ImGuiX::PopMenuWindowStyle();
 
         // After Draw, so the nodes exist, and the scroll request lands on the next Draw.
         RevealPendingDirectory();
@@ -2872,18 +2830,18 @@ namespace Lumina
             ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 0.0f), ImVec2(360.0f, FLT_MAX));
         }
 
-        PushContextMenuWindowStyle();
+        ImGuiX::PushMenuWindowStyle();
 
         if (ImGui::BeginPopup("ContentContextMenu"))
         {
-            PushContextMenuItemStyle();
+            ImGuiX::PushMenuItemStyle();
             DrawContentDirectoryContextMenu();
-            PopContextMenuItemStyle();
+            ImGuiX::PopMenuItemStyle();
 
             ImGui::EndPopup();
         }
 
-        PopContextMenuWindowStyle();
+        ImGuiX::PopMenuWindowStyle();
         
         if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
@@ -2970,9 +2928,9 @@ namespace Lumina
         ImGui::Separator();
 
         // The tile view opens item popups inside Draw(), so the styles have to be pushed around it.
-        PushContextMenuWindowStyle();
+        ImGuiX::PushMenuWindowStyle();
         ContentBrowserTileView.Draw(ContentBrowserTileViewContext);
-        PopContextMenuWindowStyle();
+        ImGuiX::PopMenuWindowStyle();
 
         ImVec2 ChildMin = ImGui::GetWindowPos();
         ImVec2 ChildMax = ImVec2(ChildMin.x + ImGui::GetWindowWidth(), ChildMin.y + ImGui::GetWindowHeight());
@@ -3407,7 +3365,7 @@ namespace Lumina
         FFixedString SubtitleBuf(ContentItem->GetVirtualPath().data(), ContentItem->GetVirtualPath().size());
         (void)TypeLabel;
 
-        PushContextMenuItemStyle();
+        ImGuiX::PushMenuItemStyle();
 
         DrawMenuHeader(HeaderIcon, TitleBuf.c_str(), SubtitleBuf.c_str(), HeaderTint);
 
@@ -3583,7 +3541,7 @@ namespace Lumina
             OpenReplaceReferencesModal(ContentItem);
         }
 
-        PopContextMenuItemStyle();
+        ImGuiX::PopMenuItemStyle();
     }
 
     void FContentBrowserEditorTool::DrawMultiSelectionContextMenu(const TVector<FTileViewItem*>& Items)
@@ -3624,7 +3582,7 @@ namespace Lumina
         AppendPart(AssetCount,  "asset(s)");
         AppendPart(FileCount,   "file(s)");
 
-        PushContextMenuItemStyle();
+        ImGuiX::PushMenuItemStyle();
 
         DrawMenuHeader(LE_ICON_SELECT_MULTIPLE, Title.c_str(), Subtitle.c_str(), kMenuAccent);
 
@@ -3683,7 +3641,7 @@ namespace Lumina
             ImGuiX::Font::PopFont();
         }
 
-        PopContextMenuItemStyle();
+        ImGuiX::PopMenuItemStyle();
 
         // Last, after every read of Items, since deleting clears the selection and queues the tiles.
         if (bDeleteClicked)

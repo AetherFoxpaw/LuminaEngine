@@ -1670,6 +1670,9 @@ namespace Lumina
 
                             // Before OnReady, so a UI script's document, bound values and elements are already there.
                             UIScripts::Open(Script);
+
+                            // Bound again, since a Get reference made at attach misses a component added before this first tick.
+                            Script->BindComponentRefs();
                             Script->OnReady();
                         }
                         bUserCodeRan = true;

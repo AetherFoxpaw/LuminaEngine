@@ -39,6 +39,14 @@ namespace Lumina::ImGuiX
     // Set by the ImGui renderer whenever the scale is (re)resolved.
     RUNTIME_API void SetUIScale(float Scale);
 
+    // The engine's menu look, a rounded padded popup, pushed before the popup or the menu bar that opens it.
+    RUNTIME_API void PushMenuWindowStyle();
+    RUNTIME_API void PopMenuWindowStyle();
+
+    // Soft accent rows with rounded highlights, for the items inside a popup or a whole menu bar and its dropdowns.
+    RUNTIME_API void PushMenuItemStyle();
+    RUNTIME_API void PopMenuItemStyle();
+
     RUNTIME_API void TextTooltip_Internal(FStringView String);
     RUNTIME_API void TextColoredUnformatted(const ImVec4& Color, const FFixedString& String);
 

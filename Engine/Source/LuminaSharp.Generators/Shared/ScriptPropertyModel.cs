@@ -150,13 +150,17 @@ internal static class ScriptPropertyClassifier
     // A [Property(Component = ...)] member is a reference to the owner's component rather than a value of that type.
     public static FScriptPropertyClassification ClassifyMember(ISymbol Member, ITypeSymbol Type)
     {
+        bool bRefType = Type is INamedTypeSymbol { IsGenericType: true } Named
+            && Named.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.ComponentRef;
         if (!BindsComponent(Member))
         {
-            return Classify(Type);
+            // Without this the reference reads as a script struct, and the advice to mark it [Reflect] leads nowhere.
+            return bRefType
+                ? FScriptPropertyClassification.Reject($"'{Display(Type)}' is a component reference, so the [Property] needs "
+                    + "Component = EComponentBind.Get to find the entity's component, or EComponentBind.GetOrAdd to add it when missing.")
+                : Classify(Type);
         }
-        bool bComponentRef = Type is INamedTypeSymbol { IsGenericType: true } Named
-            && Named.OriginalDefinition.ToDisplayString() == ScriptPropertyTypeNames.ComponentRef
-            && IsComponent(Named.TypeArguments[0]);
+        bool bComponentRef = bRefType && IsComponent(((INamedTypeSymbol)Type).TypeArguments[0]);
         return bComponentRef
             ? FScriptPropertyClassification.Of(EScriptAccess.ComponentRef)
             : FScriptPropertyClassification.Reject($"'{Display(Type)}' is not a TComponentRef<T> of a component, and Component binds a reference to one of the entity's components.");

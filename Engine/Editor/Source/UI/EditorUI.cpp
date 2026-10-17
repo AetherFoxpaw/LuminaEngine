@@ -2542,6 +2542,9 @@ namespace Lumina
         ImVec4 NotVisibleColor = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
 
         ImGui::PushStyleColor(ImGuiCol_Text, bVisible ? VisibleColor : NotVisibleColor);
+        // Read when the window begins, so the toolbar sits flat on the window with only a hairline beneath it.
+        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, EditorColors::WindowBg());
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::SetNextWindowSizeConstraints(ImVec2(128, 128), ImVec2(FLT_MAX, FLT_MAX));
         ImGui::SetNextWindowSize(ImVec2(1024, 768), ImGuiCond_FirstUseEver);
 
@@ -2563,8 +2566,8 @@ namespace Lumina
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.5f);
         ImGui::Begin(EditorTool->GetToolName().c_str(), bIsToolOpen, WindowFlags);
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(2);
         
         if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy))
         {
@@ -2865,13 +2868,16 @@ namespace Lumina
         
         if (Tool->HasFlag(EEditorToolFlags::Tool_WantsToolbar))
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 16));
+            // Dropdowns open inside this scope, so they inherit the same menu look as the bar.
+            ImGuiX::PushMenuWindowStyle();
+            ImGuiX::PushMenuItemStyle();
             if (ImGui::BeginMenuBar())
             {
                 Tool->DrawMainToolbar(UpdateContext);
                 ImGui::EndMenuBar();
             }
-            ImGui::PopStyleVar();
+            ImGuiX::PopMenuItemStyle();
+            ImGuiX::PopMenuWindowStyle();
         }
 
         if (Tool->IsSingleWindowTool())
@@ -2964,7 +2970,12 @@ namespace Lumina
                                 ImVec2 ViewportMin;
                                 ImVec2 ViewportAvail;
                                 FEditorTool::GetViewportImageRect(ViewportMin, ViewportAvail);
-                                SceneRenderer->SetPrimaryViewSize(FUIntVector2((uint32)ViewportAvail.x, (uint32)ViewportAvail.y));
+                                uint32 RecordingWidth = 0;
+                                uint32 RecordingHeight = 0;
+                                const bool bRecording = MovieCapture::GetRecordingSize(SceneRenderer, RecordingWidth, RecordingHeight);
+                                SceneRenderer->SetPrimaryViewSize(bRecording
+                                    ? FUIntVector2(RecordingWidth, RecordingHeight)
+                                    : FUIntVector2((uint32)ViewportAvail.x, (uint32)ViewportAvail.y));
 
                                 ViewportTexture = ImGuiX::ToImTextureRef(SceneRenderer->GetDisplayResourceID());
                             }
@@ -2997,7 +3008,12 @@ namespace Lumina
                                 ImVec2 ViewportMin;
                                 ImVec2 ViewportAvail;
                                 FEditorTool::GetViewportImageRect(ViewportMin, ViewportAvail);
-                                SceneRenderer->SetPrimaryViewSize(FUIntVector2((uint32)ViewportAvail.x, (uint32)ViewportAvail.y));
+                                uint32 RecordingWidth = 0;
+                                uint32 RecordingHeight = 0;
+                                const bool bRecording = MovieCapture::GetRecordingSize(SceneRenderer, RecordingWidth, RecordingHeight);
+                                SceneRenderer->SetPrimaryViewSize(bRecording
+                                    ? FUIntVector2(RecordingWidth, RecordingHeight)
+                                    : FUIntVector2((uint32)ViewportAvail.x, (uint32)ViewportAvail.y));
 
                                 ViewportTexture = ImGuiX::ToImTextureRef(SceneRenderer->GetDisplayResourceID());
                             }
