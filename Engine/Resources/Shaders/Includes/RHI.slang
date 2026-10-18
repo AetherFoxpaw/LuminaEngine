@@ -58,8 +58,8 @@ public struct GPUSpan<T>
     public bool IsEmpty()               { return Count == 0u; }
     public bool Contains(uint Index)    { return Index < Count; }
 
-    // Unchecked, for atomics, in-place field writes and narrow field reads, so bound the index first.
-    public Ptr<T> At(uint Index)        { return (T*)Address + Index; }
+    // Unchecked, so bound the index first. Byte math because AMD resolves indexing of float3 structs to element 0.
+    public Ptr<T> At(uint Index)        { return (T*)(Address + uint64_t(Index) * uint64_t(sizeof(T))); }
 
     // Reads past the end resolve to zero rather than to whatever the allocator has since put there.
     public T Get(uint Index)
@@ -69,7 +69,7 @@ public struct GPUSpan<T>
             T Zero = {};
             return Zero;
         }
-        return ((T*)Address)[Index];
+        return *At(Index);
     }
 
     public T GetAligned(uint Index)
@@ -79,7 +79,7 @@ public struct GPUSpan<T>
             T Zero = {};
             return Zero;
         }
-        return loadAligned<16>((T*)Address + Index);
+        return loadAligned<16>(At(Index));
     }
 
     // A dropped store is a missing draw, where an unchecked one is a device loss.
@@ -87,7 +87,7 @@ public struct GPUSpan<T>
     {
         if (Index < Count)
         {
-            ((T*)Address)[Index] = Value;
+            *At(Index) = Value;
         }
     }
 }
