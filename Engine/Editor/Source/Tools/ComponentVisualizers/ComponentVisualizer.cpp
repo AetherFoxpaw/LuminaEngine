@@ -591,7 +591,7 @@ namespace Lumina
         const STransformComponent& Transform = Registry.Get<STransformComponent>(Entity);
 
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (Sphere.TranslationOffset * Transform.GetWorldScaleCached());
-        PDI->DrawSphere(Center, Sphere.Radius * Transform.MaxScale(), ColliderColor(Sphere.bIsTrigger), 8, 3.5f, true, 0.0f);
+        PDI->DrawSphere(Center, Sphere.Radius * Transform.GetWorldMaxScaleCached(), ColliderColor(Sphere.bIsTrigger), 8, 3.5f, true, 0.0f);
     }
 
     void CComponentVisualizer_SphereCollider::DrawVisualization(FComponentVisualizerContext& Context)
@@ -599,7 +599,7 @@ namespace Lumina
         SSphereColliderComponent& Sphere = Context.Get<SSphereColliderComponent>();
         const STransformComponent& Transform = Context.Get<STransformComponent>();
 
-        const float Scale = Math::Max(Transform.MaxScale(), 1e-4f);
+        const float Scale = Math::Max(Transform.GetWorldMaxScaleCached(), 1e-4f);
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (Sphere.TranslationOffset * Transform.GetWorldScaleCached());
         const FVector3 Axis = ScreenRightAt(Context.View, Center);
 
@@ -759,7 +759,7 @@ namespace Lumina
         const STransformComponent& Transform     = Registry.Get<STransformComponent>(Entity);
 
         // DrawCapsule wants the two cylinder-axis endpoints (caps tangent there), Y-aligned in local space.
-        const float Scale     = Transform.MaxScale();
+        const float Scale     = Transform.GetWorldMaxScaleCached();
         const FQuat WorldRot  = Transform.GetWorldRotationCached() * FQuat(Capsule.RotationOffset);
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (Capsule.TranslationOffset * Transform.GetWorldScaleCached());
         const FVector3 Axis   = WorldRot * FVector3(0.0f, Capsule.HalfHeight * Scale, 0.0f);
@@ -772,7 +772,7 @@ namespace Lumina
         SCapsuleColliderComponent& Capsule = Context.Get<SCapsuleColliderComponent>();
         const STransformComponent& Transform = Context.Get<STransformComponent>();
 
-        const float Scale = Math::Max(Transform.MaxScale(), 1e-4f);
+        const float Scale = Math::Max(Transform.GetWorldMaxScaleCached(), 1e-4f);
         const FQuat EntityRotation = Transform.GetWorldRotationCached();
         const FQuat LocalRotation = FQuat(Capsule.RotationOffset);
         const FQuat WorldRotation = EntityRotation * LocalRotation;
@@ -839,7 +839,7 @@ namespace Lumina
         const SCylinderColliderComponent& Cyl = Registry.Get<SCylinderColliderComponent>(Entity);
         const STransformComponent& Transform  = Registry.Get<STransformComponent>(Entity);
 
-        const float Scale     = Transform.MaxScale();
+        const float Scale     = Transform.GetWorldMaxScaleCached();
         const FQuat WorldRot  = Transform.GetWorldRotationCached() * FQuat(Cyl.RotationOffset);
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (Cyl.TranslationOffset * Transform.GetWorldScaleCached());
         const float Radius    = Cyl.Radius * Scale;
@@ -1057,7 +1057,7 @@ namespace Lumina
         const STaperedCapsuleColliderComponent& TC = Registry.Get<STaperedCapsuleColliderComponent>(Entity);
         const STransformComponent& Transform = Registry.Get<STransformComponent>(Entity);
 
-        const float Scale     = Transform.MaxScale();
+        const float Scale     = Transform.GetWorldMaxScaleCached();
         const FQuat WorldRot  = Transform.GetWorldRotationCached() * FQuat(TC.RotationOffset);
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (TC.TranslationOffset * Transform.GetWorldScaleCached());
         const float TopR  = TC.TopRadius * Scale;
@@ -1081,7 +1081,7 @@ namespace Lumina
         const STaperedCylinderColliderComponent& TC = Registry.Get<STaperedCylinderColliderComponent>(Entity);
         const STransformComponent& Transform = Registry.Get<STransformComponent>(Entity);
 
-        const float Scale     = Transform.MaxScale();
+        const float Scale     = Transform.GetWorldMaxScaleCached();
         const FQuat WorldRot  = Transform.GetWorldRotationCached() * FQuat(TC.RotationOffset);
         const FVector3 Center = Transform.GetWorldLocationCached() + Transform.GetWorldRotationCached() * (TC.TranslationOffset * Transform.GetWorldScaleCached());
 
@@ -1135,7 +1135,7 @@ namespace Lumina
 
         const FVector3 WorldLoc = Transform.GetWorldLocationCached();
         const FQuat    WorldRot = Transform.GetWorldRotationCached();
-        const float    Scale    = Transform.MaxScale();
+        const float    Scale    = Transform.GetWorldMaxScaleCached();
         const FVector4 Color    = ColliderColor(Comp.bIsTrigger);
 
         // Draw each child at its local offset/rotation so designers can see the merged shape they're building.

@@ -1372,6 +1372,14 @@ namespace
         return Script;
     }
 
+    // Reparenting keeps world placement, so it needs a transform to work with.
+    ECS::FEntity CreatePlaced(ECS::FRegistry& Registry)
+    {
+        const ECS::FEntity Entity = Registry.Create();
+        Registry.Emplace<STransformComponent>(Entity);
+        return Entity;
+    }
+
     FString Joined(const TVector<FString>& Log)
     {
         FString Out;
@@ -1390,11 +1398,11 @@ TEST(EntityScriptUnification, LifecycleRunsAttachInPreorderThenReadyInPostorder)
     ECS::FRegistry Registry{};
     TVector<FString> Log;
 
-    const ECS::FEntity Root   = Registry.Create();
-    const ECS::FEntity First  = Registry.Create();
-    const ECS::FEntity Second = Registry.Create();
-    const ECS::FEntity Leaf   = Registry.Create();
-    const ECS::FEntity Loner  = Registry.Create();
+    const ECS::FEntity Root   = CreatePlaced(Registry);
+    const ECS::FEntity First  = CreatePlaced(Registry);
+    const ECS::FEntity Second = CreatePlaced(Registry);
+    const ECS::FEntity Leaf   = CreatePlaced(Registry);
+    const ECS::FEntity Loner  = CreatePlaced(Registry);
     ECS::Utils::ReparentEntity(Registry, First, Root);
     ECS::Utils::ReparentEntity(Registry, Second, Root);
     ECS::Utils::ReparentEntity(Registry, Leaf, First);
@@ -1420,8 +1428,8 @@ TEST(EntityScriptUnification, LifecycleOrderHoldsForAScriptAddedLater)
     ECS::FRegistry Registry{};
     TVector<FString> Log;
 
-    const ECS::FEntity Parent = Registry.Create();
-    const ECS::FEntity Child  = Registry.Create();
+    const ECS::FEntity Parent = CreatePlaced(Registry);
+    const ECS::FEntity Child  = CreatePlaced(Registry);
     ECS::Utils::ReparentEntity(Registry, Child, Parent);
 
     AddUnattached(Registry, Parent, "parent", Log);

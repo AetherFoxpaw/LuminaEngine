@@ -690,13 +690,6 @@ namespace Lumina::Physics
         TVector<uint32>                         InterpAppliedParented;
         TVector<uint8>                          InterpCategory;
 
-        // Parented poses written in parallel, queued for the resolve in one bulk call per frame.
-        struct CACHE_ALIGN FInterpDeferBucket
-        {
-            TVector<ECS::FEntity> Entities;
-        };
-        TVector<FInterpDeferBucket>             InterpDeferred;
-
         // Body handle to staging slot for this frame, reset through StagedBodyHandles so it stays O(moved).
         TVector<uint32>                         BodyStagingSlot;
         TVector<uint32>                         StagedBodyHandles;

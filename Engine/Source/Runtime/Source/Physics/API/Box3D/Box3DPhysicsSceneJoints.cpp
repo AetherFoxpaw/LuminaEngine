@@ -468,8 +468,9 @@ namespace Lumina::Physics
         Desc.Type = Component->Type;
         Desc.BodyA = TargetEntity;
         Desc.BodyB = Entity;
-        Desc.Anchor = Transform->GetLocation() + Component->PivotOffset;
-        Desc.Axis = Math::Rotate(Transform->GetRotation(), Component->Axis);
+        const FTransform JointPose = Transform->ComputeWorldTransform();
+        Desc.Anchor = JointPose.GetLocation() + Component->PivotOffset;
+        Desc.Axis = Math::Rotate(JointPose.GetRotation(), Component->Axis);
         Desc.AnchorB = Desc.Anchor;
         Desc.MinLimit = Component->LowerLimit;
         Desc.MaxLimit = Component->UpperLimit;
