@@ -39,6 +39,7 @@
 #include "Assets/AssetTypes/Prefabs/Prefab.h"
 #include "Assets/AssetTypes/Prefabs/PrefabComponents.h"
 #include "World/World.h"
+#include "World/Subsystems/TweenManager.h"
 
 using namespace Lumina;
 
@@ -1797,4 +1798,61 @@ TEST_F(FFrameMarshalTest, ScriptSpawnsALoadedPrefab)
     ASSERT_TRUE(Registry.IsValid(Root));
     EXPECT_EQ(Registry.GetHierarchy().GetParent(Root), Holder);
     EXPECT_FLOAT_EQ(Registry.Get<STransformComponent>(Root).GetLocalLocation().y, 4.0f);
+}
+
+// A script builds a tween with the fluent API, and native ticking it drives every kind of step and event.
+TEST_F(FFrameMarshalTest, ScriptTweenBuilderDrivesEveryStepKind)
+{
+    using FBuildFn = int32(*)(void*, uint32, float*);
+    using FReadFn = void(*)(float*, int32*, int32*);
+    auto* Build = (FBuildFn)DotNet::ResolveManagedExport("Test_TweenBuild");
+    auto* Read = (FReadFn)DotNet::ResolveManagedExport("Test_TweenRead");
+    ASSERT_NE(Build, nullptr);
+    ASSERT_NE(Read, nullptr);
+
+    RegisterPendingTypes();
+    TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptTweenWorld"), FGuid::New(), OF_Transient));
+    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+
+    // The world's initialization makes this, and a bare test world never runs it.
+    FTweenManager& Manager = Registry.Ctx().Emplace<FTweenManager>();
+    Manager.SetWorldRegistry(&Registry);
+
+    const ECS::FEntity Entity = Registry.Create();
+    Registry.Emplace<STransformComponent>(Entity);
+    Registry.Emplace<SBuoyancyComponent>(Entity).Buoyancy = 2.0f;
+
+    float Duration = 0.0f;
+    ASSERT_EQ(Build(World.Get(), (uint32)Entity, &Duration), 1);
+    EXPECT_NEAR(Duration, 0.6f, 1e-4f);
+
+    float Value[3] = {};
+    int32 Finished = 0;
+    int32 Loops = 0;
+
+    for (int32 i = 0; i < 2; ++i)
+    {
+        Manager.Tick(0.1f);
+    }
+    Read(Value, &Finished, &Loops);
+    EXPECT_NEAR(Registry.Get<STransformComponent>(Entity).GetLocalLocation().x, 3.0f, 1e-3f);
+    EXPECT_NEAR(Value[1], 2.0f, 1e-3f);
+
+    for (int32 i = 0; i < 2; ++i)
+    {
+        Manager.Tick(0.1f);
+    }
+    EXPECT_NEAR(Registry.Get<SBuoyancyComponent>(Entity).Buoyancy, 5.0f, 1e-3f);
+
+    for (int32 i = 0; i < 10; ++i)
+    {
+        Manager.Tick(0.1f);
+    }
+    Read(Value, &Finished, &Loops);
+    EXPECT_EQ(Loops, 1);
+    EXPECT_EQ(Finished, 1);
+    EXPECT_NEAR(Registry.Get<STransformComponent>(Entity).GetLocalLocation().x, 0.0f, 1e-3f) << "the yoyo pass brings it home";
+    EXPECT_NEAR(Registry.Get<SBuoyancyComponent>(Entity).Buoyancy, 2.0f, 1e-3f);
+    EXPECT_NEAR(Registry.Get<STransformComponent>(Entity).GetLocalScale().x, 1.0f, 1e-3f) << "the punch settles";
+    EXPECT_NEAR(Value[2], 0.0f, 1e-3f);
 }

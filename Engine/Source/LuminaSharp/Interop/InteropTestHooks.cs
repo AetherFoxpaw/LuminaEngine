@@ -1087,6 +1087,46 @@ internal static unsafe class InteropTestHooks
         return Target.SpawnPrefab(Loaded, new FVector3(3.0f, 4.0f, 5.0f), null, new FEntity(Parent)).Id;
     }
 
+    private static FVector3 TweenValue;
+    private static int TweenFinished;
+    private static int TweenLoops;
+
+    // Builds one tween through the fluent C# API, for native to tick and Test_TweenRead to inspect.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_TweenBuild(IntPtr World, uint Entity, float* OutDuration)
+    {
+        var Target = new Lumina.CWorld(World);
+        FEntity E = new FEntity(Entity);
+        TweenValue = default;
+        TweenFinished = 0;
+        TweenLoops = 0;
+
+        Tween T = Target.CreateTween(E)
+            .MoveTo(E, new FVector3(3.0f, 0.0f, 0.0f), 0.2f).Trans(EEaseTransition.Linear)
+            .Parallel()
+            .Value(new FVector3(0.0f), new FVector3(1.0f, 2.0f, 3.0f), 0.2f, V => TweenValue = V).Trans(EEaseTransition.Linear)
+            .Property<Lumina.SBuoyancyComponent>(E, "Buoyancy", 5.0f, 0.2f).Trans(EEaseTransition.Linear)
+            .Punch(E, ETweenTransformChannel.Scale, new FVector3(0.5f), 0.2f)
+            .SetLoops(2, ETweenLoopMode.Yoyo)
+            .OnLoop(Count => TweenLoops = Count)
+            .OnFinished(() => ++TweenFinished);
+
+        *OutDuration = T.Duration;
+        return T.IsRunning ? 1 : 0;
+    }
+
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static void Test_TweenRead(float* OutValue, int* OutFinished, int* OutLoops)
+    {
+        OutValue[0] = TweenValue.X;
+        OutValue[1] = TweenValue.Y;
+        OutValue[2] = TweenValue.Z;
+        *OutFinished = TweenFinished;
+        *OutLoops = TweenLoops;
+    }
+
     // Reads what native queued through fresh readers, then sends three script pings for the next hook to read back.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
