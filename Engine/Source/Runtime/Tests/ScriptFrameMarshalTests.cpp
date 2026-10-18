@@ -1776,6 +1776,33 @@ TEST_F(FFrameMarshalTest, ScriptViewSurvivesMidLoopStructuralChanges)
     EXPECT_DOUBLE_EQ(Sum, Expected);
 }
 
+// C# reads a table of derived rows through the base row type and still refuses the reverse.
+TEST_F(FFrameMarshalTest, ScriptReadsDerivedRowsThroughTheirBase)
+{
+    using FRowFn = int32(*)(void*, void*);
+    auto* ReadAsBase = (FRowFn)DotNet::ResolveManagedExport("Test_ReadRowAsBase");
+    auto* RefusesDerived = (FRowFn)DotNet::ResolveManagedExport("Test_RefusesRowAsDerived");
+    ASSERT_NE(ReadAsBase, nullptr);
+    ASSERT_NE(RefusesDerived, nullptr);
+
+    TStrongObjectPtr<CDataTable> Derived(NewObject<CDataTable>(nullptr, NAME_None, FGuid::New(), OF_Transient));
+    Derived->SetRowStruct(SInteropTestDerivedRow::StaticStruct());
+    Derived->AddRow(FName("Row"));
+    const_cast<SInteropTestDerivedRow*>(FindDataTableRow<SInteropTestDerivedRow>(Derived.Get(), FName("Row")))->BaseValue = 42;
+    SDataTableRowHandle DerivedHandle;
+    DerivedHandle.DataTable = Derived;
+    DerivedHandle.RowName = FName("Row");
+    EXPECT_EQ(ReadAsBase(Derived.Get(), &DerivedHandle), 42);
+
+    TStrongObjectPtr<CDataTable> Base(NewObject<CDataTable>(nullptr, NAME_None, FGuid::New(), OF_Transient));
+    Base->SetRowStruct(SInteropTestRow::StaticStruct());
+    Base->AddRow(FName("Row"));
+    SDataTableRowHandle BaseHandle;
+    BaseHandle.DataTable = Base;
+    BaseHandle.RowName = FName("Row");
+    EXPECT_EQ(RefusesDerived(Base.Get(), &BaseHandle), 1);
+}
+
 // A script holding a loaded prefab spawns it placed and parented, with no path lookup.
 TEST_F(FFrameMarshalTest, ScriptSpawnsALoadedPrefab)
 {

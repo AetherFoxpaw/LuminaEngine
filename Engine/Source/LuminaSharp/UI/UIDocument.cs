@@ -2,7 +2,7 @@ using System;
 
 namespace LuminaSharp;
 
-public readonly struct UIDocument
+public readonly struct UIDocument : IDisposable
 {
     internal readonly ulong World;
     internal readonly Lumina.SUIDocument Handle;
@@ -49,6 +49,8 @@ public readonly struct UIDocument
             Lumina.CUILibrary.UnloadDocument(UIWorld.FromHandle(World), Handle);
         }
     }
+
+    public void Dispose() => Close();
 
     /// <summary>Raise this document above the others in the context (z-order).</summary>
     public void BringToFront()

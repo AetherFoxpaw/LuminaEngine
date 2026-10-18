@@ -1161,6 +1161,31 @@ internal static unsafe class InteropTestHooks
         return Target.SpawnPrefab(Loaded, new FVector3(3.0f, 4.0f, 5.0f), null, new FEntity(Parent)).Id;
     }
 
+    // Reads the row named Row through SInteropTestRow, by name and through a handle, and -1 when either refuses.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_ReadRowAsBase(IntPtr Table, IntPtr Handle)
+    {
+        var Loaded = Wrapper<Lumina.CDataTable>.ForObject(Table)!;
+        Lumina.SInteropTestRow? ByName = Loaded.TryGetRow<Lumina.SInteropTestRow>("Row");
+        Lumina.SInteropTestRow? ByHandle = NativeStructs.FromAddress<Lumina.SDataTableRowHandle>(Handle).TryGet<Lumina.SInteropTestRow>();
+        if (ByName is not { } Row || ByHandle is not { } Same)
+        {
+            return -1;
+        }
+        return Row.BaseValue == Same.BaseValue ? Row.BaseValue : -1;
+    }
+
+    // True when the table refuses to be read as the derived row, both by name and through a handle.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_RefusesRowAsDerived(IntPtr Table, IntPtr Handle)
+    {
+        var Loaded = Wrapper<Lumina.CDataTable>.ForObject(Table)!;
+        return Loaded.TryGetRow<Lumina.SInteropTestDerivedRow>("Row") is null
+            && NativeStructs.FromAddress<Lumina.SDataTableRowHandle>(Handle).TryGet<Lumina.SInteropTestDerivedRow>() is null ? 1 : 0;
+    }
+
     private static FVector3 TweenValue;
     private static int TweenFinished;
     private static int TweenLoops;

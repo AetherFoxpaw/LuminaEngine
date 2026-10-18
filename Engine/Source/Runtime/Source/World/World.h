@@ -18,6 +18,7 @@
 #include "Scene/RenderScene/TexturePaintTypes.h"
 #include "UI/WorldUIContext.h"
 #include "Subsystems/CoroutineManager.h"
+#include "Input/InputModeLeases.h"
 #include "Subsystems/TimerManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/TweenManager.h"
@@ -718,6 +719,8 @@ namespace Lumina
         const FTimerManager& GetTimerManager() const { return EntityRegistry.Ctx().Get<FTimerManager>(); }
 
         FCoroutineManager& GetCoroutineManager() { return EntityRegistry.Ctx().Get<FCoroutineManager>(); }
+
+        FInputModeLeases& GetInputModeLeases() { return EntityRegistry.Ctx().Get<FInputModeLeases>(); }
 
         //~ Registry signal handlers, connected during world initialization.
 

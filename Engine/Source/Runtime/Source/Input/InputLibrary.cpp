@@ -4,6 +4,7 @@
 
 #include "Input/InputActionMap.h"
 #include "Input/InputQuery.h"
+#include "World/World.h"
 
 namespace Lumina
 {
@@ -261,5 +262,15 @@ namespace Lumina
     EMouseMode CInputLibrary::GetMouseMode(CWorld* World)
     {
         return Input::GetMouseMode(World);
+    }
+
+    uint64 CInputLibrary::AcquireInputMode(CWorld* World, EInputMode InputMode, EMouseMode MouseMode)
+    {
+        return World != nullptr ? World->GetInputModeLeases().Acquire(InputMode, MouseMode) : 0;
+    }
+
+    bool CInputLibrary::ReleaseInputMode(CWorld* World, uint64 Lease)
+    {
+        return World != nullptr && Lease != 0 && World->GetInputModeLeases().Release(Lease);
     }
 }

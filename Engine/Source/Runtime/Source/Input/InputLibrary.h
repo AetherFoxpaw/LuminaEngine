@@ -200,5 +200,12 @@ namespace Lumina
 
         FUNCTION()
         static EMouseMode GetMouseMode(CWorld* World);
+
+        // Holds the modes until the returned lease is released, combined with every other holder's request.
+        FUNCTION()
+        static uint64 AcquireInputMode(CWorld* World, EInputMode InputMode, EMouseMode MouseMode);
+
+        FUNCTION()
+        static bool ReleaseInputMode(CWorld* World, uint64 Lease);
     };
 }

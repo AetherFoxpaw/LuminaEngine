@@ -12,11 +12,31 @@
 #include "Core/Object/ObjectMacros.h"
 #include "Core/Math/Vector/VectorTypes.h"
 #include "UI/UITypes.h"
+#include "Assets/AssetTypes/DataTable/DataTable.h"
 #include "World/ECS/Entity.h"
 #include "InteropTestLibrary.generated.h"
 
 namespace Lumina
 {
+    // A row type with a derived one below it, so tests can read a table through a base row struct.
+    REFLECT()
+    struct RUNTIME_API SInteropTestRow : SDataTableRowBase
+    {
+        GENERATED_BODY()
+
+        PROPERTY(Editable)
+        int32 BaseValue = 0;
+    };
+
+    REFLECT()
+    struct RUNTIME_API SInteropTestDerivedRow : SInteropTestRow
+    {
+        GENERATED_BODY()
+
+        PROPERTY(Editable)
+        int32 DerivedValue = 0;
+    };
+
     /** Holds an FName so it cannot blit, which is what makes it bind as an opaque wrapper. */
     REFLECT()
     struct SInteropOpaqueStruct

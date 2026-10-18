@@ -11,7 +11,6 @@
 #include "Core/Reflection/Type/LuminaTypes.h"
 #include "Core/Reflection/Type/Properties/ArrayProperty.h"
 #include "Core/Reflection/Type/Properties/StructProperty.h"
-#include "Input/InputLibrary.h"
 #include "Log/Log.h"
 #include "RmlUiBridge.h"
 #include "Scripting/DotNet/DotNetHost.h"
@@ -390,8 +389,8 @@ namespace Lumina::UIScripts
             FString        ModelName;
             // What the script asked for, kept across a reload that fails, so fixing the file brings the UI back.
             bool           bWantShown = false;
-            // Whether this UI holds a cursor reference, so it is released even if Interactive changed since.
-            bool           bHoldsCursor = false;
+            // The input mode lease this UI holds, so it is released even if Interactive changed since.
+            uint64         CursorLease = 0;
             int32          Generation = -1;
         };
 
@@ -399,13 +398,6 @@ namespace Lumina::UIScripts
         {
             static TVector<FOpenUI> UIs;
             return UIs;
-        }
-
-        // How many interactive UIs each world has shown, so the cursor goes back only when the last one hides.
-        THashMap<CWorld*, int32>& CursorHolders()
-        {
-            static THashMap<CWorld*, int32> Holders;
-            return Holders;
         }
 
         FOpenUI* Find(const CEntityScript* Script)
@@ -445,31 +437,6 @@ namespace Lumina::UIScripts
                 }
             }
             return FString();
-        }
-
-        void AcquireCursor(CWorld* World)
-        {
-            int32& Count = CursorHolders()[World];
-            if (Count++ == 0)
-            {
-                CInputLibrary::SetInputMode(World, EInputMode::GameAndUI);
-                CInputLibrary::SetMouseMode(World, EMouseMode::Normal);
-            }
-        }
-
-        void ReleaseCursor(CWorld* World)
-        {
-            auto Found = CursorHolders().find(World);
-            if (Found == CursorHolders().end() || Found->second <= 0)
-            {
-                return;
-            }
-            if (--Found->second == 0)
-            {
-                CursorHolders().erase(Found);
-                CInputLibrary::SetInputMode(World, EInputMode::Game);
-                CInputLibrary::SetMouseMode(World, EMouseMode::Captured);
-            }
         }
 
         void ResolveElements(FOpenUI& Open)
@@ -545,10 +512,10 @@ namespace Lumina::UIScripts
 
         void ReleaseHeldCursor(FOpenUI& Open)
         {
-            if (Open.bHoldsCursor)
+            if (Open.CursorLease != 0)
             {
-                ReleaseCursor(Open.World);
-                Open.bHoldsCursor = false;
+                Open.World->GetInputModeLeases().Release(Open.CursorLease);
+                Open.CursorLease = 0;
             }
         }
 
@@ -562,10 +529,9 @@ namespace Lumina::UIScripts
             const CUIScript* UIScript = Cast<CUIScript>(Open.Script);
             const bool bInteractive = UIScript != nullptr && UIScript->bInteractive;
             RmlUi::ShowDocument(Open.Document, false, bInteractive);
-            if (bInteractive && !Open.bHoldsCursor)
+            if (bInteractive && Open.CursorLease == 0 && Open.World != nullptr)
             {
-                AcquireCursor(Open.World);
-                Open.bHoldsCursor = true;
+                Open.CursorLease = Open.World->GetInputModeLeases().Acquire(EInputMode::GameAndUI, EMouseMode::Normal);
             }
         }
 
@@ -747,6 +713,5 @@ namespace Lumina::UIScripts
     {
         TVector<FOpenUI>& UIs = OpenUIs();
         UIs.erase(std::remove_if(UIs.begin(), UIs.end(), [World](const FOpenUI& Open) { return Open.World == World; }), UIs.end());
-        CursorHolders().erase(World);
     }
 }
