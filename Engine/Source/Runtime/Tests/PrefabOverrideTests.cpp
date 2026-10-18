@@ -12,6 +12,7 @@
 #include "World/Entity/Components/StaticMeshComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
 #include "World/World.h"
+#include "World/Prefab/PrefabLibrary.h"
 
 using namespace Lumina;
 
@@ -469,4 +470,39 @@ TEST(PrefabInstances, OverrideCaptureComparesHandlesInTheInstancesIDs)
     CPrefab::RecaptureComponentOverrides(Registry, Link, SPrefabLinkTestComponent::StaticStruct());
     const TVector<FName> Recorded = Paths();
     EXPECT_TRUE(Algo::Contains(Recorded, FName("Target"))) << "a world handle sharing the prefab root's number is still an edit";
+}
+
+// A prefab the caller already holds spawns placed and parented, with no path for the library to resolve.
+TEST(PrefabInstances, SpawnLoadedPrefabPlacesAndParentsTheRoot)
+{
+    CWorld* World = MakeWorld();
+    CPrefab* Prefab = MakePrefab();
+    ASSERT_NE(World, nullptr);
+    ASSERT_NE(Prefab, nullptr);
+
+    const ECS::FEntity PrefabRoot = AddNode(Prefab->Registry, "root");
+    const ECS::FEntity PrefabLeaf = AddNode(Prefab->Registry, "leaf");
+    ECS::Utils::ReparentEntity(Prefab->Registry, PrefabLeaf, PrefabRoot);
+
+    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    const ECS::FEntity Holder = Registry.Create();
+    Registry.Emplace<STransformComponent>(Holder);
+
+    const FTransform Placement(FVector3(3.0f, 4.0f, 5.0f));
+    const ECS::FEntity Root = CPrefabLibrary::SpawnLoadedPrefabAt(World, Prefab, Placement, Holder);
+    ASSERT_TRUE(Registry.IsValid(Root));
+
+    const SPrefabInstanceComponent* Instance = Registry.TryGet<SPrefabInstanceComponent>(Root);
+    ASSERT_NE(Instance, nullptr);
+    EXPECT_EQ(Instance->SourcePrefab.Get(), Prefab);
+    EXPECT_TRUE(Instance->bIsRoot);
+    EXPECT_EQ(Registry.GetHierarchy().GetParent(Root), Holder);
+
+    const FVector3 Location = Registry.Get<STransformComponent>(Root).GetLocalLocation();
+    EXPECT_FLOAT_EQ(Location.x, 3.0f);
+    EXPECT_FLOAT_EQ(Location.y, 4.0f);
+    EXPECT_FLOAT_EQ(Location.z, 5.0f);
+
+    EXPECT_EQ(CPrefabLibrary::SpawnLoadedPrefab(World, nullptr), ECS::NullEntity);
+    EXPECT_EQ(CPrefabLibrary::SpawnLoadedPrefab(nullptr, Prefab), ECS::NullEntity);
 }

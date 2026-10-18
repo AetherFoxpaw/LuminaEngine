@@ -30,6 +30,14 @@ namespace Lumina
         static ECS::FEntity SpawnPrefabAt(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab,
             const FTransform& SpawnTransform, ECS::FEntity Parent);
 
+        // A prefab the caller already holds, at the origin and unparented, with no path lookup or load.
+        FUNCTION()
+        static ECS::FEntity SpawnLoadedPrefab(CWorld* World, CPrefab* Prefab);
+
+        // A prefab the caller already holds, at SpawnTransform and under Parent when it is not the null entity.
+        FUNCTION()
+        static ECS::FEntity SpawnLoadedPrefabAt(CWorld* World, CPrefab* Prefab, const FTransform& SpawnTransform, ECS::FEntity Parent);
+
         /** Loads the prefab off the game thread, then spawns and reports it once, back on the game thread. */
         FUNCTION()
         static void SpawnPrefabAsync(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab, SScriptCallback OnSpawned);

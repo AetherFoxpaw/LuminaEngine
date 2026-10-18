@@ -53,6 +53,17 @@ public unsafe partial class CWorld
     public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, FEntity? Parent = null)
         => CPrefabLibrary.SpawnPrefabAt(this, Prefab, Transform, Parent ?? FEntity.Null);
 
+    /// Spawns a prefab already loaded, with no path lookup. Null entity if the prefab is null.
+    public FEntity SpawnPrefab(CPrefab Prefab) => CPrefabLibrary.SpawnLoadedPrefab(this, Prefab);
+
+    /// Spawns a prefab already loaded, placed in one native call.
+    public FEntity SpawnPrefab(CPrefab Prefab, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
+        => SpawnPrefab(Prefab, new FTransform(Location, Rotation ?? FQuat.Identity, FVector3.One), Parent);
+
+    /// Spawns a prefab already loaded at a full transform, so an authored scale survives the spawn.
+    public FEntity SpawnPrefab(CPrefab Prefab, FTransform Transform, FEntity? Parent = null)
+        => CPrefabLibrary.SpawnLoadedPrefabAt(this, Prefab, Transform, Parent ?? FEntity.Null);
+
     public List<T> Scripts<T>() where T : class
     {
         if (!typeof(T).IsInterface && !typeof(CEntityScript).IsAssignableFrom(typeof(T)))

@@ -45,7 +45,21 @@ namespace Lumina
             return ECS::NullEntity;
         }
 
-        return PrefabObject->Instantiate(World, SpawnTransform, Parent);
+        return SpawnLoadedPrefabAt(World, PrefabObject, SpawnTransform, Parent);
+    }
+
+    ECS::FEntity CPrefabLibrary::SpawnLoadedPrefab(CWorld* World, CPrefab* Prefab)
+    {
+        return SpawnLoadedPrefabAt(World, Prefab, FTransform(), ECS::NullEntity);
+    }
+
+    ECS::FEntity CPrefabLibrary::SpawnLoadedPrefabAt(CWorld* World, CPrefab* Prefab, const FTransform& SpawnTransform, ECS::FEntity Parent)
+    {
+        if (World == nullptr || Prefab == nullptr)
+        {
+            return ECS::NullEntity;
+        }
+        return Prefab->Instantiate(World, SpawnTransform, Parent);
     }
 
     void CPrefabLibrary::SpawnPrefabAsync(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab, SScriptCallback OnSpawned)
@@ -72,7 +86,7 @@ namespace Lumina
                 return;
             }
 
-            const ECS::FEntity Spawned = Loaded->Instantiate(Target, FTransform(), ECS::NullEntity);
+            const ECS::FEntity Spawned = SpawnLoadedPrefab(Target, Loaded);
             Scripting::InvokeScriptCallback(OnSpawned, (uint64)(uint32)Spawned);
         });
     }

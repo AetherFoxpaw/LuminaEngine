@@ -1077,6 +1077,16 @@ internal static unsafe class InteropTestHooks
         return Visited;
     }
 
+    // Spawns a loaded prefab through the World overload, placed under a parent.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static uint Test_SpawnLoadedPrefab(IntPtr World, IntPtr Prefab, uint Parent)
+    {
+        var Target = new Lumina.CWorld(World);
+        var Loaded = Wrapper<Lumina.CPrefab>.ForObject(Prefab)!;
+        return Target.SpawnPrefab(Loaded, new FVector3(3.0f, 4.0f, 5.0f), null, new FEntity(Parent)).Id;
+    }
+
     // Reads what native queued through fresh readers, then sends three script pings for the next hook to read back.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]

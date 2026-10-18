@@ -36,6 +36,8 @@
 #include "World/Entity/Components/BuoyancyComponent.h"
 #include "World/Entity/Components/CharacterComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
+#include "Assets/AssetTypes/Prefabs/Prefab.h"
+#include "Assets/AssetTypes/Prefabs/PrefabComponents.h"
 #include "World/World.h"
 
 using namespace Lumina;
@@ -1770,4 +1772,29 @@ TEST_F(FFrameMarshalTest, ScriptViewSurvivesMidLoopStructuralChanges)
 
     EXPECT_EQ(Visited, ExpectedVisits);
     EXPECT_DOUBLE_EQ(Sum, Expected);
+}
+
+// A script holding a loaded prefab spawns it placed and parented, with no path lookup.
+TEST_F(FFrameMarshalTest, ScriptSpawnsALoadedPrefab)
+{
+    using FSpawnFn = uint32(*)(void*, void*, uint32);
+    auto* Spawn = (FSpawnFn)DotNet::ResolveManagedExport("Test_SpawnLoadedPrefab");
+    ASSERT_NE(Spawn, nullptr);
+
+    RegisterPendingTypes();
+    TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptPrefabWorld"), FGuid::New(), OF_Transient));
+    TStrongObjectPtr<CPrefab> Prefab(NewObject<CPrefab>(nullptr, NAME_None, FGuid::New(), OF_Transient));
+
+    const ECS::FEntity PrefabRoot = Prefab->Registry.Create();
+    Prefab->Registry.Emplace<SPrefabComponent>(PrefabRoot).StableID = FName("root");
+    Prefab->Registry.Emplace<STransformComponent>(PrefabRoot);
+
+    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    const ECS::FEntity Holder = Registry.Create();
+    Registry.Emplace<STransformComponent>(Holder);
+
+    const ECS::FEntity Root(Spawn(World.Get(), Prefab.Get(), (uint32)Holder));
+    ASSERT_TRUE(Registry.IsValid(Root));
+    EXPECT_EQ(Registry.GetHierarchy().GetParent(Root), Holder);
+    EXPECT_FLOAT_EQ(Registry.Get<STransformComponent>(Root).GetLocalLocation().y, 4.0f);
 }
