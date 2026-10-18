@@ -14,7 +14,7 @@ namespace
     Lumina::ECS::FRegistry* LmRegistryFromWorld(uint64 World)
     {
         Lumina::CWorld* W = reinterpret_cast<Lumina::CWorld*>(World);
-        return W ? &Lumina::ECS::GetWorldRegistry(*W) : nullptr;
+        return W ? &W->GetEntityRegistry() : nullptr;
     }
 }
 
@@ -35,7 +35,7 @@ namespace
     {
         Lumina::CWorld* W = reinterpret_cast<Lumina::CWorld*>(World);
         const auto* O = static_cast<const Lumina::FComponentOps*>(Ops);
-        return (W && O) ? Lumina::ECS::GetWorldRegistry(*W).FindStorage(O->GetTypeID()) : nullptr;
+        return (W && O) ? W->GetEntityRegistry().FindStorage(O->GetTypeID()) : nullptr;
     }
 }
 
@@ -78,7 +78,7 @@ LUMINA_DOTNET_EXPORT(int, TrackComponentPointer)(const void* Payload, const void
             return;
         }
 
-        const Lumina::ECS::FSparseSet* Pool = Lumina::ECS::GetWorldRegistry(World).FindStorage(static_cast<uint32>(O->TypeId));
+        const Lumina::ECS::FSparseSet* Pool = World.GetEntityRegistry().FindStorage(static_cast<uint32>(O->TypeId));
         const Lumina::ECS::FEntity Owner = Pool != nullptr ? Pool->FindPayloadOwner(Payload) : Lumina::ECS::NullEntity;
         if (!Owner.IsNull())
         {

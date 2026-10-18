@@ -20,7 +20,7 @@ namespace
 
         FLeaseFixture()
         {
-            ECS::FRegistry& WorldRegistry = ECS::GetWorldRegistry(*World);
+            ECS::FRegistry& WorldRegistry = World->GetEntityRegistry();
             if (WorldRegistry.Ctx().Find<FInputModeLeases>() == nullptr)
             {
                 WorldRegistry.Ctx().Emplace<FInputModeLeases>(World);

@@ -28,7 +28,7 @@ namespace
         // Released before the harness stops the task system, which the world's physics scene still runs on.
         TStrongObjectPtr<CWorld> WorldOwner;
 
-        ECS::FRegistry& Registry() const { return ECS::GetWorldRegistry(*World); }
+        ECS::FRegistry& Registry() const { return World->GetEntityRegistry(); }
         Physics::IPhysicsScene& Scene() const { return *World->GetPhysicsScene(); }
 
         FPhysicsHierarchyWorld()

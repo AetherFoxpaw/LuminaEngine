@@ -21,7 +21,7 @@ namespace Lumina
         SpawnTransform.SetLocation(Position);
         const ECS::FEntity Entity = World->ConstructEntity("Projectile", SpawnTransform);
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         SProjectileComponent& Projectile = Registry.Emplace<SProjectileComponent>(Entity);
         Projectile.Velocity = Velocity;
         Projectile.Damage = Damage;

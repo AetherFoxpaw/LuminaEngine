@@ -2,7 +2,6 @@
 
 #include "CameraLibrary.h"
 
-#include "Physics/PhysicsLibrary.h"
 #include "World/ECS/Registry.h"
 #include "World/Entity/Systems/SystemSingletons.h"
 #include "World/World.h"
@@ -47,33 +46,10 @@ namespace Lumina
         return View != nullptr ? View->ViewVolume.GetFOV() : 0.0f;
     }
 
-    ECS::FEntity CCameraLibrary::GetActiveCameraEntity(CWorld* World)
-    {
-        return World != nullptr ? World->GetActiveCameraEntity() : ECS::NullEntity;
-    }
-
-    void CCameraLibrary::SetActiveCamera(CWorld* World, ECS::FEntity Entity, float BlendTime,
-        ECameraBlendFunction BlendFunction)
-    {
-        if (World == nullptr)
-        {
-            return;
-        }
-
-        if (BlendTime > 0.0f)
-        {
-            World->SetActiveCamera(Entity, BlendTime, BlendFunction);
-        }
-        else
-        {
-            World->SetActiveCamera(Entity);
-        }
-    }
-
     uint32 CCameraLibrary::PlayShake(CWorld* World, SCameraShakeParams Params)
     {
         return World != nullptr
-            ? SCameraSystem::PlayCameraShake(ECS::GetWorldRegistry(*World), Params)
+            ? SCameraSystem::PlayCameraShake(World->GetEntityRegistry(), Params)
             : 0;
     }
 
@@ -93,7 +69,7 @@ namespace Lumina
     {
         if (World != nullptr)
         {
-            SCameraSystem::StopCameraShake(ECS::GetWorldRegistry(*World), ShakeHandle);
+            SCameraSystem::StopCameraShake(World->GetEntityRegistry(), ShakeHandle);
         }
     }
 
@@ -101,7 +77,7 @@ namespace Lumina
     {
         if (World != nullptr)
         {
-            SCameraSystem::StopAllCameraShakes(ECS::GetWorldRegistry(*World));
+            SCameraSystem::StopAllCameraShakes(World->GetEntityRegistry());
         }
     }
 
@@ -164,7 +140,7 @@ namespace Lumina
 
         bool IsUnoccluded(CWorld* World, const FVector3& Eye, const FVector3& Point, float Distance, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB)
         {
-            const SRayResult Hit = CPhysicsLibrary::Raycast(World, Eye, Point, IgnoreA);
+            const SRayResult Hit = World->Raycast(Eye, Point, IgnoreA);
             return !Hit.bHit || ECS::FEntity(Hit.Entity) == IgnoreB || Hit.Distance >= Distance - kOcclusionSlack;
         }
     }

@@ -638,7 +638,7 @@ namespace LuminaInteropBench
         constexpr int32 kEntities = 10000;
         constexpr int32 kTicks = 40;
 
-        Lumina::ECS::FRegistry& Registry = Lumina::ECS::GetWorldRegistry(*World);
+        Lumina::ECS::FRegistry& Registry = World->GetEntityRegistry();
         Lumina::TVector<Lumina::uint32> Ids;
         Ids.reserve(kEntities);
         for (int32 Index = 0; Index < kEntities; ++Index)

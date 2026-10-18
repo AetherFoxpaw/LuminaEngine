@@ -101,7 +101,7 @@ namespace Lumina
         NODISCARD bool IsInspectingForeignWorld() const { return ObservedWorld != nullptr && ObservedWorld != World.Get(); }
 
         // The registry holding the scene's entities (the observed world's registry).
-        NODISCARD ECS::FRegistry& GetSceneRegistry() const { return ECS::GetWorldRegistry(*GetObservedWorld()); }
+        NODISCARD ECS::FRegistry& GetSceneRegistry() const { return GetObservedWorld()->GetEntityRegistry(); }
 
     public:
 

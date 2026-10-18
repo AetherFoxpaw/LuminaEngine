@@ -1,7 +1,6 @@
 #include "UIScript.h"
 
 #include <algorithm>
-#include "Core/Engine/GameLibrary.h"
 #include "Core/Object/Cast.h"
 #include "Core/Object/Class.h"
 #include "Core/Object/ObjectIteration.h"
@@ -571,7 +570,7 @@ namespace Lumina::UIScripts
             return;
         }
         CWorld* World = Script->GetWorld();
-        if (World == nullptr || !CGameLibrary::HasPresentation(World))
+        if (World == nullptr || !World->HasPresentation())
         {
             return;
         }

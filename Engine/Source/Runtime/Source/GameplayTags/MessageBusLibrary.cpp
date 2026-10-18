@@ -1,5 +1,5 @@
 #include "RuntimePCH.h"
-#include "GameplayMessageLibrary.h"
+#include "MessageBusLibrary.h"
 
 #include "Core/Object/Class.h"
 #include "GameplayTags/GameplayMessageBus.h"
@@ -16,12 +16,12 @@ namespace Lumina
         }
     }
 
-    uint64 CGameplayMessageLibrary::GetMessageTypeKey(FName TypeName)
+    uint64 CMessageBusLibrary::GetMessageTypeKey(FName TypeName)
     {
         return TypeName.IsNone() ? 0 : MakeGameplayMessageType(TypeName);
     }
 
-    uint64 CGameplayMessageLibrary::Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, SScriptCallback Listener)
+    uint64 CMessageBusLibrary::Subscribe(CWorld* World, uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, SScriptCallback Listener)
     {
         if (World == nullptr || !Listener.IsBound())
         {
@@ -41,12 +41,12 @@ namespace Lumina
         return World->GetMessageBus().Subscribe(Params);
     }
 
-    bool CGameplayMessageLibrary::Unsubscribe(CWorld* World, uint64 Id)
+    bool CMessageBusLibrary::Unsubscribe(CWorld* World, uint64 Id)
     {
         return World != nullptr && World->GetMessageBus().Unsubscribe(Id);
     }
 
-    void CGameplayMessageLibrary::UnsubscribeAll(CWorld* World, ECS::FEntity Owner)
+    void CMessageBusLibrary::UnsubscribeAll(CWorld* World, ECS::FEntity Owner)
     {
         if (World != nullptr)
         {
@@ -54,7 +54,7 @@ namespace Lumina
         }
     }
 
-    void CGameplayMessageLibrary::Send(CWorld* World, uint32 Route, ECS::FEntity Target, uint32 Channel, uint32 Kind, uint64 Type,
+    void CMessageBusLibrary::Send(CWorld* World, uint32 Route, ECS::FEntity Target, uint32 Channel, uint32 Kind, uint64 Type,
         void* Data, uint32 Size, void* Struct, bool bIncludeSelf)
     {
         FGameplayMessagePayloadRef Payload;

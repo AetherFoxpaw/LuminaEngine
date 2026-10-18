@@ -2849,7 +2849,7 @@ namespace Lumina
             ToolWorld->SetUpdateInterval(GetToolWorldUpdateInterval(ToolWorld, bIsLastFocusedTool));
 
             // Tool->Update just flew the camera, and SCameraSystem runs a stage too late for the overlays below.
-            SCameraSystem::ResolveActiveCameraView(ECS::GetWorldRegistry(*ToolWorld));
+            SCameraSystem::ResolveActiveCameraView(ToolWorld->GetEntityRegistry());
         }
         
         if (!bVisible)

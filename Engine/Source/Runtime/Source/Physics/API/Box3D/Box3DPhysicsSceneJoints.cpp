@@ -525,7 +525,7 @@ namespace Lumina::Physics
             return;
         }
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         // Compacted in place, so an entity whose bodies are not ready is retried next frame without a copy.
         size_t Write = 0;

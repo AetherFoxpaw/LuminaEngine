@@ -373,7 +373,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         auto Controllers = Registry.GetStorage<SCharacterControllerComponent>();
         auto Movements   = Registry.GetStorage<SCharacterMovementComponent>();
@@ -466,7 +466,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         auto View = Registry.View<SCharacterPhysicsComponent, SCharacterMovementComponent>();
 
         ++CharacterStepCounter;
@@ -698,7 +698,7 @@ namespace Lumina::Physics
 
     bool FBox3DPhysicsScene::GetCharacterNetState(ECS::FEntity Entity, FCharacterNetState& Out) const
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         const SCharacterPhysicsComponent* Physics = Registry.TryGet<SCharacterPhysicsComponent>(Entity);
         const SCharacterMovementComponent* Movement = Registry.TryGet<SCharacterMovementComponent>(Entity);
         if (Physics == nullptr || !Physics->Character || Movement == nullptr)
@@ -718,7 +718,7 @@ namespace Lumina::Physics
 
     bool FBox3DPhysicsScene::SetCharacterNetState(ECS::FEntity Entity, const FCharacterNetState& State)
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         SCharacterPhysicsComponent* Physics = Registry.TryGet<SCharacterPhysicsComponent>(Entity);
         SCharacterMovementComponent* Movement = Registry.TryGet<SCharacterMovementComponent>(Entity);
         if (Physics == nullptr || !Physics->Character || Movement == nullptr)
@@ -745,7 +745,7 @@ namespace Lumina::Physics
 
     bool FBox3DPhysicsScene::SimulateCharacterStep(ECS::FEntity Entity, const FCharacterMoveInput& Input, float FixedDt, bool bReplay)
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         SCharacterPhysicsComponent* Physics = Registry.TryGet<SCharacterPhysicsComponent>(Entity);
         SCharacterMovementComponent* Movement = Registry.TryGet<SCharacterMovementComponent>(Entity);
         if (Physics == nullptr || !Physics->Character || Movement == nullptr)
@@ -799,7 +799,7 @@ namespace Lumina::Physics
 
     void FBox3DPhysicsScene::SetCharacterNetDrive(ECS::FEntity Entity, ECharacterNetDrive Drive)
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         if (SCharacterPhysicsComponent* Physics = Registry.TryGet<SCharacterPhysicsComponent>(Entity); Physics != nullptr && Physics->Character)
         {
             Physics->Character->NetDrive = (uint8)Drive;

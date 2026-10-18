@@ -16,7 +16,7 @@ namespace Lumina
 
     bool STweenSystem::HasWork(const SSystemContext& Context)
     {
-        const FTweenManager* Tweens = GetWorld() != nullptr ? ECS::GetWorldRegistry(*GetWorld()).Ctx().Find<FTweenManager>() : nullptr;
+        const FTweenManager* Tweens = GetWorld() != nullptr ? GetWorld()->GetEntityRegistry().Ctx().Find<FTweenManager>() : nullptr;
         return Tweens != nullptr && Tweens->HasTweens();
     }
 

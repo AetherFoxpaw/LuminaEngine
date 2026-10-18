@@ -19,7 +19,7 @@ namespace
         STransformComponent::StaticStruct();
         SEntityScriptComponent::StaticStruct();
         CWorld* World = NewObject<CWorld>(nullptr, NAME_None, FGuid::New(), OF_Transient);
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         Registry.Ctx().Emplace<CWorld*>(World);
         if (Registry.Ctx().Find<FCoroutineManager>() == nullptr)
         {
@@ -233,7 +233,7 @@ TEST(Coroutine, CancelingAParentCancelsTheChildItAwaits)
 TEST(Coroutine, OwnerDestructionEndsItsCoroutines)
 {
     CWorld* World = NewCoroutineWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     CEntityScript* Script = NewObject<CEntityScript>(nullptr, NAME_None, FGuid::New(), OF_Transient);
     Script->SetOwner(Registry.Create(), World);
 

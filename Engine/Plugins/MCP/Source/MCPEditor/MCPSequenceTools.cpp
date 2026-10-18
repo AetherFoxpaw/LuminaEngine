@@ -21,7 +21,6 @@
 #include "Core/Reflection/Type/Properties/StructProperty.h"
 #include "FileSystem/FileSystem.h"
 #include "Paths/Paths.h"
-#include "Physics/PhysicsLibrary.h"
 #include "Session/SessionOps.h"
 #include "Tools/Screenshot/MovieCapture.h"
 #include "World/Entity/Components/CameraComponent.h"
@@ -402,7 +401,7 @@ namespace Lumina::MCP
                 return NoGround;
             }
 
-            const SRayResult Hit = CPhysicsLibrary::Raycast(World, FVector3(X, 5000.0f, Z), FVector3(X, -5000.0f, Z), ECS::NullEntity);
+            const SRayResult Hit = World->Raycast(FVector3(X, 5000.0f, Z), FVector3(X, -5000.0f, Z), ECS::NullEntity);
             return Hit.bHit ? Hit.Location.y : NoGround;
         }
 
@@ -1405,7 +1404,7 @@ namespace Lumina::MCP
                         Component.Pause();
                     }
 
-                    Out.Player = Agent::FEntityTokens::Mint(ECS::GetWorldRegistry(*World), Player);
+                    Out.Player = Agent::FEntityTokens::Mint(World->GetEntityRegistry(), Player);
                     Out.Sequence = FString(Sequence->GetName().ToString().c_str());
                     Out.Time = Component.Time;
                     Out.Duration = Sequence->Duration;
@@ -1421,7 +1420,7 @@ namespace Lumina::MCP
             {
                 const SSequencePlayerComponent& Player = World->GetComponent<SSequencePlayerComponent>(Entity);
                 SSequencePlayerInfo Info;
-                Info.Player = Agent::FEntityTokens::Mint(ECS::GetWorldRegistry(*World), Entity);
+                Info.Player = Agent::FEntityTokens::Mint(World->GetEntityRegistry(), Entity);
                 Info.Time = Player.Time;
                 Info.bPlaying = Player.bPlaying;
                 Info.bPaused = Player.bPaused;

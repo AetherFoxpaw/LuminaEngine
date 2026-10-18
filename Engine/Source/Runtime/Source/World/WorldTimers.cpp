@@ -1,7 +1,5 @@
 #include "RuntimePCH.h"
 
-#include "TimerLibrary.h"
-
 #include "Containers/HashTable.h"
 #include "Containers/Vector.h"
 #include "Core/Object/ObjectHandleTyped.h"
@@ -47,7 +45,7 @@ namespace Lumina
         uint32 Schedule(CWorld* World, ECS::FEntity Owner, bool bHasOwner, float Rate, bool bLoop,
             float FirstDelay, SScriptCallback Callback)
         {
-            if (World == nullptr || !Callback.IsBound())
+            if (!Callback.IsBound())
             {
                 Scripting::ReleaseScriptCallback(Callback);
                 return (uint32)ECS::NullEntity;
@@ -69,55 +67,43 @@ namespace Lumina
         }
     }
 
-    uint32 CTimerLibrary::SetTimer(CWorld* World, float Rate, SScriptCallback OnFire, bool bLoop, float FirstDelay)
+    uint32 CWorld::SetTimer(float Rate, SScriptCallback OnFire, bool bLoop, float FirstDelay)
     {
-        return Schedule(World, ECS::NullEntity, false, Rate, bLoop, FirstDelay, OnFire);
+        return Schedule(this, ECS::NullEntity, false, Rate, bLoop, FirstDelay, OnFire);
     }
 
-    uint32 CTimerLibrary::SetTimerForEntity(CWorld* World, ECS::FEntity Owner, float Rate, SScriptCallback OnFire,
-        bool bLoop, float FirstDelay)
+    uint32 CWorld::SetTimerForEntity(ECS::FEntity Owner, float Rate, SScriptCallback OnFire, bool bLoop, float FirstDelay)
     {
-        return Schedule(World, Owner, true, Rate, bLoop, FirstDelay, OnFire);
+        return Schedule(this, Owner, true, Rate, bLoop, FirstDelay, OnFire);
     }
 
-    void CTimerLibrary::Clear(CWorld* World, uint32 Timer)
+    void CWorld::ClearTimer(uint32 Timer)
     {
-        if (World != nullptr)
-        {
-            FTimerHandle Handle{ ECS::FEntity::FromPacked(Timer) };
-            World->GetTimerManager().ClearTimer(Handle);
-        }
+        FTimerHandle Handle{ ECS::FEntity::FromPacked(Timer) };
+        GetTimerManager().ClearTimer(Handle);
     }
 
-    bool CTimerLibrary::IsActive(CWorld* World, uint32 Timer)
+    bool CWorld::IsTimerActive(uint32 Timer)
     {
-        return World != nullptr
-            && World->GetTimerManager().IsTimerActive(FTimerHandle{ ECS::FEntity::FromPacked(Timer) });
+        return GetTimerManager().IsTimerActive(FTimerHandle{ ECS::FEntity::FromPacked(Timer) });
     }
 
-    float CTimerLibrary::GetRemaining(CWorld* World, uint32 Timer)
+    float CWorld::GetTimerRemaining(uint32 Timer)
     {
-        return World != nullptr
-            ? World->GetTimerManager().GetTimerRemaining(FTimerHandle{ ECS::FEntity::FromPacked(Timer) })
-            : 0.0f;
+        return GetTimerManager().GetTimerRemaining(FTimerHandle{ ECS::FEntity::FromPacked(Timer) });
     }
 
-    float CTimerLibrary::GetElapsed(CWorld* World, uint32 Timer)
+    float CWorld::GetTimerElapsed(uint32 Timer)
     {
-        return World != nullptr
-            ? World->GetTimerManager().GetTimerElapsed(FTimerHandle{ ECS::FEntity::FromPacked(Timer) })
-            : 0.0f;
+        return GetTimerManager().GetTimerElapsed(FTimerHandle{ ECS::FEntity::FromPacked(Timer) });
     }
 
-    void CTimerLibrary::SetPaused(CWorld* World, uint32 Timer, bool bPaused)
+    void CWorld::SetTimerPaused(uint32 Timer, bool bTimerPaused)
     {
-        if (World != nullptr)
-        {
-            World->GetTimerManager().SetTimerPaused(FTimerHandle{ ECS::FEntity::FromPacked(Timer) }, bPaused);
-        }
+        GetTimerManager().SetTimerPaused(FTimerHandle{ ECS::FEntity::FromPacked(Timer) }, bTimerPaused);
     }
 
-    void CTimerLibrary::ClearAllManaged()
+    void CWorld::ClearAllManagedTimers()
     {
         // Snapshotted, since clearing a timer destroys its entry and mutates the set.
         TVector<FManagedTimer*> Snapshot;

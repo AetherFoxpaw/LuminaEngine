@@ -10,20 +10,13 @@ namespace Lumina;
 public unsafe partial class CWorld
 {
     internal ulong WorldHandle => (ulong)Handle.ToInt64();
-    public GameplayMessageBus Messages => new(this);
 
     // The world's event queues, for systems that drain them and scripts that send into them.
     public WorldEvents Events => new(this);
 
     // The subsystem of type T in this world, or null when none was created. Finds a C++ one just the same.
     public T? GetSubsystem<T>() where T : NativeObject
-        => CGameLibrary.GetSubsystem(this, SubsystemName<T>.Value) as T;
-
-    // Interned once per type, so a lookup sends an 8-byte id instead of text the native side re-interns.
-    private static class SubsystemName<T>
-    {
-        public static readonly FName Value = typeof(T).Name;
-    }
+        => GetSubsystem(NativeClass<T>.Of.AsBase<CWorldSubsystem>()) as T;
 
     public float DeltaTime => (float)GetWorldDeltaTime();
     public double ElapsedTime => GetTimeSinceWorldCreation();
@@ -40,6 +33,13 @@ public unsafe partial class CWorld
     {
         get => GetTimeDilation();
         set => SetTimeDilation(value);
+    }
+
+    // Setting it cuts to the camera, and SetActiveCamera blends instead.
+    public FEntity ActiveCamera
+    {
+        get => GetActiveCameraEntity();
+        set => SetActiveCamera(value);
     }
 
     /// Spawns a prefab at the origin, unparented. Null entity if the prefab could not be spawned.
@@ -74,7 +74,7 @@ public unsafe partial class CWorld
         TSubclassOf<CEntityScript> Class = typeof(CEntityScript).IsAssignableFrom(typeof(T))
             ? TSubclassOf<CEntityScript>.FromName(LuminaSharp.NativeTypeName.Of(typeof(T)))
             : default;
-        CEntityScript[] Found = CEntityScriptLibrary.FindScriptsInWorld(this, Class.IsValid ? Class : LuminaSharp.NativeClass<CEntityScript>.Of.AsBase<CEntityScript>());
+        CEntityScript[] Found = FindScriptsInWorld(Class.IsValid ? Class : LuminaSharp.NativeClass<CEntityScript>.Of.AsBase<CEntityScript>());
         var Result = new List<T>(Found.Length);
         foreach (CEntityScript Script in Found)
         {

@@ -8,11 +8,6 @@
 
 namespace Lumina
 {
-    bool CDestructionLibrary::FractureEntity(CWorld* World, ECS::FEntity Entity, FVector3 Origin, float Strength)
-    {
-        return World != nullptr && World->FractureEntity(Entity, Origin, Strength);
-    }
-
     bool CDestructionLibrary::ShatterMesh(CWorld* World, CStaticMesh* Mesh, FTransform Transform, FVector3 Origin, float Strength,
                                           int32 Pieces, float Lifetime)
     {

@@ -29,24 +29,4 @@ namespace Lumina
     {
         return GIsHeadless;
     }
-
-    bool CGameLibrary::HasPresentation(CWorld* World)
-    {
-        if (GIsHeadless)
-        {
-            return false;
-        }
-        return World == nullptr || (World->GetNetMode() != ENetMode::DedicatedServer && !World->IsBotWorld());
-    }
-
-    CWorldSubsystem* CGameLibrary::GetSubsystem(CWorld* World, const FName& ClassName)
-    {
-        if (World == nullptr || ClassName.IsNone())
-        {
-            return nullptr;
-        }
-
-        const CClass* Class = FindObject<CClass>(ClassName);
-        return Class != nullptr ? World->GetSubsystem(Class) : nullptr;
-    }
 }

@@ -19,7 +19,7 @@ namespace Lumina
                 return false;
             }
 
-            ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+            ECS::FRegistry& Registry = World->GetEntityRegistry();
             auto View = Registry.View<STerrainComponent, STransformComponent>();
             for (auto [Entity, Terrain, Transform] : View.Each())
             {

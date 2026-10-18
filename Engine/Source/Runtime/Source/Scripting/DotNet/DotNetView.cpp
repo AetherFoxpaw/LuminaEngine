@@ -17,7 +17,7 @@ namespace
     ECS::FRegistry* LmViewRegistryFromWorld(uint64 World)
     {
         CWorld* W = DotNet::AsWorld(World);
-        return W ? &ECS::GetWorldRegistry(*W) : nullptr;
+        return W ? &W->GetEntityRegistry() : nullptr;
     }
 
     // Snapshotting rather than holding a live iterator is what makes the view mutation-safe.

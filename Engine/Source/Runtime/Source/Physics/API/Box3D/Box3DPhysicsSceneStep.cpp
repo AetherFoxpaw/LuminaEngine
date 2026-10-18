@@ -29,7 +29,7 @@ namespace Lumina::Physics
 
     void FBox3DPhysicsScene::Simulate()
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         BulkCreateRigidBodies(Registry);
 
@@ -97,7 +97,7 @@ namespace Lumina::Physics
 
     void FBox3DPhysicsScene::StopSimulate()
     {
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         Registry.GetSignals<SCharacterPhysicsComponent>().OnConstruct.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentConstructed>(this);
         Registry.GetSignals<SCharacterPhysicsComponent>().OnDestroy.Disconnect<&FBox3DPhysicsScene::OnCharacterComponentDestroyed>(this);
@@ -178,7 +178,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         ECS::Utils::FlushDirtyPhysicsBodies(Registry);
 
         auto BodySyncView = Registry.View<SRigidBodyComponent, FNeedsPhysicsBodyUpdate>();
@@ -369,7 +369,7 @@ namespace Lumina::Physics
 
         DropCharacterInterpSlots();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         auto RigidStorage = Registry.GetStorage<SRigidBodyComponent>();
         const float KillHeight = World->GetDefaultWorldSettings().WorldKillHeight;
 
@@ -516,7 +516,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         const float KillHeight = World->GetDefaultWorldSettings().WorldKillHeight;
 
         DropCharacterInterpSlots();
@@ -628,7 +628,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         const uint32 Count = (uint32)InterpStaging.Entities.size();
         if (Count == 0)
@@ -810,7 +810,7 @@ namespace Lumina::Physics
     {
         LUMINA_PROFILE_SCOPE();
 
-        RebuildStaleDynamicMeshBodies(ECS::GetWorldRegistry(*World));
+        RebuildStaleDynamicMeshBodies(World->GetEntityRegistry());
         SynchronizeBodies();
 
         const Lumina::SDefaultWorldSettings& WorldSettings = World->GetDefaultWorldSettings();

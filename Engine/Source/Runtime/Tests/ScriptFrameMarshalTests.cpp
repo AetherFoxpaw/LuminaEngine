@@ -1730,7 +1730,7 @@ TEST_F(FFrameMarshalTest, ScriptViewSurvivesMidLoopStructuralChanges)
 
     RegisterPendingTypes();
     TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptViewMutationWorld"), FGuid::New(), OF_Transient));
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
 
     constexpr int32 kMembers = 64;
     TVector<uint32> Members;
@@ -1818,7 +1818,7 @@ TEST_F(FFrameMarshalTest, ScriptSpawnsALoadedPrefab)
     Prefab->Registry.Emplace<SPrefabComponent>(PrefabRoot).StableID = FName("root");
     Prefab->Registry.Emplace<STransformComponent>(PrefabRoot);
 
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Holder = Registry.Create();
     Registry.Emplace<STransformComponent>(Holder);
 
@@ -1840,7 +1840,7 @@ TEST_F(FFrameMarshalTest, ScriptTweenBuilderDrivesEveryStepKind)
 
     RegisterPendingTypes();
     TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptTweenWorld"), FGuid::New(), OF_Transient));
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
 
     // The world's initialization makes this, and a bare test world never runs it.
     FTweenManager& Manager = Registry.Ctx().Emplace<FTweenManager>();

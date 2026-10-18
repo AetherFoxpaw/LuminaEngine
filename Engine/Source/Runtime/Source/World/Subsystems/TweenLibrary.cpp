@@ -22,7 +22,7 @@ namespace Lumina
         // Null for a world that has not been initialized, which owns no tween manager yet.
         FTweenManager* FindTweenManager(CWorld* World)
         {
-            return World != nullptr ? ECS::GetWorldRegistry(*World).Ctx().Find<FTweenManager>() : nullptr;
+            return World != nullptr ? World->GetEntityRegistry().Ctx().Find<FTweenManager>() : nullptr;
         }
 
         // Rebuilt per call, since the builder is just a manager pointer plus a generational id.

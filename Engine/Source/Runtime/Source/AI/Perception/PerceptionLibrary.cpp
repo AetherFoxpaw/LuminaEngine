@@ -88,7 +88,7 @@ namespace Lumina
         }
 
         Physics::IPhysicsScene* Scene = World->GetPhysicsScene();
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         const STransformComponent* FromXf = Registry.TryGet<STransformComponent>(From);
         const STransformComponent* ToXf = Registry.TryGet<STransformComponent>(To);
         if (Scene == nullptr || FromXf == nullptr || ToXf == nullptr)
@@ -134,7 +134,7 @@ namespace Lumina
         Event.Target = ECS::NullEntity;
         Event.Location = Location;
         Event.Strength = Loudness;
-        Perception::EnqueueStimulus(Perception::GetOrCreateState(ECS::GetWorldRegistry(*World)), Event);
+        Perception::EnqueueStimulus(Perception::GetOrCreateState(World->GetEntityRegistry()), Event);
     }
 
     void CPerceptionLibrary::ReportDamage(CWorld* World, ECS::FEntity Victim, ECS::FEntity Instigator,
@@ -150,7 +150,7 @@ namespace Lumina
         Event.Target = Victim;
         Event.Location = HitLocation;
         Event.Strength = Amount;
-        Perception::EnqueueStimulus(Perception::GetOrCreateState(ECS::GetWorldRegistry(*World)), Event);
+        Perception::EnqueueStimulus(Perception::GetOrCreateState(World->GetEntityRegistry()), Event);
     }
 
     void CPerceptionLibrary::RegisterSource(CWorld* World, ECS::FEntity Entity,

@@ -2478,7 +2478,7 @@ namespace Lumina
 
             GWorldManager->ForEachWorld([&](CWorld& World)
             {
-                ECS::FRegistry& Registry = ECS::GetWorldRegistry(World);
+                ECS::FRegistry& Registry = World.GetEntityRegistry();
 
                 // Anything held back by a failed or late load comes in first, so it sees this reload too.
                 RestoreHeldValues(Registry);

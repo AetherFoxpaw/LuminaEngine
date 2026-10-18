@@ -24,7 +24,7 @@ namespace
 
         // InitializeWorld is what registers the world with its registry, and a bare test world never runs it.
         CWorld* World = NewObject<CWorld>(nullptr, NAME_None, FGuid::New(), OF_Transient);
-        ECS::GetWorldRegistry(*World).Ctx().Emplace<CWorld*>(World);
+        World->GetEntityRegistry().Ctx().Emplace<CWorld*>(World);
         return World;
     }
 
@@ -38,7 +38,7 @@ namespace
 TEST(ComponentRef, AttachAddsAndBindsBeforeOnAttach)
 {
     CWorld* World = NewRefTestWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Entity = Registry.Create();
 
     CComponentRefScriptTest* Script = AttachRefScript(Registry, Entity);
@@ -54,7 +54,7 @@ TEST(ComponentRef, AttachAddsAndBindsBeforeOnAttach)
 TEST(ComponentRef, GetLeavesAMissingComponentAlone)
 {
     CWorld* World = NewRefTestWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Entity = Registry.Create();
 
     CComponentRefScriptTest* Script = AttachRefScript(Registry, Entity);
@@ -75,7 +75,7 @@ TEST(ComponentRef, GetLeavesAMissingComponentAlone)
 TEST(ComponentRef, GetFindsAComponentAddedAfterTheBind)
 {
     CWorld* World = NewRefTestWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Entity = Registry.Create();
 
     CComponentRefScriptTest* Script = AttachRefScript(Registry, Entity);
@@ -92,7 +92,7 @@ TEST(ComponentRef, GetFindsAComponentAddedAfterTheBind)
 TEST(ComponentRef, FindsTheComponentAgainAfterThePoolChanges)
 {
     CWorld* World = NewRefTestWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Other = Registry.Create();
     Registry.Emplace<STransformComponent>(Other);
     const ECS::FEntity Entity = Registry.Create();
@@ -115,7 +115,7 @@ TEST(ComponentRef, FindsTheComponentAgainAfterThePoolChanges)
 TEST(ComponentRef, ResolvesToNothingOnceTheComponentIsRemoved)
 {
     CWorld* World = NewRefTestWorld();
-    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+    ECS::FRegistry& Registry = World->GetEntityRegistry();
     const ECS::FEntity Entity = Registry.Create();
 
     CComponentRefScriptTest* Script = AttachRefScript(Registry, Entity);

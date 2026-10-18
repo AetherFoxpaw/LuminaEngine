@@ -5,15 +5,15 @@
 #include "Core/Object/ObjectMacros.h"
 #include "Scripting/ScriptCallback.h"
 #include "World/ECS/Entity.h"
-#include "GameplayMessageLibrary.generated.h"
+#include "MessageBusLibrary.generated.h"
 
 namespace Lumina
 {
     class CWorld;
 
-    // The message bus as script reaches it; typed sending and listening is built over these in C#.
+    // The message bus as script reaches it, with typed sending and listening built over these in C#.
     REFLECT()
-    class RUNTIME_API CGameplayMessageLibrary : public CFunctionLibrary
+    class RUNTIME_API CMessageBusLibrary : public CFunctionLibrary
     {
         GENERATED_BODY()
 
@@ -30,7 +30,8 @@ namespace Lumina
         FUNCTION(ScriptInternal)
         static bool Unsubscribe(CWorld* World, uint64 Id);
 
-        FUNCTION(ScriptInternal)
+        // Drops every listener Owner registered, which the bus also does on its own when the entity dies.
+        FUNCTION()
         static void UnsubscribeAll(CWorld* World, ECS::FEntity Owner);
 
         // A managed payload's handle belongs to the bus once sent, whether or not anything receives it.

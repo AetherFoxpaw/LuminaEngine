@@ -8,6 +8,7 @@
 #include "World/Entity/Components/PerceptionComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
 #include "World/Entity/Systems/PerceptionSystem.h"
+#include "WorldTestAccess.h"
 
 using namespace Lumina;
 
@@ -31,7 +32,7 @@ namespace
         ECS::FEntity       Guard;
         ECS::FEntity       Target;
 
-        ECS::FRegistry& Registry() const { return ECS::GetWorldRegistry(*World); }
+        ECS::FRegistry& Registry() const { return World->GetEntityRegistry(); }
 
         FSightWorld()
         {
@@ -61,12 +62,12 @@ namespace
 
             System = NewObject<SPerceptionSystem>(nullptr, NAME_None, FGuid::New(), OF_Transient);
             System->SetOwningWorld(World);
-            System->OnStartup(World->GetSystemContext());
+            System->OnStartup(FWorldTestAccess::SystemContext(*World));
         }
 
         ~FSightWorld()
         {
-            System->OnTeardown(World->GetSystemContext());
+            System->OnTeardown(FWorldTestAccess::SystemContext(*World));
             System->SetOwningWorld(nullptr);
             WorldOwner.Reset();
         }
@@ -83,7 +84,7 @@ namespace
 
         bool Sees()
         {
-            SSystemContext Context = World->GetSystemContext();
+            SSystemContext Context = FWorldTestAccess::SystemContext(*World);
             Context.DeltaTime = 0.1;
             System->OnUpdate(Context);
             const SPerceptionComponent& Sight = Registry().Get<SPerceptionComponent>(Guard);

@@ -3,7 +3,6 @@
 #include "Physics/API/Box3D/Box3DPhysicsScene.h"
 #include "Physics/API/Box3D/Box3DRagdollHandle.h"
 #include "Physics/API/Box3D/Box3DCharacterHandle.h"
-#include "Physics/PhysicsLibrary.h"
 #include "Renderer/SkeletonResource.h"
 #include "World/World.h"
 #include "World/Entity/Components/CharacterComponent.h"
@@ -22,7 +21,7 @@ namespace
         {
             RegisterPendingTypes();
             World = NewObject<CWorld>(nullptr, NAME_None, FGuid::New(), OF_Transient);
-            Registry = &ECS::GetWorldRegistry(*World);
+            Registry = &World->GetEntityRegistry();
             Scene = MakeUnique<Physics::FBox3DPhysicsScene>(World);
             Scene->Simulate();
             Dt = 1.0f / Math::Max(10.0f, World->GetDefaultWorldSettings().PhysicsHz);
@@ -586,7 +585,7 @@ TEST_F(PhysicsSceneLifecycle, ResizingACharacterAppliesInPlace)
     ASSERT_TRUE(Physics.Character);
     const FPhysicsCharacterHandle* Before = Physics.Character.Handle.get();
 
-    CPhysicsLibrary::SetCapsuleSize(World, Character, 0.5f, 0.8f);
+    World->SetCapsuleSize(Character, 0.5f, 0.8f);
     Scene->Update(Dt);
 
     EXPECT_EQ(Physics.Character.Handle.get(), Before) << "the same character carries on, only resized";
@@ -611,7 +610,7 @@ TEST_F(PhysicsSceneLifecycle, ARebuiltBodyKeepsItsVelocity)
     Scene->SetLinearVelocity(Ball, FVector3(3.0f, 0.0f, 0.0f));
     Scene->Update(Dt);
 
-    CPhysicsLibrary::SetSphereRadius(World, Ball, 1.0f);
+    World->SetSphereRadius(Ball, 1.0f);
     Scene->Update(Dt);
 
     EXPECT_NEAR(Scene->GetLinearVelocity(Ball).x, 3.0f, 0.05f);

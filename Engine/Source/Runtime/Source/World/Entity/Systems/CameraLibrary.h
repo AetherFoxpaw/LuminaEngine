@@ -37,14 +37,6 @@ namespace Lumina
         FUNCTION()
         static float GetFieldOfView(CWorld* World);
 
-        FUNCTION()
-        static ECS::FEntity GetActiveCameraEntity(CWorld* World);
-
-        /** A BlendTime above zero runs the cinematic blend rather than cutting. */
-        FUNCTION()
-        static void SetActiveCamera(CWorld* World, ECS::FEntity Entity, float BlendTime = 0.0f,
-            ECameraBlendFunction BlendFunction = ECameraBlendFunction::EaseInOut);
-
         /** Returns a handle to stop the shake with. Several shakes sum on the rendered view. */
         FUNCTION()
         static uint32 PlayShake(CWorld* World, SCameraShakeParams Params);

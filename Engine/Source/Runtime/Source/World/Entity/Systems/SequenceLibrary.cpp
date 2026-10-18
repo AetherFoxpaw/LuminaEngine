@@ -80,7 +80,7 @@ namespace Lumina
 
         FSequenceEventCursor& EventCursor(CWorld* World)
         {
-            ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+            ECS::FRegistry& Registry = World->GetEntityRegistry();
             if (FSequenceEventCursor* Cursor = Registry.Ctx().Find<FSequenceEventCursor>())
             {
                 return *Cursor;
@@ -155,7 +155,7 @@ namespace Lumina
     {
         if (World != nullptr)
         {
-            SCameraSystem::SetCinematicOverlay(ECS::GetWorldRegistry(*World), Fade, Color, LetterboxAspect);
+            SCameraSystem::SetCinematicOverlay(World->GetEntityRegistry(), Fade, Color, LetterboxAspect);
         }
     }
 }

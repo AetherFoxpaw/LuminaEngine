@@ -44,7 +44,7 @@ public static partial class Engine
     public static bool IsHeadless => Lumina.CGameLibrary.IsHeadless();
 
     // False wherever nothing is drawn or heard, so cosmetic work can skip a server, a bot and a headless process alike.
-    public static bool HasPresentation => Lumina.CGameLibrary.HasPresentation(World);
+    public static bool HasPresentation => InWorld ? World.HasPresentation() : !IsHeadless;
 
     [ThreadStatic] private static Lumina.CWorld? ActiveWorld;
     [ThreadStatic] private static FEntity ActiveEntity;

@@ -18,7 +18,7 @@ namespace Lumina
     {
         ECS::FRegistry* RegistryOf(CWorld* World)
         {
-            return World != nullptr ? &ECS::GetWorldRegistry(*World) : nullptr;
+            return World != nullptr ? &World->GetEntityRegistry() : nullptr;
         }
     }
 

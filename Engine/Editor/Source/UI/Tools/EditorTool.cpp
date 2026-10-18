@@ -2335,7 +2335,7 @@ namespace Lumina
             return;
         }
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         TVector<ECS::FEntity> Affected;
         FEntityRelationshipCommand::CollectAffected(Registry, Seeds, NewParent, Affected);
@@ -2358,7 +2358,7 @@ namespace Lumina
             return;
         }
 
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
 
         TVector<ECS::FEntity> Candidates;
         FEntityDestroyCommand::CollectCandidates(Registry, Doomed, Candidates);
@@ -2684,7 +2684,7 @@ namespace Lumina
         bool  bHit         = false;
 
         // The case that matters most, since a landscape has no collision for anything else to hit.
-        ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+        ECS::FRegistry& Registry = World->GetEntityRegistry();
         for (auto&& [Entity, Terrain] : Registry.View<STerrainComponent>().Each())
         {
             FVector3 TerrainOrigin(0.0f);
