@@ -12,32 +12,23 @@
 
 namespace Lumina
 {
-    namespace
-    {
-        ECS::FRegistry* RegistryOf(CWorld* World)
-        {
-            return World != nullptr ? &World->GetEntityRegistry() : nullptr;
-        }
-    }
-
     void CWorld::AttachEntityToSocket(ECS::FEntity Child, ECS::FEntity Parent,
         const FName& SocketOrBone)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Child) || !Registry->IsValid(Parent) || Child == Parent)
+        if (!EntityRegistry.IsValid(Child) || !EntityRegistry.IsValid(Parent) || Child == Parent)
         {
             return;
         }
 
         // The socket system overwrites the local transform anyway, and the snap avoids a stale frame.
-        ECS::Utils::ReparentEntity(*Registry, Child, Parent, /*bPreserveWorld*/ false);
+        ECS::Utils::ReparentEntity(EntityRegistry, Child, Parent, /*bPreserveWorld*/ false);
 
-        SSocketAttachmentComponent& Attachment = Registry->EmplaceOrReplace<SSocketAttachmentComponent>(Child);
+        SSocketAttachmentComponent& Attachment = EntityRegistry.EmplaceOrReplace<SSocketAttachmentComponent>(Child);
         Attachment.SocketName = SocketOrBone;
 
         FMatrix4 SocketTransform;
-        STransformComponent* Transform = Registry->TryGet<STransformComponent>(Child);
-        if (Transform && SkeletalUtils::GetEntitySocketTransform(*Registry, Parent, SocketOrBone, SocketTransform))
+        STransformComponent* Transform = EntityRegistry.TryGet<STransformComponent>(Child);
+        if (Transform && SkeletalUtils::GetEntitySocketTransform(EntityRegistry, Parent, SocketOrBone, SocketTransform))
         {
             Transform->SetLocalTransform(FTransform(SocketTransform * Attachment.RelativeTransform.GetMatrix()));
         }
@@ -45,28 +36,24 @@ namespace Lumina
 
     void CWorld::DetachEntityFromSocket(ECS::FEntity Entity)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Entity))
+        if (!EntityRegistry.IsValid(Entity))
         {
             return;
         }
 
-        Registry->Remove<SSocketAttachmentComponent>(Entity);
-        ECS::Utils::ReparentEntity(*Registry, Entity, ECS::NullEntity, /*bPreserveWorld*/ true);
+        EntityRegistry.Remove<SSocketAttachmentComponent>(Entity);
+        ECS::Utils::ReparentEntity(EntityRegistry, Entity, ECS::NullEntity, /*bPreserveWorld*/ true);
     }
 
     bool CWorld::HasSocket(ECS::FEntity Entity, const FName& SocketOrBone)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        return Registry != nullptr && SkeletalUtils::EntityHasSocket(*Registry, Entity, SocketOrBone);
+        return SkeletalUtils::EntityHasSocket(EntityRegistry, Entity, SocketOrBone);
     }
 
     FVector3 CWorld::GetSocketLocation(ECS::FEntity Entity, const FName& SocketOrBone)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
         FMatrix4 SocketTransform;
-        if (Registry == nullptr
-            || !SkeletalUtils::GetSocketWorldTransform(*Registry, Entity, SocketOrBone, SocketTransform))
+        if (!SkeletalUtils::GetSocketWorldTransform(EntityRegistry, Entity, SocketOrBone, SocketTransform))
         {
             return FVector3(0.0f);
         }
@@ -75,10 +62,8 @@ namespace Lumina
 
     FQuat CWorld::GetSocketRotation(ECS::FEntity Entity, const FName& SocketOrBone)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
         FMatrix4 SocketTransform;
-        if (Registry == nullptr
-            || !SkeletalUtils::GetSocketWorldTransform(*Registry, Entity, SocketOrBone, SocketTransform))
+        if (!SkeletalUtils::GetSocketWorldTransform(EntityRegistry, Entity, SocketOrBone, SocketTransform))
         {
             return FQuat::Identity();
         }
@@ -90,13 +75,12 @@ namespace Lumina
 
     FName CWorld::GetBoneName(ECS::FEntity Entity, int32 BoneIndex)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Entity))
+        if (!EntityRegistry.IsValid(Entity))
         {
             return FName();
         }
 
-        const SSkeletalMeshComponent* Mesh = Registry->TryGet<SSkeletalMeshComponent>(Entity);
+        const SSkeletalMeshComponent* Mesh = EntityRegistry.TryGet<SSkeletalMeshComponent>(Entity);
         if (Mesh == nullptr)
         {
             return FName();
@@ -112,13 +96,12 @@ namespace Lumina
 
     int32 CWorld::GetBoneIndex(ECS::FEntity Entity, const FName& BoneName)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Entity))
+        if (!EntityRegistry.IsValid(Entity))
         {
             return Constants::kIndexNone;
         }
 
-        const SSkeletalMeshComponent* Mesh = Registry->TryGet<SSkeletalMeshComponent>(Entity);
+        const SSkeletalMeshComponent* Mesh = EntityRegistry.TryGet<SSkeletalMeshComponent>(Entity);
         if (Mesh == nullptr)
         {
             return Constants::kIndexNone;
@@ -130,50 +113,42 @@ namespace Lumina
 
     FName CWorld::FindClosestBone(ECS::FEntity Entity, FVector3 WorldLocation)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr)
-        {
-            return FName();
-        }
 
-        const int32 BoneIndex = SkeletalUtils::FindClosestBone(*Registry, Entity, WorldLocation);
+        const int32 BoneIndex = SkeletalUtils::FindClosestBone(EntityRegistry, Entity, WorldLocation);
         return GetBoneName(Entity, BoneIndex);
     }
 
     void CWorld::SetLeaderPose(ECS::FEntity Follower, ECS::FEntity Leader)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Follower) || Follower == Leader)
+        if (!EntityRegistry.IsValid(Follower) || Follower == Leader)
         {
             return;
         }
 
-        if (!Registry->HasAll<SSkeletalMeshComponent>(Follower))
+        if (!EntityRegistry.HasAll<SSkeletalMeshComponent>(Follower))
         {
             LOG_WARN("SetLeaderPose: entity {} has no skeletal mesh to drive.", Follower.Value);
             return;
         }
 
-        SFollowerPoseComponent& Link = Registry->EmplaceOrReplace<SFollowerPoseComponent>(Follower);
+        SFollowerPoseComponent& Link = EntityRegistry.EmplaceOrReplace<SFollowerPoseComponent>(Follower);
         Link.Leader = Leader;
     }
 
     void CWorld::ClearLeaderPose(ECS::FEntity Follower)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry != nullptr && Registry->IsValid(Follower))
+        if (EntityRegistry.IsValid(Follower))
         {
-            Registry->Remove<SFollowerPoseComponent>(Follower);
+            EntityRegistry.Remove<SFollowerPoseComponent>(Follower);
         }
     }
 
     ECS::FEntity CWorld::GetLeaderPose(ECS::FEntity Follower)
     {
-        ECS::FRegistry* Registry = RegistryOf(this);
-        if (Registry == nullptr || !Registry->IsValid(Follower))
+        if (!EntityRegistry.IsValid(Follower))
         {
             return ECS::NullEntity;
         }
-        return SkeletalUtils::ResolvePoseLeader(*Registry, Follower);
+        return SkeletalUtils::ResolvePoseLeader(EntityRegistry, Follower);
     }
 }

@@ -8,9 +8,7 @@
 
 namespace Lumina
 {
-    class CWorld;
-
-    // With no baked navmesh every query reports not found. Agent names the volume to query, where empty means the infantry default.
+    // Navigation helpers that need no world, while the queries themselves live on CWorld.
     REFLECT()
     class RUNTIME_API CNavigationLibrary : public CFunctionLibrary
     {

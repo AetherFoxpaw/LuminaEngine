@@ -16,9 +16,9 @@ namespace Lumina
             SSequenceFiredEvent          Current;
         };
 
-        FSequenceEventCursor& EventCursor(CWorld* World)
+        FSequenceEventCursor& EventCursor(CWorld& World)
         {
-            ECS::FRegistry& Registry = World->GetEntityRegistry();
+            ECS::FRegistry& Registry = World.GetEntityRegistry();
             if (FSequenceEventCursor* Cursor = Registry.Ctx().Find<FSequenceEventCursor>())
             {
                 return *Cursor;
@@ -85,7 +85,7 @@ namespace Lumina
 
     bool CWorld::NextSequenceEvent()
     {
-        FSequenceEventCursor& Cursor = EventCursor(this);
+        FSequenceEventCursor& Cursor = EventCursor(*this);
         if (Cursor.Next >= Cursor.Pending.size())
         {
             Cursor.Pending.clear();
@@ -104,22 +104,22 @@ namespace Lumina
 
     FString CWorld::GetSequenceEventName()
     {
-        return FString(EventCursor(this).Current.Name.ToString().c_str());
+        return FString(EventCursor(*this).Current.Name.ToString().c_str());
     }
 
     FString CWorld::GetSequenceEventPayload()
     {
-        return EventCursor(this).Current.Payload;
+        return EventCursor(*this).Current.Payload;
     }
 
     ECS::FEntity CWorld::GetSequenceEventTarget()
     {
-        return EventCursor(this).Current.Target;
+        return EventCursor(*this).Current.Target;
     }
 
     float CWorld::GetSequenceEventTime()
     {
-        return EventCursor(this).Current.Time;
+        return EventCursor(*this).Current.Time;
     }
 
     bool CWorld::IsAnySequencePlaying()

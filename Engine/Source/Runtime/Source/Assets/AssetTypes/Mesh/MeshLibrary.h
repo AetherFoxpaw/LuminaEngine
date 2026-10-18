@@ -6,7 +6,6 @@
 
 namespace Lumina
 {
-    class CWorld;
     class CStaticMesh;
     class CMaterialInterface;
 

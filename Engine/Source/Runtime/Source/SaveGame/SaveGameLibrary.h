@@ -9,7 +9,6 @@
 namespace Lumina
 {
     class CSaveGame;
-    class CWorld;
 
     // Slots live in the project's Saved/SaveGames while developing and in the user's app data once shipped.
     REFLECT()

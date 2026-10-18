@@ -20,13 +20,13 @@ namespace Lumina
             return Tag;
         }
 
-        const SGameplayTagComponent* ComponentOf(CWorld* World, ECS::FEntity Entity, uint32 TagId)
+        const SGameplayTagComponent* ComponentOf(CWorld& World, ECS::FEntity Entity, uint32 TagId)
         {
-            if (World == nullptr || TagId == 0)
+            if (TagId == 0)
             {
                 return nullptr;
             }
-            return World->TryGetComponent<SGameplayTagComponent>(Entity);
+            return World.TryGetComponent<SGameplayTagComponent>(Entity);
         }
     }
     void CWorld::GetGameplayTags(ECS::FEntity Entity, TVector<uint32>& Out)
@@ -71,7 +71,7 @@ namespace Lumina
 
     bool CWorld::HasGameplayTag(ECS::FEntity Entity, uint32 TagId)
     {
-        const SGameplayTagComponent* Comp = ComponentOf(this, Entity, TagId);
+        const SGameplayTagComponent* Comp = ComponentOf(*this, Entity, TagId);
         if (Comp == nullptr)
         {
             return false;
@@ -89,7 +89,7 @@ namespace Lumina
 
     bool CWorld::HasGameplayTagExact(ECS::FEntity Entity, uint32 TagId)
     {
-        const SGameplayTagComponent* Comp = ComponentOf(this, Entity, TagId);
+        const SGameplayTagComponent* Comp = ComponentOf(*this, Entity, TagId);
         if (Comp == nullptr)
         {
             return false;

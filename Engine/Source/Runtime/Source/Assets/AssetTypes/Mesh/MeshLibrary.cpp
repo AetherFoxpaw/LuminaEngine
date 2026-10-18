@@ -9,7 +9,6 @@
 #include "Renderer/Vertex.h"
 #include "Tools/PrimitiveManager/PrimitiveManager.h"
 #include "World/Entity/Components/DynamicMeshComponent.h"
-#include "World/World.h"
 
 #include <atomic>
 

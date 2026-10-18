@@ -6,7 +6,6 @@
 #include "SaveGame.h"
 #include "SaveGameArchive.h"
 #include "SaveGameEvents.h"
-#include "World/World.h"
 #include "Core/Engine/Engine.h"
 #include "Core/Object/Class.h"
 #include "Core/Serialization/MemoryArchiver.h"
@@ -50,16 +49,6 @@ namespace Lumina
         FStringView View(const FString& String)
         {
             return FStringView(String.c_str(), String.size());
-        }
-
-        void SendRequest(CWorld* World, const SSaveGameRequestEvent& Request)
-        {
-            if (World == nullptr)
-            {
-                LOG_WARN("A save game request for slot '{}' was given no world.", Request.SlotName.c_str());
-                return;
-            }
-            ECS::SendEvent(World->GetEvents(), Request);
         }
     }
 

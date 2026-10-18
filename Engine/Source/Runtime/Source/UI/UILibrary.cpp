@@ -2,7 +2,6 @@
 #include "UI/UIScript.h"
 
 #include "UI/RmlUiBridge.h"
-#include "World/World.h"
 
 namespace Lumina
 {

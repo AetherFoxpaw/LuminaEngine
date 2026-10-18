@@ -10,7 +10,6 @@
 
 namespace Lumina
 {
-    class CWorld;
     class CEntityScript;
 
     // The script-facing half of the RmlUi bridge, reflected so C# binds it instead of hand-written thunks.

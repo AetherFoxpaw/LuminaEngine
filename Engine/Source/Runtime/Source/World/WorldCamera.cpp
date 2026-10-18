@@ -8,9 +8,9 @@ namespace Lumina
 {
     namespace
     {
-        const FResolvedSceneView* ViewOf(CWorld* World)
+        const FResolvedSceneView* ViewOf(CWorld& World)
         {
-            return World != nullptr ? World->GetResolvedView() : nullptr;
+            return World.GetResolvedView();
         }
     }
 
@@ -19,40 +19,40 @@ namespace Lumina
         // A hit this close short of the point is the point's own surface, not something in front of it.
         constexpr float kOcclusionSlack = 0.35f;
 
-        bool IsUnoccluded(CWorld* World, const FVector3& Eye, const FVector3& Point, float Distance, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB)
+        bool IsUnoccluded(CWorld& World, const FVector3& Eye, const FVector3& Point, float Distance, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB)
         {
-            const SRayResult Hit = World->Raycast(Eye, Point, IgnoreA);
+            const SRayResult Hit = World.Raycast(Eye, Point, IgnoreA);
             return !Hit.bHit || ECS::FEntity(Hit.Entity) == IgnoreB || Hit.Distance >= Distance - kOcclusionSlack;
         }
     }
 
     FVector3 CWorld::GetViewPosition()
     {
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         return View != nullptr ? View->ViewVolume.GetViewPosition() : FVector3(0.0f);
     }
 
     FVector3 CWorld::GetViewForward()
     {
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         return View != nullptr ? View->ViewVolume.GetForwardVector() : FVector3(0.0f, 0.0f, 1.0f);
     }
 
     FVector3 CWorld::GetViewRight()
     {
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         return View != nullptr ? View->ViewVolume.GetRightVector() : FVector3(1.0f, 0.0f, 0.0f);
     }
 
     FVector3 CWorld::GetViewUp()
     {
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         return View != nullptr ? View->ViewVolume.GetUpVector() : FVector3(0.0f, 1.0f, 0.0f);
     }
 
     float CWorld::GetFieldOfView()
     {
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         return View != nullptr ? View->ViewVolume.GetFOV() : 0.0f;
     }
 
@@ -101,7 +101,7 @@ namespace Lumina
     SScreenProjection CWorld::WorldToScreen(FVector3 WorldLocation)
     {
         SScreenProjection Result;
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         const FVector2 Viewport = GetViewportSize();
         if (View == nullptr || Viewport.x <= 0.0f || Viewport.y <= 0.0f)
         {
@@ -115,7 +115,7 @@ namespace Lumina
     SWorldRay CWorld::ScreenToWorldRay(FVector2 ScreenPosition)
     {
         SWorldRay Result;
-        const FResolvedSceneView* View = ViewOf(this);
+        const FResolvedSceneView* View = ViewOf(*this);
         const FVector2 Viewport = GetViewportSize();
         if (View == nullptr || Viewport.x <= 0.0f || Viewport.y <= 0.0f)
         {
@@ -159,7 +159,7 @@ namespace Lumina
             return false;
         }
 
-        return IsUnoccluded(this, Eye, Point, Distance, IgnoreA, IgnoreB);
+        return IsUnoccluded(*this, Eye, Point, Distance, IgnoreA, IgnoreB);
     }
 
     bool CWorld::IsPointVisibleFrom(FVector3 Eye, FVector3 Forward, float FovDegrees, float Aspect,
@@ -189,6 +189,6 @@ namespace Lumina
             return false;
         }
 
-        return IsUnoccluded(this, Eye, Point, Distance, IgnoreA, IgnoreB);
+        return IsUnoccluded(*this, Eye, Point, Distance, IgnoreA, IgnoreB);
     }
 }

@@ -8,10 +8,7 @@
 
 namespace Lumina
 {
-    class CWorld;
-    class CWorldSubsystem;
-
-    // Engine level session operations. OpenLevel takes the calling world, since editor PIE runs one world per player.
+    // Process level session operations, where a level change lives on CWorld since editor PIE runs one world per player.
     REFLECT()
     class RUNTIME_API CGameLibrary : public CFunctionLibrary
     {

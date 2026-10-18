@@ -13,16 +13,12 @@ namespace Lumina
     namespace
     {
         // Parameters live in the graph component's own struct instance, so a name resolves to a field on it.
-        void* ResolveParameterField(CWorld* World, ECS::FEntity Entity, const FName& Name,
+        void* ResolveParameterField(CWorld& World, ECS::FEntity Entity, const FName& Name,
             EAnimParamValueType& OutType)
         {
             OutType = EAnimParamValueType::Unresolved;
-            if (World == nullptr)
-            {
-                return nullptr;
-            }
 
-            SAnimationGraphComponent* Comp = World->TryGetComponent<SAnimationGraphComponent>(Entity);
+            SAnimationGraphComponent* Comp = World.TryGetComponent<SAnimationGraphComponent>(Entity);
             if (Comp == nullptr || !Comp->Graph.IsValid())
             {
                 return nullptr;
@@ -64,14 +60,14 @@ namespace Lumina
             }
         }
 
-        SSimpleAnimationComponent* SimpleOf(CWorld* World, ECS::FEntity Entity)
+        SSimpleAnimationComponent* SimpleOf(CWorld& World, ECS::FEntity Entity)
         {
-            return World != nullptr ? World->TryGetComponent<SSimpleAnimationComponent>(Entity) : nullptr;
+            return World.TryGetComponent<SSimpleAnimationComponent>(Entity);
         }
 
-        SAnimationGraphComponent* GraphOf(CWorld* World, ECS::FEntity Entity)
+        SAnimationGraphComponent* GraphOf(CWorld& World, ECS::FEntity Entity)
         {
-            return World != nullptr ? World->TryGetComponent<SAnimationGraphComponent>(Entity) : nullptr;
+            return World.TryGetComponent<SAnimationGraphComponent>(Entity);
         }
     }
 
@@ -83,39 +79,39 @@ namespace Lumina
 
     void CWorld::StopAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Stop(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity)) { Comp->Stop(); }
     }
 
     void CWorld::PauseAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Pause(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity)) { Comp->Pause(); }
     }
 
     void CWorld::ResumeAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Resume(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity)) { Comp->Resume(); }
     }
 
     bool CWorld::IsAnimationPlaying(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity);
         return Comp != nullptr && Comp->IsPlaying();
     }
 
     bool CWorld::IsAnimationFinished(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity);
         return Comp != nullptr && Comp->IsFinished();
     }
 
     void CWorld::SetAnimationSpeed(ECS::FEntity Entity, float Speed)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->PlaybackSpeed = Speed; }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity)) { Comp->PlaybackSpeed = Speed; }
     }
 
     void CWorld::SetAnimationTime(ECS::FEntity Entity, float Time)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity))
+        if (SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity))
         {
             Comp->CurrentTime = Time;
             Comp->bDirty = true;
@@ -124,14 +120,14 @@ namespace Lumina
 
     float CWorld::GetAnimationTime(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(*this, Entity);
         return Comp != nullptr ? Comp->CurrentTime : 0.0f;
     }
 
     void CWorld::SetAnimFloat(ECS::FEntity Entity, const FName& Name, float Value)
     {
         EAnimParamValueType Type;
-        if (void* Field = ResolveParameterField(this, Entity, Name, Type))
+        if (void* Field = ResolveParameterField(*this, Entity, Name, Type))
         {
             WriteParameterScalar(Field, Type, Value);
         }
@@ -140,7 +136,7 @@ namespace Lumina
     float CWorld::GetAnimFloat(ECS::FEntity Entity, const FName& Name, float Default)
     {
         EAnimParamValueType Type;
-        void* Field = ResolveParameterField(this, Entity, Name, Type);
+        void* Field = ResolveParameterField(*this, Entity, Name, Type);
         if (Field == nullptr)
         {
             return Default;
@@ -164,7 +160,7 @@ namespace Lumina
 
     bool CWorld::HasAnimParameter(ECS::FEntity Entity, const FName& Name)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return Comp != nullptr && Comp->HasParameter(Name);
     }
 
@@ -182,7 +178,7 @@ namespace Lumina
     void CWorld::StopMontage(ECS::FEntity Entity, CAnimationMontage* Montage,
         float BlendOutTime)
     {
-        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         if (Comp == nullptr)
         {
             return;
@@ -200,20 +196,20 @@ namespace Lumina
     bool CWorld::JumpToMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage,
         const FName& Section)
     {
-        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return Comp != nullptr && Montage != nullptr && Comp->Montages.JumpToSection(Montage, Section);
     }
 
     bool CWorld::SetNextMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage,
         const FName& Section)
     {
-        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return Comp != nullptr && Montage != nullptr && Comp->Montages.SetNextSection(Montage, Section);
     }
 
     bool CWorld::IsMontagePlaying(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         if (Comp == nullptr)
         {
             return false;
@@ -223,20 +219,20 @@ namespace Lumina
 
     float CWorld::GetMontagePosition(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetPosition(Montage) : 0.0f;
     }
 
     float CWorld::GetMontageWeight(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetWeight(Montage) : 0.0f;
     }
 
     void CWorld::SetMontagePlayRate(ECS::FEntity Entity, CAnimationMontage* Montage,
         float PlayRate)
     {
-        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         if (Comp != nullptr && Montage != nullptr)
         {
             Comp->Montages.SetPlayRate(Montage, PlayRate);
@@ -245,7 +241,7 @@ namespace Lumina
 
     FName CWorld::GetMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(*this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetCurrentSection(Montage) : FName();
     }
 }

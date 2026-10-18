@@ -4,7 +4,6 @@
 
 #include "Input/InputActionMap.h"
 #include "Input/InputQuery.h"
-#include "World/World.h"
 
 namespace Lumina
 {

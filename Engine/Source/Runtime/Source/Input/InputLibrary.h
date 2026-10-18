@@ -12,9 +12,7 @@
 
 namespace Lumina
 {
-    class CWorld;
-
-    /** Polling input for a world. Everything returns the neutral value when the world is not receiving input. */
+    // Input settings shared by every world, such as rebinding, while polling a world's input lives on CWorld.
     REFLECT()
     class RUNTIME_API CInputLibrary : public CFunctionLibrary
     {

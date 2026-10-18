@@ -5,7 +5,6 @@
 #include "Core/Engine/Engine.h"
 #include "Core/Object/Class.h"
 #include "Core/Object/ObjectCore.h"
-#include "World/World.h"
 
 namespace Lumina
 {

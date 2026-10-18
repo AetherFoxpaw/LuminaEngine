@@ -9,9 +9,7 @@
 
 namespace Lumina
 {
-    class CWorld;
-
-    /** Tag queries against an entity's tag component, which is the tag registry's business. */
+    // The process-global tag registry, while tags on an entity live on CWorld.
     REFLECT()
     class RUNTIME_API CGameplayTagLibrary : public CFunctionLibrary
     {

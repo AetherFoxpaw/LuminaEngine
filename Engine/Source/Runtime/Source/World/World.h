@@ -768,7 +768,7 @@ namespace Lumina
         FUNCTION()
         int32 GetTweenCompletedLoops(uint32 Tween);
 
-        //~ Input, read from the world's own viewport.
+        //~ Input, read from the world's own viewport, and neutral while the world is not receiving it.
 
         /** False when the world has no viewport, is not the active one, or the editor holds input focus. */
         FUNCTION()
@@ -1006,69 +1006,7 @@ namespace Lumina
         FUNCTION()
         FName GetMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage);
 
-        //~ Camera view and shakes.
-
-        // Taken from the resolved view, so an active blend and any running shake are already folded in.
-        FUNCTION()
-        FVector3 GetViewPosition();
-
-        FUNCTION()
-        FVector3 GetViewForward();
-
-        FUNCTION()
-        FVector3 GetViewRight();
-
-        FUNCTION()
-        FVector3 GetViewUp();
-
-        /** Vertical field of view in degrees, zero before anything has been rendered. */
-        FUNCTION()
-        float GetFieldOfView();
-
-        /** Returns a handle to stop the shake with. Several shakes sum on the rendered view. */
-        FUNCTION()
-        uint32 PlayCameraShake(SCameraShakeParams Params);
-
-        /** An impact or explosion kick, where Intensity near one is a light bump and five a heavy blast. */
-        FUNCTION()
-        uint32 PlayImpactCameraShake(float Intensity, float Duration = 0.4f);
-
-        FUNCTION()
-        void StopCameraShake(uint32 ShakeHandle);
-
-        FUNCTION()
-        void StopAllCameraShakes();
-
-        /** Viewport size in pixels, or zero when the world has no renderer such as a dedicated server. */
-        FUNCTION()
-        FVector2 GetViewportSize();
-
-        /** Projects a world point to pixel coordinates, origin top-left. Check bOnScreen before using it. */
-        FUNCTION()
-        SScreenProjection WorldToScreen(FVector3 WorldLocation);
-
-        /** Pixel coordinates to a world ray, the aiming and picking primitive. */
-        FUNCTION()
-        SWorldRay ScreenToWorldRay(FVector2 ScreenPosition);
-
-        /** ScreenToWorldRay through the center of the viewport, which is where a crosshair sits. */
-        FUNCTION()
-        SWorldRay ViewportCenterRay();
-
-        /** A point WorldDistance along the ray through ScreenPosition, measured from the near plane. */
-        FUNCTION()
-        FVector3 DeprojectScreenToWorld(FVector2 ScreenPosition, float WorldDistance);
-
-        // On screen in the active view, within MaxDistance, and with nothing solid in between. IgnoreA is the viewer's body, IgnoreB the target's.
-        FUNCTION()
-        bool IsPointVisible(FVector3 Point, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB, float MaxDistance);
-
-        // The same test from any eye, which is how a server judges what each player's camera sees.
-        FUNCTION()
-        bool IsPointVisibleFrom(FVector3 Eye, FVector3 Forward, float FovDegrees, float Aspect,
-            FVector3 Point, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB, float MaxDistance);
-
-        //~ Navigation.
+        //~ Navigation. With no baked navmesh every query reports not found, and an empty Agent means the infantry default.
 
         /** True once a navmesh has been baked and finished hydrating, so queries can succeed. */
         FUNCTION()
@@ -1347,7 +1285,7 @@ namespace Lumina
         FUNCTION()
         void GetGameplayTags(ECS::FEntity Entity, TVector<uint32>& Out);
 
-        //~ Per entity, stored on the tag component that Add creates.
+        //~ Stored on the tag component AddGameplayTag creates.
 
         FUNCTION()
         void AddGameplayTag(ECS::FEntity Entity, uint32 TagId);
@@ -1803,6 +1741,68 @@ namespace Lumina
 
         // Null when nothing has resolved a view this frame.
         const FResolvedSceneView* GetResolvedView() const;
+
+        //~ The resolved view, projections and shakes.
+
+        // Taken from the resolved view, so an active blend and any running shake are already folded in.
+        FUNCTION()
+        FVector3 GetViewPosition();
+
+        FUNCTION()
+        FVector3 GetViewForward();
+
+        FUNCTION()
+        FVector3 GetViewRight();
+
+        FUNCTION()
+        FVector3 GetViewUp();
+
+        /** Vertical field of view in degrees, zero before anything has been rendered. */
+        FUNCTION()
+        float GetFieldOfView();
+
+        /** Returns a handle to stop the shake with. Several shakes sum on the rendered view. */
+        FUNCTION()
+        uint32 PlayCameraShake(SCameraShakeParams Params);
+
+        /** An impact or explosion kick, where Intensity near one is a light bump and five a heavy blast. */
+        FUNCTION()
+        uint32 PlayImpactCameraShake(float Intensity, float Duration = 0.4f);
+
+        FUNCTION()
+        void StopCameraShake(uint32 ShakeHandle);
+
+        FUNCTION()
+        void StopAllCameraShakes();
+
+        /** Viewport size in pixels, or zero when the world has no renderer such as a dedicated server. */
+        FUNCTION()
+        FVector2 GetViewportSize();
+
+        /** Projects a world point to pixel coordinates, origin top-left. Check bOnScreen before using it. */
+        FUNCTION()
+        SScreenProjection WorldToScreen(FVector3 WorldLocation);
+
+        /** Pixel coordinates to a world ray, the aiming and picking primitive. */
+        FUNCTION()
+        SWorldRay ScreenToWorldRay(FVector2 ScreenPosition);
+
+        /** ScreenToWorldRay through the center of the viewport, which is where a crosshair sits. */
+        FUNCTION()
+        SWorldRay ViewportCenterRay();
+
+        /** A point WorldDistance along the ray through ScreenPosition, measured from the near plane. */
+        FUNCTION()
+        FVector3 DeprojectScreenToWorld(FVector2 ScreenPosition, float WorldDistance);
+
+        // On screen in the active view, within MaxDistance, and with nothing solid in between. IgnoreA is the viewer's body, IgnoreB the target's.
+        FUNCTION()
+        bool IsPointVisible(FVector3 Point, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB, float MaxDistance);
+
+        // The same test from any eye, which is how a server judges what each player's camera sees.
+        FUNCTION()
+        bool IsPointVisibleFrom(FVector3 Eye, FVector3 Forward, float FovDegrees, float Aspect,
+            FVector3 Point, ECS::FEntity IgnoreA, ECS::FEntity IgnoreB, float MaxDistance);
 
         //~ Rendering.
 
