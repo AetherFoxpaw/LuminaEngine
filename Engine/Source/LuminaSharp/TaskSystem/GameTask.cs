@@ -189,6 +189,12 @@ public static class GameTask
         using FAssetHandle Handle = FAssetManager.Load(Path);
         return (await WhenReady(Handle, Token)).Get<T>();
     }
+    
+    // Loads without blocking and resumes on the game thread with the object, or null when it failed or is not a T.
+    public static async System.Threading.Tasks.Task<T?> LoadObjectAsync<T>(TSoftObjectPtr<T> Object, CancellationToken Token = default) where T : NativeObject
+    {
+        return await LoadObjectAsync<T>(Object.GetPath(), Token);
+    }
 
     public readonly struct ThreadPoolSwitch : ICriticalNotifyCompletion
     {
