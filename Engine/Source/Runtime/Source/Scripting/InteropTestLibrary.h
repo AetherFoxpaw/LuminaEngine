@@ -46,6 +46,34 @@ namespace Lumina
         TOptional<FString> Note;
     };
 
+    // One of each property shape a script edits on a native component, for the interop benchmarks.
+    REFLECT(Component)
+    struct RUNTIME_API SInteropBenchComponent
+    {
+        GENERATED_BODY()
+
+        PROPERTY(Hidden)
+        TVector<float> Floats;
+
+        PROPERTY(Hidden)
+        TVector<FVector3> Points;
+
+        PROPERTY(Hidden)
+        TVector<FString> Names;
+
+        PROPERTY(Hidden)
+        FString Label;
+
+        PROPERTY(Hidden)
+        FName Tag;
+
+        PROPERTY(Hidden)
+        THashMap<int32, float> Scores;
+
+        PROPERTY(Hidden)
+        SInteropOpaqueStruct Inner;
+    };
+
     /** Gives the interop tests reflected statics whose shapes the Reflector had to bind, nothing more. */
     REFLECT()
     class RUNTIME_API CInteropTestLibrary : public CFunctionLibrary

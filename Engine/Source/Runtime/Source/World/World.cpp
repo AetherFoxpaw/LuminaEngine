@@ -85,14 +85,6 @@ namespace Lumina
     // Generous for the handful of paint ops a frame issues, and drained every Extract.
     static constexpr uint32 kRenderTargetPaintQueueCapacity = 1024;
 
-    namespace ECS
-    {
-        // Routes through CWorld's private accessor so the registry stays off the public API.
-        ECS::FRegistry& GetWorldRegistry(CWorld& World)
-        {
-            return World.GetEntityRegistry();
-        }
-    }
 
     namespace
     {

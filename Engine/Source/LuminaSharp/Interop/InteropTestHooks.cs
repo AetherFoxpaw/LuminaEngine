@@ -1046,6 +1046,37 @@ internal static unsafe class InteropTestHooks
         }
     }
 
+    // On its first row the walk removes the doomed rows' second component and grows that pool, then sums what every row reads.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_ViewMutatesMidLoop(IntPtr World, uint* Doomed, int DoomedCount, uint* Joiners, int JoinerCount, uint* OutFirst, double* OutSum)
+    {
+        var Registry = new Lumina.CWorld(World);
+        int Visited = 0;
+        foreach (var Row in Registry.View<Lumina.STransformComponent, Lumina.SBuoyancyComponent>().Each())
+        {
+            // Read first, since a structural change leaves even the current row's refs dangling.
+            *OutSum += Row.Second.Buoyancy;
+            if (Visited == 0)
+            {
+                *OutFirst = Row.Entity.Id;
+                for (int i = 0; i < DoomedCount; ++i)
+                {
+                    if (Doomed[i] != Row.Entity.Id)
+                    {
+                        Registry.RemoveComponent<Lumina.SBuoyancyComponent>(new FEntity(Doomed[i]));
+                    }
+                }
+                for (int i = 0; i < JoinerCount; ++i)
+                {
+                    Registry.GetOrEmplaceComponent<Lumina.SBuoyancyComponent>(new FEntity(Joiners[i])).Buoyancy = -1000.0f;
+                }
+            }
+            ++Visited;
+        }
+        return Visited;
+    }
+
     // Reads what native queued through fresh readers, then sends three script pings for the next hook to read back.
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]

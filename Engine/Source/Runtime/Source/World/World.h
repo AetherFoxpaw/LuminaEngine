@@ -50,7 +50,7 @@ namespace Lumina
         // Engine-internal raw registry access for whole-registry operations that have no per-op wrapper
         // (serialization, net replication, reflection meta-invoke). Gameplay, tooling, and C# go through
         // CWorld's typed component/entity/singleton wrappers instead -- the registry is not public API.
-        RUNTIME_API ECS::FRegistry& GetWorldRegistry(CWorld& World);
+        ECS::FRegistry& GetWorldRegistry(CWorld& World);
     }
 }
 
@@ -872,6 +872,12 @@ namespace Lumina
     T* CWorld::TryGetComponent(ECS::FEntity Entity)
     {
         return EntityRegistry.TryGet<T>(Entity);
+    }
+
+    // Inline, since every component access from C# starts here.
+    FORCEINLINE ECS::FRegistry& ECS::GetWorldRegistry(CWorld& World)
+    {
+        return World.GetEntityRegistry();
     }
 
     // The scheduling CWorld::TickSystems runs, as free functions so it can be tested without a world.

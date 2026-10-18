@@ -174,7 +174,7 @@ public static unsafe partial class Native
     [NativeCall] public static partial IntPtr PropMapOps(IntPtr Prop);
 
     // Writes an FString at a raw address, since reads decode the native string in place with no crossing.
-    [NativeCall] public static partial void StringAssign(IntPtr String, string Value);
+    [NativeCall(SuppressGCTransition = true)] public static partial void StringAssign(IntPtr String, string Value);
 
     // A TStrongObjectPtr at a raw address, the write keeping the reference count a raw pointer store would skip.
     [NativeCall] public static partial void SetObjectPtr(IntPtr Slot, IntPtr Object);

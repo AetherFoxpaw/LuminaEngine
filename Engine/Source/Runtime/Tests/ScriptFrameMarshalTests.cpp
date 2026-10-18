@@ -33,7 +33,9 @@
 #include "ScriptTestUtil.h"
 #include "SaveGame/SaveGameEvents.h"
 #include "World/ECS/EventQueue.h"
+#include "World/Entity/Components/BuoyancyComponent.h"
 #include "World/Entity/Components/CharacterComponent.h"
+#include "World/Entity/Components/TransformComponent.h"
 #include "World/World.h"
 
 using namespace Lumina;
@@ -1713,4 +1715,59 @@ TEST_F(FFrameMarshalTest, ScriptsReadAndSendThroughTheWorldEventQueues)
     World->FlushCommands();
     EXPECT_EQ(ReadScript(World.Get(), &ScaleSum), 6);
     EXPECT_DOUBLE_EQ(ScaleSum, 0.5) << "the script event's stride and alignment must match its C# layout";
+}
+
+// Rows removed mid-loop are skipped, rows added mid-loop are not visited, and later rows still read live memory after the pool grows.
+TEST_F(FFrameMarshalTest, ScriptViewSurvivesMidLoopStructuralChanges)
+{
+    using FMutateFn = int32(*)(void*, uint32*, int32, uint32*, int32, uint32*, double*);
+    auto* Mutate = (FMutateFn)DotNet::ResolveManagedExport("Test_ViewMutatesMidLoop");
+    ASSERT_NE(Mutate, nullptr);
+
+    RegisterPendingTypes();
+    TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptViewMutationWorld"), FGuid::New(), OF_Transient));
+    ECS::FRegistry& Registry = ECS::GetWorldRegistry(*World);
+
+    constexpr int32 kMembers = 64;
+    TVector<uint32> Members;
+    for (int32 i = 0; i < kMembers; ++i)
+    {
+        const ECS::FEntity Entity = Registry.Create();
+        Registry.Emplace<STransformComponent>(Entity);
+        Registry.Emplace<SBuoyancyComponent>(Entity).Buoyancy = (float)(i + 1);
+        Members.push_back((uint32)Entity);
+    }
+
+    TVector<uint32> Joiners;
+    for (int32 i = 0; i < 256; ++i)
+    {
+        const ECS::FEntity Entity = Registry.Create();
+        Registry.Emplace<STransformComponent>(Entity);
+        Joiners.push_back((uint32)Entity);
+    }
+
+    TVector<uint32> Doomed;
+    for (int32 i = 0; i < kMembers; i += 4)
+    {
+        Doomed.push_back(Members[i]);
+    }
+
+    uint32 First = 0;
+    double Sum = 0.0;
+    const int32 Visited = Mutate(World.Get(), Doomed.data(), (int32)Doomed.size(), Joiners.data(), (int32)Joiners.size(), &First, &Sum);
+
+    double Expected = 0.0;
+    int32 ExpectedVisits = 0;
+    for (int32 i = 0; i < kMembers; ++i)
+    {
+        const bool bDoomed = (i % 4) == 0 && Members[i] != First;
+        if (!bDoomed)
+        {
+            Expected += (double)(i + 1);
+            ++ExpectedVisits;
+        }
+    }
+
+    EXPECT_EQ(Visited, ExpectedVisits);
+    EXPECT_DOUBLE_EQ(Sum, Expected);
 }
