@@ -183,18 +183,28 @@ public static class GameTask
         return Pending.Source.Task;
     }
 
+    // The loaded handle, which keeps what it loaded resident until disposed. Invalid when the path resolves to nothing.
+    public static System.Threading.Tasks.Task<FAssetHandle> LoadAsync(string Path, string Bundle = "", CancellationToken Token = default)
+        => WhenReady(FAssetManager.Load(Path, Bundle), Token);
+
+    public static System.Threading.Tasks.Task<FAssetHandle> LoadByNameAsync(string Group, string Name, string Bundle = "", CancellationToken Token = default)
+        => WhenReady(FAssetManager.LoadByName(Group, Name, Bundle), Token);
+
+    public static System.Threading.Tasks.Task<FAssetHandle> LoadGroupAsync(string Group, string Bundle = "", CancellationToken Token = default)
+        => WhenReady(FAssetManager.LoadGroup(Group, Bundle), Token);
+
     // Loads without blocking and resumes on the game thread with the object, or null when it failed or is not a T.
     public static async System.Threading.Tasks.Task<T?> LoadObjectAsync<T>(string Path, CancellationToken Token = default) where T : NativeObject
     {
         using FAssetHandle Handle = FAssetManager.Load(Path);
         return (await WhenReady(Handle, Token)).Get<T>();
     }
-    
-    // Loads without blocking and resumes on the game thread with the object, or null when it failed or is not a T.
-    public static async System.Threading.Tasks.Task<T?> LoadObjectAsync<T>(TSoftObjectPtr<T> Object, CancellationToken Token = default) where T : NativeObject
-    {
-        return await LoadObjectAsync<T>(Object.GetPath(), Token);
-    }
+
+    public static System.Threading.Tasks.Task<T?> LoadObjectAsync<T>(FSoftObjectPath Path, CancellationToken Token = default) where T : NativeObject
+        => LoadObjectAsync<T>(Path.GetPath(), Token);
+
+    public static System.Threading.Tasks.Task<T?> LoadObjectAsync<T>(TSoftObjectPtr<T> Object, CancellationToken Token = default) where T : NativeObject
+        => LoadObjectAsync<T>(Object.GetPath(), Token);
 
     public readonly struct ThreadPoolSwitch : ICriticalNotifyCompletion
     {

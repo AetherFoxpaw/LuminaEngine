@@ -68,7 +68,7 @@ internal static class MessageType<T>
         if (NativeName != null && Type.IsValueType && typeof(INativeStruct).IsAssignableFrom(Type))
         {
             Kind = PayloadKind.Struct;
-            Key = CMessageBusLibrary.GetMessageTypeKey(NativeName);
+            Key = CWorld.GetGameplayMessageTypeKey(NativeName);
             Struct = Native.FindStructByName(NativeName);
             Wrap = Pointer =>
             {
@@ -80,7 +80,7 @@ internal static class MessageType<T>
         {
             // A generated mirror keys on its native name, so C++ listeners of that struct hear it.
             Kind = PayloadKind.Bytes;
-            Key = CMessageBusLibrary.GetMessageTypeKey(NativeName ?? "cs:" + Type.FullName);
+            Key = CWorld.GetGameplayMessageTypeKey(NativeName ?? "cs:" + Type.FullName);
         }
         else
         {
@@ -157,7 +157,7 @@ public sealed class GameplayMessageSubscription : IDisposable
         // A world that is already gone took its listeners with it.
         if (Id != 0 && World is { IsValid: true })
         {
-            CMessageBusLibrary.Unsubscribe(World, Id);
+            World.UnsubscribeGameplayMessage(Id);
         }
         Id = 0;
     }

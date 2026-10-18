@@ -567,6 +567,28 @@ namespace Lumina
         FUNCTION(ScriptInternal)
         uint32 NumUnreadEvents(uint32 TypeId, uint64 Cursor) const;
 
+        //~ Gameplay messages, where typed sending and listening for C# is built over these.
+
+        // The key C++ and C# senders share for a message type name.
+        FUNCTION(ScriptInternal)
+        static uint64 GetGameplayMessageTypeKey(FName TypeName);
+
+        // The bus owns Listener from here, and releases it when the subscription goes.
+        FUNCTION(ScriptInternal)
+        uint64 SubscribeGameplayMessage(uint32 Channel, ECS::FEntity Owner, uint64 Type, bool bExactMatch, SScriptCallback Listener);
+
+        FUNCTION(ScriptInternal)
+        bool UnsubscribeGameplayMessage(uint64 Id);
+
+        // Drops every listener Owner registered, which the bus also does on its own when the entity dies.
+        FUNCTION()
+        void UnsubscribeAllGameplayMessages(ECS::FEntity Owner);
+
+        // A managed payload's handle belongs to the bus once sent, whether or not anything receives it.
+        FUNCTION(ScriptInternal)
+        void SendGameplayMessage(uint32 Route, ECS::FEntity Target, uint32 Channel, uint32 Kind, uint64 Type,
+            void* Data, uint32 Size, void* Struct, bool bIncludeSelf);
+
         //~ Systems.
 
         void RegisterSystems();
