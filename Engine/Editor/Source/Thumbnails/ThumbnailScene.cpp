@@ -53,7 +53,7 @@ namespace Lumina
         CameraEntity = World->ConstructEntity("ThumbnailCamera");
         SCameraComponent& Camera = World->EmplaceComponent<SCameraComponent>(CameraEntity);
         Camera.SetAspectRatio(1.0f);
-        World->SetActiveCamera(CameraEntity);
+        World->GetCamera()->SetActiveCamera(CameraEntity);
 
         bInitialized = true;
     }

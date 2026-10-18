@@ -197,7 +197,7 @@ namespace Lumina
         SStaticMeshComponent& StaticMeshComponent = World->GetComponent<SStaticMeshComponent>(MeshEntity);
         StaticMeshComponent.MaterialOverrides.clear();
 
-        SCameraComponent* Camera = World->GetActiveCamera();
+        SCameraComponent* Camera = World->GetCamera()->GetActiveCamera();
         if (Camera)
         {
             Camera->PostProcessMaterials.clear();
@@ -350,7 +350,7 @@ namespace Lumina
             bWorldGridEnabled        = false;
         }
 
-        if (SCameraComponent* CameraComponent = World->GetActiveCamera())
+        if (SCameraComponent* CameraComponent = World->GetCamera()->GetActiveCamera())
         {
             CameraComponent->SetFOV(60.0f);
         }

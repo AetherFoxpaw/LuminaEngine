@@ -1842,9 +1842,7 @@ TEST_F(FFrameMarshalTest, ScriptTweenBuilderDrivesEveryStepKind)
     TStrongObjectPtr<CWorld> World(NewObject<CWorld>(nullptr, FName("ScriptTweenWorld"), FGuid::New(), OF_Transient));
     ECS::FRegistry& Registry = World->GetEntityRegistry();
 
-    // The world's initialization makes this, and a bare test world never runs it.
-    FTweenManager& Manager = Registry.Ctx().Emplace<FTweenManager>();
-    Manager.SetWorldRegistry(&Registry);
+    FTweenManager& Manager = World->GetTweens()->GetTweenManager();
 
     const ECS::FEntity Entity = Registry.Create();
     Registry.Emplace<STransformComponent>(Entity);

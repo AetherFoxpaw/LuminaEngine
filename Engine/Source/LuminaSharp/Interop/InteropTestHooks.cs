@@ -1158,7 +1158,7 @@ internal static unsafe class InteropTestHooks
     {
         var Target = new Lumina.CWorld(World);
         var Loaded = Wrapper<Lumina.CPrefab>.ForObject(Prefab)!;
-        return Target.SpawnPrefab(Loaded, new FVector3(3.0f, 4.0f, 5.0f), null, new FEntity(Parent)).Id;
+        return Target.Spawner.SpawnPrefab(Loaded, new FVector3(3.0f, 4.0f, 5.0f), null, new FEntity(Parent)).Id;
     }
 
     // Reads the row named Row through SInteropTestRow, by name and through a handle, and -1 when either refuses.
@@ -1201,7 +1201,7 @@ internal static unsafe class InteropTestHooks
         TweenFinished = 0;
         TweenLoops = 0;
 
-        Tween T = Target.CreateTween(E)
+        Tween T = Target.Tweens.Create(E)
             .MoveTo(E, new FVector3(3.0f, 0.0f, 0.0f), 0.2f).Trans(EEaseTransition.Linear)
             .Parallel()
             .Value(new FVector3(0.0f), new FVector3(1.0f, 2.0f, 3.0f), 0.2f, V => TweenValue = V).Trans(EEaseTransition.Linear)

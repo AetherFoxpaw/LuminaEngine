@@ -245,7 +245,7 @@ namespace Lumina
             return;
         }
 
-        SCameraComponent* Camera = World->GetActiveCamera();
+        SCameraComponent* Camera = World->GetCamera()->GetActiveCamera();
         if (Camera == nullptr)
         {
             return;
@@ -520,7 +520,7 @@ namespace Lumina
         CameraTransform.SetLocation(CameraLocation);
         CameraTransform.SetRotation(Math::FindLookAtRotation(CameraTarget, CameraLocation));
 
-        World->SetActiveCamera(EditorEntity);
+        World->GetCamera()->SetActiveCamera(EditorEntity);
     }
 
     void FEditorTool::GetDefaultCameraPose(FVector3& OutLocation, FVector3& OutTarget) const
@@ -898,12 +898,12 @@ namespace Lumina
         t = Math::Clamp(t, 0.0f, 1.0f);
         const float NewFOV = Math::Mix(120.0f, 50.0f, t);
 
-        if (SCameraComponent* CameraComponent = World->GetActiveCamera())
+        if (SCameraComponent* CameraComponent = World->GetCamera()->GetActiveCamera())
         {
             CameraComponent->SetAspectRatio(AspectRatio);
 
             // Only the editor's own camera takes the width-derived FOV, since a game or cinematic camera authors its own lens.
-            if (World->GetActiveCameraEntity() == EditorEntity)
+            if (World->GetCamera()->GetActiveCameraEntity() == EditorEntity)
             {
                 CameraComponent->SetFOV(NewFOV);
             }
@@ -1534,7 +1534,7 @@ namespace Lumina
         // UpdateViewportInput rebuilds the projection per frame, so a non-drawing tool keeps a stale one.
         if (!bOrthographic && HasEditorCameraControl())
         {
-            if (SCameraComponent* Camera = World->GetActiveCamera())
+            if (SCameraComponent* Camera = World->GetCamera()->GetActiveCamera())
             {
                 Camera->SetPerspectiveProjection();
             }
@@ -2482,7 +2482,7 @@ namespace Lumina
         }
 
         // Falls back to the EditorEntity, since asset editors often own the camera there directly.
-        const SCameraComponent* Camera = World->GetActiveCamera();
+        const SCameraComponent* Camera = World->GetCamera()->GetActiveCamera();
         if (Camera == nullptr && EditorEntity != ECS::NullEntity && World->IsValidEntity(EditorEntity))
         {
             Camera = World->TryGetComponent<SCameraComponent>(EditorEntity);
@@ -2569,7 +2569,7 @@ namespace Lumina
             return false;
         }
 
-        const SCameraComponent* Camera = World->GetActiveCamera();
+        const SCameraComponent* Camera = World->GetCamera()->GetActiveCamera();
         if (Camera == nullptr && EditorEntity != ECS::NullEntity && World->IsValidEntity(EditorEntity))
         {
             Camera = World->TryGetComponent<SCameraComponent>(EditorEntity);
@@ -2663,7 +2663,7 @@ namespace Lumina
             return Hit(SurfaceLocation);
         }
 
-        const SCameraComponent* Camera = World->GetActiveCamera();
+        const SCameraComponent* Camera = World->GetCamera()->GetActiveCamera();
         if (Camera == nullptr && EditorEntity != ECS::NullEntity && World->IsValidEntity(EditorEntity))
         {
             Camera = World->TryGetComponent<SCameraComponent>(EditorEntity);

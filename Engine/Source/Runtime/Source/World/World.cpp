@@ -238,7 +238,6 @@ namespace Lumina
     CWorld::CWorld()
         : CommandBus(EntityRegistry)
         , EventQueues(EntityRegistry)
-        , MessageBus(EntityRegistry, CommandBus)
         , SystemContext(this)
         , LineBatcherComponent(nullptr)
         , TriangleBatcherComponent(nullptr)
@@ -427,12 +426,6 @@ namespace Lumina
         // A world entity owns its subtree, so destroying one takes its descendants along.
         EntityRegistry.SetDestroyDescendantsWithParent(true);
 
-        // Per-world subsystem singleton ticked by STimerSystem and reached by ctx address.
-        EntityRegistry.Ctx().Emplace<FTimerManager>();
-        EntityRegistry.Ctx().Emplace<FCoroutineManager>();
-        EntityRegistry.Ctx().Emplace<FInputModeLeases>(this);
-        EntityRegistry.Ctx().Emplace<FTweenManager>();
-
         // SCameraSystem owns FCameraGlobalState and writes FResolvedSceneView for Extract.
         EntityRegistry.Ctx().Emplace<FCameraGlobalState>();
         EntityRegistry.Ctx().Emplace<FResolvedSceneView>();
@@ -524,7 +517,7 @@ namespace Lumina
         {
            if (Camera.bAutoActivate)
            {
-               SetActiveCamera(Entity);
+               GetCamera()->SetActiveCamera(Entity);
            }
         });
 
@@ -535,6 +528,7 @@ namespace Lumina
         
         // Last, so a subsystem's OnInitialize sees a world whose registry, systems and renderer are up.
         WorldSubsystems::CreateMissing(*this, Subsystems);
+        RefreshEngineSubsystems();
 
         bInitializing = false;
     }
@@ -553,6 +547,7 @@ namespace Lumina
 
         // Before the systems and the registry go, so a subsystem can still read the world it leaves.
         WorldSubsystems::DestroyAll(Subsystems);
+        EngineSubsystems = {};
 
         // No render phase / RHI / audio device in a headless process.
         if (!GIsHeadless)
@@ -578,11 +573,6 @@ namespace Lumina
         {
             PhysicsScene->StopSimulate();
         }
-
-        EntityRegistry.Ctx().Get<FTimerManager>().Clear();
-        EntityRegistry.Ctx().Get<FCoroutineManager>().Clear();
-        EntityRegistry.Ctx().Get<FInputModeLeases>().Clear();
-        EntityRegistry.Ctx().Get<FTweenManager>().Clear();
 
         RegistryPending.Clear();
         EntityRegistry.Clear();
@@ -616,6 +606,7 @@ namespace Lumina
             // A reload retires the old script classes, so the scripted subsystems rebuild against the new ones.
             WorldSubsystems::DropScripted(Subsystems);
             WorldSubsystems::CreateMissing(*this, Subsystems);
+            RefreshEngineSubsystems();
         }
 
         // Joining a host turns a standalone world into a client, which changes what HostOnly and ClientOnly allow.
@@ -625,6 +616,7 @@ namespace Lumina
             RegisterSystems();
             WorldSubsystems::DropOutsideRealm(*this, Subsystems);
             WorldSubsystems::CreateMissing(*this, Subsystems);
+            RefreshEngineSubsystems();
         }
 
         if (Stage == EUpdateStage::FrameStart)
@@ -1254,24 +1246,6 @@ namespace Lumina
     uint32 CWorld::GetNumEntities() const
     {
         return (uint32)EntityRegistry.NumEntities();
-    }
-
-    void CWorld::SetActiveCamera(ECS::FEntity Entity, float BlendTime, ECameraBlendFunction Function)
-    {
-        if (EntityRegistry.IsValid(Entity) && EntityRegistry.HasAll<SCameraComponent>(Entity))
-        {
-            SCameraSystem::SetActiveCamera(EntityRegistry, Entity, BlendTime, Function);
-        }
-    }
-
-    SCameraComponent* CWorld::GetActiveCamera() const
-    {
-        return SCameraSystem::GetActiveCamera(const_cast<ECS::FRegistry&>(EntityRegistry));
-    }
-
-    ECS::FEntity CWorld::GetActiveCameraEntity() const
-    {
-        return SCameraSystem::GetActiveCameraEntity(const_cast<ECS::FRegistry&>(EntityRegistry));
     }
 
     void CWorld::SetTimeDilation(float Dilation)
@@ -1934,11 +1908,6 @@ namespace Lumina
     void CWorld::TickSystems(SSystemContext& Context)
     {
         LUMINA_PROFILE_SCOPE();
-
-        if (Context.GetUpdateStage() == EUpdateStage::FrameStart)
-        {
-            MessageBus.PruneDeadOwners();
-        }
 
         TVector<FStageSlot>& Stage = SystemUpdateList[(uint32)Context.GetUpdateStage()];
         
