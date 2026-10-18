@@ -807,6 +807,7 @@ TEST_F(FFrameMarshalTest, InstancedStructGetThrowsAndTryGetReportsAMismatch)
     auto* Run = (int32(*)(void*, float))DotNet::ResolveManagedExport("Test_InstancedStructGetTryGet");
     ASSERT_NE(Run, nullptr);
 
+    RegisterPendingTypes();
     FInstancedStruct Instanced;
     CStruct* Opaque = FindObject<CStruct>(FName("SInteropOpaqueStruct"));
     ASSERT_NE(Opaque, nullptr);
@@ -1855,4 +1856,13 @@ TEST_F(FFrameMarshalTest, ScriptTweenBuilderDrivesEveryStepKind)
     EXPECT_NEAR(Registry.Get<SBuoyancyComponent>(Entity).Buoyancy, 2.0f, 1e-3f);
     EXPECT_NEAR(Registry.Get<STransformComponent>(Entity).GetLocalScale().x, 1.0f, 1e-3f) << "the punch settles";
     EXPECT_NEAR(Value[2], 0.0f, 1e-3f);
+}
+
+// A C# struct cannot inherit, so a strategy is picked by the interface it implements and called through it.
+TEST_F(FFrameMarshalTest, ScriptStructStrategiesDispatchThroughTheirInterface)
+{
+    using FProbeFn = int32(*)();
+    auto* Probe = (FProbeFn)DotNet::ResolveManagedExport("Test_ScriptStructStrategies");
+    ASSERT_NE(Probe, nullptr);
+    EXPECT_EQ(Probe(), 0);
 }

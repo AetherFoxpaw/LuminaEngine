@@ -922,6 +922,80 @@ internal static unsafe class InteropTestHooks
     }
 
     // Failure bits, four per form, for a root, an extension and a component compiled together the way the editor compiles them.
+    // Script structs picked by the interface they implement, the strategy pattern C# structs reach without inheritance.
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static int Test_ScriptStructStrategies()
+    {
+        const string Source = """
+            using Lumina;
+            using LuminaSharp;
+            public interface IProbeStrategy
+            {
+                int Compute(int X);
+            }
+            [Reflect]
+            public partial struct DoubleStrategy : INativeStruct<DoubleStrategy>, IProbeStrategy
+            {
+                [Property] public int Unused;
+                public int Compute(int X) => X * 2;
+            }
+            [Reflect]
+            public partial struct AddStrategy : INativeStruct<AddStrategy>, IProbeStrategy
+            {
+                [Property] public int Unused;
+                public int Compute(int X) => X + 3;
+            }
+            [Reflect]
+            public partial struct PlainProbeData : INativeStruct<PlainProbeData>
+            {
+                [Property] public int Value;
+            }
+            """;
+        FScriptImage? Image = ScriptCompiler.Compile("StrategyProbe", new[] { ("StrategyProbe.cs", Source) });
+        if (Image is not { } Compiled)
+        {
+            return -1;
+        }
+
+        var Context = new ScriptLoadContext("StrategyProbe");
+        void* Memory = System.Runtime.InteropServices.NativeMemory.AllocZeroed(64);
+        try
+        {
+            Type[] Types = Context.LoadScriptAssembly("StrategyProbe", Compiled).GetTypes();
+            var Library = new TypeLibrary(Types);
+            int Failures = 0;
+
+            Type Interface = Types.First(Candidate => Candidate.Name == "IProbeStrategy");
+            System.Reflection.MethodInfo Compute = Interface.GetMethod("Compute")!;
+            int Run(string Name) => Library.ViewScriptStruct(Name, (nint)Memory) is { } View && Interface.IsInstanceOfType(View)
+                ? (int)Compute.Invoke(View, new object[] { 5 })!
+                : int.MinValue;
+
+            Failures |= Run("DoubleStrategy") == 10 ? 0 : 1;
+            Failures |= Run("AddStrategy") == 8 ? 0 : 2;
+            Failures |= Run("PlainProbeData") == int.MinValue ? 0 : 4;
+            Failures |= Library.ViewScriptStruct("NoSuchStruct", (nint)Memory) == null ? 0 : 8;
+            Failures |= Library.ViewScriptStruct("DoubleStrategy", 0) == null ? 0 : 16;
+
+            Type Double = Types.First(Candidate => Candidate.Name == "DoubleStrategy");
+            Type Plain = Types.First(Candidate => Candidate.Name == "PlainProbeData");
+            Failures |= TypeLibrary.ImplementedInterfaces(Double) == "IProbeStrategy" ? 0 : 32;
+            Failures |= TypeLibrary.ImplementedInterfaces(Plain) == "" ? 0 : 64;
+            return Failures;
+        }
+        catch (Exception Error)
+        {
+            Native.Log(ELogLevel.Error, "StrategyProbe threw " + Error);
+            return -2;
+        }
+        finally
+        {
+            System.Runtime.InteropServices.NativeMemory.Free(Memory);
+            Context.Unload();
+        }
+    }
+
     [ManagedExport]
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
     public static int Test_CompileScriptStructForms()

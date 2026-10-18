@@ -323,6 +323,9 @@ public sealed class PropertyAttribute : Attribute
 
     public string? Group { get; set; }
 
+    // On an instanced struct, limits the type picker to script structs that implement this interface.
+    public Type? Implements { get; set; }
+
     public EComponentBind Component { get; set; }
 
     // The name a UI document binds this under, which implies Bind.

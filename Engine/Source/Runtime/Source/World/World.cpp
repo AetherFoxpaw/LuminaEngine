@@ -431,6 +431,7 @@ namespace Lumina
 
         // Per-world subsystem singleton ticked by STimerSystem and reached by ctx address.
         EntityRegistry.Ctx().Emplace<FTimerManager>();
+        EntityRegistry.Ctx().Emplace<FCoroutineManager>();
         EntityRegistry.Ctx().Emplace<FTweenManager>();
 
         // SCameraSystem owns FCameraGlobalState and writes FResolvedSceneView for Extract.
@@ -580,6 +581,7 @@ namespace Lumina
         }
 
         EntityRegistry.Ctx().Get<FTimerManager>().Clear();
+        EntityRegistry.Ctx().Get<FCoroutineManager>().Clear();
         EntityRegistry.Ctx().Get<FTweenManager>().Clear();
 
         RegistryPending.Clear();

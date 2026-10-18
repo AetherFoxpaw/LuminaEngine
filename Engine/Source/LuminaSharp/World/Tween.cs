@@ -236,6 +236,13 @@ public readonly struct Tween : IEquatable<Tween>
 
     public bool IsRunning => World != null && CTweenLibrary.IsRunning(World, Id);
 
+    // Awaiting a tween resumes the frame it stops running, whether it finished or was killed, without taking its OnFinished.
+    public System.Runtime.CompilerServices.TaskAwaiter GetAwaiter()
+    {
+        Tween Self = this;
+        return GameTask.Until(() => !Self.IsRunning).GetAwaiter();
+    }
+
     // Seconds into the current pass.
     public float Elapsed => World != null ? CTweenLibrary.GetElapsed(World, Id) : 0.0f;
 
