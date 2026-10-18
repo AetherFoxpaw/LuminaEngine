@@ -42,13 +42,7 @@ public Ptr<T> GetSceneDataPointer<T>()  { return (T*)Root.SceneData; }
 public Ptr<T> GetInstancesPointer<T>()  { return (T*)Root.Instances; }
 public Ptr<T> GetLightsPointer<T>()     { return (T*)Root.Lights; }
 
-// GPU-AV instruments a typed pointer load with a null of pointer type, which SPIR-V forbids, so nested addresses stay uint64_t.
-public T LoadBlock<T>(uint64_t Address)
-{
-    return ((T*)Address)[0];
-}
-
-// Mirror of RHI::TGPUSpan<T>, holding a raw address so it is an ordinary value Slang may copy into a local.
+// Mirror of RHI::TGPUSpan<T>, holding an address because Slang emits a copied Ptr<T> local without the AliasedPointer spirv-val requires.
 public struct GPUSpan<T>
 {
     internal uint64_t Address;
