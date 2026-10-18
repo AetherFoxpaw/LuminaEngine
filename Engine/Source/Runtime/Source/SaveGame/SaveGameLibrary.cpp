@@ -63,25 +63,6 @@ namespace Lumina
         }
     }
 
-    void CSaveGameLibrary::RequestSaveGame(CWorld* World, CSaveGame* SaveGame, const FString& SlotName, int32 UserIndex)
-    {
-        SSaveGameRequestEvent Request;
-        Request.Action    = ESaveGameAction::Save;
-        Request.SlotName  = SlotName;
-        Request.UserIndex = UserIndex;
-        Request.SaveGame  = SaveGame;
-        SendRequest(World, Move(Request));
-    }
-
-    void CSaveGameLibrary::RequestLoadGame(CWorld* World, const FString& SlotName, int32 UserIndex)
-    {
-        SSaveGameRequestEvent Request;
-        Request.Action    = ESaveGameAction::Load;
-        Request.SlotName  = SlotName;
-        Request.UserIndex = UserIndex;
-        SendRequest(World, Move(Request));
-    }
-
     FString CSaveGameLibrary::GetSaveGameDirectory(int32 UserIndex)
     {
         FString Directory;

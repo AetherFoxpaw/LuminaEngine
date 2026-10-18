@@ -1,7 +1,5 @@
 ﻿#include "RuntimePCH.h"
 
-#include "PrefabLibrary.h"
-
 #include "Assets/AssetManager/AssetManager.h"
 #include "Assets/AssetRegistry/AssetRegistry.h"
 #include "Assets/AssetTypes/Prefabs/Prefab.h"
@@ -12,19 +10,14 @@
 
 namespace Lumina
 {
-    ECS::FEntity CPrefabLibrary::SpawnPrefab(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab)
+    ECS::FEntity CWorld::SpawnPrefab(const TSoftObjectPtr<CPrefab>& Prefab)
     {
-        return SpawnPrefabAt(World, Prefab, FTransform(), ECS::NullEntity);
+        return SpawnPrefabAt(Prefab, FTransform(), ECS::NullEntity);
     }
 
-    ECS::FEntity CPrefabLibrary::SpawnPrefabAt(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab,
+    ECS::FEntity CWorld::SpawnPrefabAt(const TSoftObjectPtr<CPrefab>& Prefab,
         const FTransform& SpawnTransform, ECS::FEntity Parent)
     {
-        if (World == nullptr)
-        {
-            return ECS::NullEntity;
-        }
-
         FStringView Path = Prefab.GetPath();
         FAssetData* AssetData = FAssetRegistry::Get().GetAssetByPath(Path);
         if (AssetData == nullptr)
@@ -45,33 +38,27 @@ namespace Lumina
             return ECS::NullEntity;
         }
 
-        return SpawnLoadedPrefabAt(World, PrefabObject, SpawnTransform, Parent);
+        return SpawnLoadedPrefabAt(PrefabObject, SpawnTransform, Parent);
     }
 
-    ECS::FEntity CPrefabLibrary::SpawnLoadedPrefab(CWorld* World, CPrefab* Prefab)
+    ECS::FEntity CWorld::SpawnLoadedPrefab(CPrefab* Prefab)
     {
-        return SpawnLoadedPrefabAt(World, Prefab, FTransform(), ECS::NullEntity);
+        return SpawnLoadedPrefabAt(Prefab, FTransform(), ECS::NullEntity);
     }
 
-    ECS::FEntity CPrefabLibrary::SpawnLoadedPrefabAt(CWorld* World, CPrefab* Prefab, const FTransform& SpawnTransform, ECS::FEntity Parent)
+    ECS::FEntity CWorld::SpawnLoadedPrefabAt(CPrefab* Prefab, const FTransform& SpawnTransform, ECS::FEntity Parent)
     {
-        if (World == nullptr || Prefab == nullptr)
+        if (Prefab == nullptr)
         {
             return ECS::NullEntity;
         }
-        return Prefab->Instantiate(World, SpawnTransform, Parent);
+        return Prefab->Instantiate(this, SpawnTransform, Parent);
     }
 
-    void CPrefabLibrary::SpawnPrefabAsync(CWorld* World, const TSoftObjectPtr<CPrefab>& Prefab, SScriptCallback OnSpawned)
+    void CWorld::SpawnPrefabAsync(const TSoftObjectPtr<CPrefab>& Prefab, SScriptCallback OnSpawned)
     {
-        if (World == nullptr)
-        {
-            Scripting::InvokeScriptCallback(OnSpawned, (uint64)(uint32)ECS::NullEntity);
-            return;
-        }
-
         const FName Path(Prefab.GetPath());
-        TStrongObjectPtr<CWorld> WorldHandle(World);
+        TStrongObjectPtr<CWorld> WorldHandle(this);
         FAssetManager::Get().Load(Prefab.GetPath()).OnReady([WorldHandle, Path, OnSpawned](const FAssetHandle& Handle)
         {
             CWorld* Target = WorldHandle.Get();
@@ -86,7 +73,7 @@ namespace Lumina
                 return;
             }
 
-            const ECS::FEntity Spawned = SpawnLoadedPrefab(Target, Loaded);
+            const ECS::FEntity Spawned = Target->SpawnLoadedPrefab(Loaded);
             Scripting::InvokeScriptCallback(OnSpawned, (uint64)(uint32)Spawned);
         });
     }

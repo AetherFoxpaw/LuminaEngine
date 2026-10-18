@@ -39,14 +39,6 @@ namespace Lumina
         FUNCTION()
         static FString GetSlotFilePath(const FString& SlotName, int32 UserIndex);
 
-        // Captures World into SaveGame and writes it at the end of the frame, safe from any system or thread.
-        FUNCTION()
-        static void RequestSaveGame(CWorld* World, CSaveGame* SaveGame, const FString& SlotName, int32 UserIndex);
-
-        // Loads the slot and restores World at the end of the frame. SSaveGameCompletedEvent and OnWorldRestored report back.
-        FUNCTION()
-        static void RequestLoadGame(CWorld* World, const FString& SlotName, int32 UserIndex);
-
         // Slot names in the user's save directory, newest first.
         static void GetSlotNames(int32 UserIndex, TVector<FString>& OutSlots);
 

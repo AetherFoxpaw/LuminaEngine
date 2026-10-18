@@ -1,7 +1,5 @@
 #include "RuntimePCH.h"
 
-#include "AnimationLibrary.h"
-
 #include "Assets/AssetTypes/Animation/AnimationGraph/AnimationGraph.h"
 #include "Assets/AssetTypes/Animation/Montage/AnimationMontage.h"
 #include "Core/Object/Class.h"
@@ -77,76 +75,72 @@ namespace Lumina
         }
     }
 
-    void CAnimationLibrary::Play(CWorld* World, ECS::FEntity Entity, CAnimation* Clip, bool bLoop, float Speed)
+    void CWorld::PlayAnimation(ECS::FEntity Entity, CAnimation* Clip, bool bLoop, float Speed)
     {
-        if (World == nullptr)
-        {
-            return;
-        }
-        SSimpleAnimationComponent& Comp = World->GetOrEmplaceComponent<SSimpleAnimationComponent>(Entity);
+        SSimpleAnimationComponent& Comp = GetOrEmplaceComponent<SSimpleAnimationComponent>(Entity);
         Comp.PlayAnimation(Clip, bLoop, Speed);
     }
 
-    void CAnimationLibrary::Stop(CWorld* World, ECS::FEntity Entity)
+    void CWorld::StopAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(World, Entity)) { Comp->Stop(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Stop(); }
     }
 
-    void CAnimationLibrary::Pause(CWorld* World, ECS::FEntity Entity)
+    void CWorld::PauseAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(World, Entity)) { Comp->Pause(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Pause(); }
     }
 
-    void CAnimationLibrary::Resume(CWorld* World, ECS::FEntity Entity)
+    void CWorld::ResumeAnimation(ECS::FEntity Entity)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(World, Entity)) { Comp->Resume(); }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->Resume(); }
     }
 
-    bool CAnimationLibrary::IsPlaying(CWorld* World, ECS::FEntity Entity)
+    bool CWorld::IsAnimationPlaying(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(World, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
         return Comp != nullptr && Comp->IsPlaying();
     }
 
-    bool CAnimationLibrary::IsFinished(CWorld* World, ECS::FEntity Entity)
+    bool CWorld::IsAnimationFinished(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(World, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
         return Comp != nullptr && Comp->IsFinished();
     }
 
-    void CAnimationLibrary::SetSpeed(CWorld* World, ECS::FEntity Entity, float Speed)
+    void CWorld::SetAnimationSpeed(ECS::FEntity Entity, float Speed)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(World, Entity)) { Comp->PlaybackSpeed = Speed; }
+        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity)) { Comp->PlaybackSpeed = Speed; }
     }
 
-    void CAnimationLibrary::SetTime(CWorld* World, ECS::FEntity Entity, float Time)
+    void CWorld::SetAnimationTime(ECS::FEntity Entity, float Time)
     {
-        if (SSimpleAnimationComponent* Comp = SimpleOf(World, Entity))
+        if (SSimpleAnimationComponent* Comp = SimpleOf(this, Entity))
         {
             Comp->CurrentTime = Time;
             Comp->bDirty = true;
         }
     }
 
-    float CAnimationLibrary::GetTime(CWorld* World, ECS::FEntity Entity)
+    float CWorld::GetAnimationTime(ECS::FEntity Entity)
     {
-        const SSimpleAnimationComponent* Comp = SimpleOf(World, Entity);
+        const SSimpleAnimationComponent* Comp = SimpleOf(this, Entity);
         return Comp != nullptr ? Comp->CurrentTime : 0.0f;
     }
 
-    void CAnimationLibrary::SetFloat(CWorld* World, ECS::FEntity Entity, const FName& Name, float Value)
+    void CWorld::SetAnimFloat(ECS::FEntity Entity, const FName& Name, float Value)
     {
         EAnimParamValueType Type;
-        if (void* Field = ResolveParameterField(World, Entity, Name, Type))
+        if (void* Field = ResolveParameterField(this, Entity, Name, Type))
         {
             WriteParameterScalar(Field, Type, Value);
         }
     }
 
-    float CAnimationLibrary::GetFloat(CWorld* World, ECS::FEntity Entity, const FName& Name, float Default)
+    float CWorld::GetAnimFloat(ECS::FEntity Entity, const FName& Name, float Default)
     {
         EAnimParamValueType Type;
-        void* Field = ResolveParameterField(World, Entity, Name, Type);
+        void* Field = ResolveParameterField(this, Entity, Name, Type);
         if (Field == nullptr)
         {
             return Default;
@@ -158,37 +152,37 @@ namespace Lumina
         return ReadAnimParamScalar(static_cast<const uint8*>(Field), Binding);
     }
 
-    void CAnimationLibrary::SetBool(CWorld* World, ECS::FEntity Entity, const FName& Name, bool bValue)
+    void CWorld::SetAnimBool(ECS::FEntity Entity, const FName& Name, bool bValue)
     {
-        SetFloat(World, Entity, Name, bValue ? 1.0f : 0.0f);
+        SetAnimFloat(Entity, Name, bValue ? 1.0f : 0.0f);
     }
 
-    bool CAnimationLibrary::GetBool(CWorld* World, ECS::FEntity Entity, const FName& Name, bool bDefault)
+    bool CWorld::GetAnimBool(ECS::FEntity Entity, const FName& Name, bool bDefault)
     {
-        return GetFloat(World, Entity, Name, bDefault ? 1.0f : 0.0f) != 0.0f;
+        return GetAnimFloat(Entity, Name, bDefault ? 1.0f : 0.0f) != 0.0f;
     }
 
-    bool CAnimationLibrary::HasParameter(CWorld* World, ECS::FEntity Entity, const FName& Name)
+    bool CWorld::HasAnimParameter(ECS::FEntity Entity, const FName& Name)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return Comp != nullptr && Comp->HasParameter(Name);
     }
 
-    uint32 CAnimationLibrary::PlayMontage(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage,
+    uint32 CWorld::PlayMontage(ECS::FEntity Entity, CAnimationMontage* Montage,
         float PlayRate, const FName& Section)
     {
-        if (World == nullptr || Montage == nullptr)
+        if (Montage == nullptr)
         {
             return 0;
         }
-        SAnimationGraphComponent& Comp = World->GetOrEmplaceComponent<SAnimationGraphComponent>(Entity);
+        SAnimationGraphComponent& Comp = GetOrEmplaceComponent<SAnimationGraphComponent>(Entity);
         return Comp.Montages.Play(Montage, PlayRate, Section);
     }
 
-    void CAnimationLibrary::StopMontage(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage,
+    void CWorld::StopMontage(ECS::FEntity Entity, CAnimationMontage* Montage,
         float BlendOutTime)
     {
-        SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         if (Comp == nullptr)
         {
             return;
@@ -203,23 +197,23 @@ namespace Lumina
         }
     }
 
-    bool CAnimationLibrary::JumpToMontageSection(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage,
+    bool CWorld::JumpToMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage,
         const FName& Section)
     {
-        SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return Comp != nullptr && Montage != nullptr && Comp->Montages.JumpToSection(Montage, Section);
     }
 
-    bool CAnimationLibrary::SetNextMontageSection(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage,
+    bool CWorld::SetNextMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage,
         const FName& Section)
     {
-        SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return Comp != nullptr && Montage != nullptr && Comp->Montages.SetNextSection(Montage, Section);
     }
 
-    bool CAnimationLibrary::IsMontagePlaying(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage)
+    bool CWorld::IsMontagePlaying(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         if (Comp == nullptr)
         {
             return false;
@@ -227,31 +221,31 @@ namespace Lumina
         return Montage != nullptr ? Comp->Montages.IsPlaying(Montage) : Comp->Montages.HasActive();
     }
 
-    float CAnimationLibrary::GetMontagePosition(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage)
+    float CWorld::GetMontagePosition(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetPosition(Montage) : 0.0f;
     }
 
-    float CAnimationLibrary::GetMontageWeight(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage)
+    float CWorld::GetMontageWeight(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetWeight(Montage) : 0.0f;
     }
 
-    void CAnimationLibrary::SetMontagePlayRate(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage,
+    void CWorld::SetMontagePlayRate(ECS::FEntity Entity, CAnimationMontage* Montage,
         float PlayRate)
     {
-        SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         if (Comp != nullptr && Montage != nullptr)
         {
             Comp->Montages.SetPlayRate(Montage, PlayRate);
         }
     }
 
-    FName CAnimationLibrary::GetMontageSection(CWorld* World, ECS::FEntity Entity, CAnimationMontage* Montage)
+    FName CWorld::GetMontageSection(ECS::FEntity Entity, CAnimationMontage* Montage)
     {
-        const SAnimationGraphComponent* Comp = GraphOf(World, Entity);
+        const SAnimationGraphComponent* Comp = GraphOf(this, Entity);
         return (Comp != nullptr && Montage != nullptr) ? Comp->Montages.GetCurrentSection(Montage) : FName();
     }
 }

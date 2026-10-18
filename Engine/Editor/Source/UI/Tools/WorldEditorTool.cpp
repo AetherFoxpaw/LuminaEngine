@@ -1,6 +1,5 @@
 ﻿#include <string>
 #include "Tools/Import/ImportPaths.h"
-#include "Animation/SkeletalMeshLibrary.h"
 #include "World/ECS/Registry.h"
 #include "WorldEditorTool.h"
 #include "Core/CoreEditorDelegates.h"
@@ -485,7 +484,7 @@ namespace Lumina
                         {
                             const ECS::FEntity Parent = Registry.GetHierarchy().GetParent(Data.Entity);
                             BeginRelationshipTransaction({ Data.Entity }, Parent);
-                            CSkeletalMeshLibrary::AttachEntityToSocket(World.Get(), Data.Entity, Parent, Socket);
+                            World->AttachEntityToSocket(Data.Entity, Parent, Socket);
                             EndTransaction("Attach to Socket");
                             if (Data.Entity == DetailsEntity)
                             {

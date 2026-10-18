@@ -1,7 +1,5 @@
 #include "RuntimePCH.h"
 
-#include "PerceptionLibrary.h"
-
 #include "AI/Perception/PerceptionWorldState.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/Ray/RayCast.h"
@@ -12,15 +10,10 @@
 
 namespace Lumina
 {
-    void CPerceptionLibrary::GetPerceivedTargets(CWorld* World, ECS::FEntity Perceiver,
+    void CWorld::GetPerceivedTargets(ECS::FEntity Perceiver,
         TVector<ECS::FEntity>& Out)
     {
-        if (World == nullptr)
-        {
-            return;
-        }
-
-        const SPerceptionComponent* Perception = World->TryGetComponent<SPerceptionComponent>(Perceiver);
+        const SPerceptionComponent* Perception = TryGetComponent<SPerceptionComponent>(Perceiver);
         if (Perception == nullptr)
         {
             return;
@@ -32,14 +25,10 @@ namespace Lumina
         }
     }
 
-    bool CPerceptionLibrary::CanSense(CWorld* World, ECS::FEntity Perceiver, ECS::FEntity Target,
+    bool CWorld::CanSense(ECS::FEntity Perceiver, ECS::FEntity Target,
         EAISenseChannel Senses)
     {
-        if (World == nullptr)
-        {
-            return false;
-        }
-        const SPerceptionComponent* Comp = World->TryGetComponent<SPerceptionComponent>(Perceiver);
+        const SPerceptionComponent* Comp = TryGetComponent<SPerceptionComponent>(Perceiver);
         if (Comp == nullptr)
         {
             return false;
@@ -48,15 +37,11 @@ namespace Lumina
         return Index >= 0 && (Comp->PerceivedTargets[Index].ActiveSenses & (uint8)Senses) != 0;
     }
 
-    SNavPoint CPerceptionLibrary::GetLastKnownLocation(CWorld* World, ECS::FEntity Perceiver,
+    SNavPoint CWorld::GetLastKnownLocation(ECS::FEntity Perceiver,
         ECS::FEntity Target)
     {
         SNavPoint Result;
-        if (World == nullptr)
-        {
-            return Result;
-        }
-        const SPerceptionComponent* Comp = World->TryGetComponent<SPerceptionComponent>(Perceiver);
+        const SPerceptionComponent* Comp = TryGetComponent<SPerceptionComponent>(Perceiver);
         if (Comp == nullptr)
         {
             return Result;
@@ -70,25 +55,16 @@ namespace Lumina
         return Result;
     }
 
-    ECS::FEntity CPerceptionLibrary::GetClosestPerceivedTarget(CWorld* World, ECS::FEntity Perceiver)
+    ECS::FEntity CWorld::GetClosestPerceivedTarget(ECS::FEntity Perceiver)
     {
-        if (World == nullptr)
-        {
-            return ECS::NullEntity;
-        }
-        const SPerceptionComponent* Comp = World->TryGetComponent<SPerceptionComponent>(Perceiver);
+        const SPerceptionComponent* Comp = TryGetComponent<SPerceptionComponent>(Perceiver);
         return Comp != nullptr ? Comp->GetClosestPerceivedTarget() : ECS::NullEntity;
     }
 
-    bool CPerceptionLibrary::HasLineOfSight(CWorld* World, ECS::FEntity From, ECS::FEntity To)
+    bool CWorld::HasPerceptionLineOfSight(ECS::FEntity From, ECS::FEntity To)
     {
-        if (World == nullptr)
-        {
-            return false;
-        }
-
-        Physics::IPhysicsScene* Scene = World->GetPhysicsScene();
-        ECS::FRegistry& Registry = World->GetEntityRegistry();
+        Physics::IPhysicsScene* Scene = GetPhysicsScene();
+        ECS::FRegistry& Registry = EntityRegistry;
         const STransformComponent* FromXf = Registry.TryGet<STransformComponent>(From);
         const STransformComponent* ToXf = Registry.TryGet<STransformComponent>(To);
         if (Scene == nullptr || FromXf == nullptr || ToXf == nullptr)
@@ -121,46 +97,34 @@ namespace Lumina
         return !Hit.has_value() || Hit->Entity == To.Value;
     }
 
-    void CPerceptionLibrary::ReportNoise(CWorld* World, FVector3 Location, float Loudness,
+    void CWorld::ReportPerceptionNoise(FVector3 Location, float Loudness,
         ECS::FEntity Instigator)
     {
-        if (World == nullptr)
-        {
-            return;
-        }
         FAIStimulusEvent Event;
         Event.Sense = EAISenseChannel::Hearing;
         Event.Instigator = Instigator;
         Event.Target = ECS::NullEntity;
         Event.Location = Location;
         Event.Strength = Loudness;
-        Perception::EnqueueStimulus(Perception::GetOrCreateState(World->GetEntityRegistry()), Event);
+        Perception::EnqueueStimulus(Perception::GetOrCreateState(EntityRegistry), Event);
     }
 
-    void CPerceptionLibrary::ReportDamage(CWorld* World, ECS::FEntity Victim, ECS::FEntity Instigator,
+    void CWorld::ReportPerceptionDamage(ECS::FEntity Victim, ECS::FEntity Instigator,
         FVector3 HitLocation, float Amount)
     {
-        if (World == nullptr)
-        {
-            return;
-        }
         FAIStimulusEvent Event;
         Event.Sense = EAISenseChannel::Damage;
         Event.Instigator = Instigator;
         Event.Target = Victim;
         Event.Location = HitLocation;
         Event.Strength = Amount;
-        Perception::EnqueueStimulus(Perception::GetOrCreateState(World->GetEntityRegistry()), Event);
+        Perception::EnqueueStimulus(Perception::GetOrCreateState(EntityRegistry), Event);
     }
 
-    void CPerceptionLibrary::RegisterSource(CWorld* World, ECS::FEntity Entity,
+    void CWorld::RegisterPerceptionSource(ECS::FEntity Entity,
         const FName& AffiliationTag, EAISenseChannel Senses)
     {
-        if (World == nullptr)
-        {
-            return;
-        }
-        SAIStimuliSourceComponent& Source = World->GetOrEmplaceComponent<SAIStimuliSourceComponent>(Entity);
+        SAIStimuliSourceComponent& Source = GetOrEmplaceComponent<SAIStimuliSourceComponent>(Entity);
         if ((uint8)Senses != 0)
         {
             Source.RegisteredSenses = Senses;
@@ -173,14 +137,14 @@ namespace Lumina
         }
     }
 
-    void CPerceptionLibrary::AddDetectableTag(CWorld* World, ECS::FEntity Perceiver, const FName& Tag)
+    void CWorld::AddDetectableTag(ECS::FEntity Perceiver, const FName& Tag)
     {
-        if (World == nullptr || Tag.IsNone())
+        if (Tag.IsNone())
         {
             return;
         }
         SGameplayTag Detectable;
         Detectable.TagName = Tag;
-        World->GetOrEmplaceComponent<SPerceptionComponent>(Perceiver).DetectableTags.AddTag(Detectable);
+        GetOrEmplaceComponent<SPerceptionComponent>(Perceiver).DetectableTags.AddTag(Detectable);
     }
 }

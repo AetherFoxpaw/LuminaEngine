@@ -46,7 +46,7 @@ public readonly struct UIDocument : IDisposable
     {
         if (IsValid)
         {
-            Lumina.CUILibrary.UnloadDocument(UIWorld.FromHandle(World), Handle);
+            UIWorld.FromHandle(World).UnloadUIDocument(Handle);
         }
     }
 

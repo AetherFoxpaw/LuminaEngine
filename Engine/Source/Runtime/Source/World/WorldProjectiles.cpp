@@ -1,7 +1,5 @@
 #include "RuntimePCH.h"
 
-#include "ProjectileLibrary.h"
-
 #include "World/ECS/Registry.h"
 #include "World/Entity/Components/LifetimeComponent.h"
 #include "World/Entity/Components/ProjectileComponent.h"
@@ -9,19 +7,14 @@
 
 namespace Lumina
 {
-    ECS::FEntity CProjectileLibrary::SpawnProjectile(CWorld* World, FVector3 Position, FVector3 Velocity,
+    ECS::FEntity CWorld::SpawnProjectile(FVector3 Position, FVector3 Velocity,
         float Damage, float Lifetime, ECS::FEntity Instigator)
     {
-        if (World == nullptr)
-        {
-            return ECS::NullEntity;
-        }
-
         FTransform SpawnTransform;
         SpawnTransform.SetLocation(Position);
-        const ECS::FEntity Entity = World->ConstructEntity("Projectile", SpawnTransform);
+        const ECS::FEntity Entity = ConstructEntity("Projectile", SpawnTransform);
 
-        ECS::FRegistry& Registry = World->GetEntityRegistry();
+        ECS::FRegistry& Registry = EntityRegistry;
         SProjectileComponent& Projectile = Registry.Emplace<SProjectileComponent>(Entity);
         Projectile.Velocity = Velocity;
         Projectile.Damage = Damage;

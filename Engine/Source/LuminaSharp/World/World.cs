@@ -42,8 +42,9 @@ public unsafe partial class CWorld
         set => SetActiveCamera(value);
     }
 
-    /// Spawns a prefab at the origin, unparented. Null entity if the prefab could not be spawned.
-    public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab) => CPrefabLibrary.SpawnPrefab(this, Prefab);
+    // Runs OnSpawned once on the game thread with the spawned root, or the null entity if it failed.
+    public void SpawnPrefabAsync(TSoftObjectPtr<CPrefab> Prefab, Action<FEntity> OnSpawned)
+        => SpawnPrefabAsync(Prefab, ScriptCallback.Of(OnSpawned));
 
     /// Spawns a prefab already placed, in one native call. Null entity if the prefab could not be spawned.
     public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
@@ -51,10 +52,10 @@ public unsafe partial class CWorld
 
     /// Spawns a prefab at a full transform, so an authored scale survives the spawn.
     public FEntity SpawnPrefab(TSoftObjectPtr<CPrefab> Prefab, FTransform Transform, FEntity? Parent = null)
-        => CPrefabLibrary.SpawnPrefabAt(this, Prefab, Transform, Parent ?? FEntity.Null);
+        => SpawnPrefabAt(Prefab, Transform, Parent ?? FEntity.Null);
 
     /// Spawns a prefab already loaded, with no path lookup. Null entity if the prefab is null.
-    public FEntity SpawnPrefab(CPrefab Prefab) => CPrefabLibrary.SpawnLoadedPrefab(this, Prefab);
+    public FEntity SpawnPrefab(CPrefab Prefab) => SpawnLoadedPrefab(Prefab);
 
     /// Spawns a prefab already loaded, placed in one native call.
     public FEntity SpawnPrefab(CPrefab Prefab, FVector3 Location, FQuat? Rotation = null, FEntity? Parent = null)
@@ -62,7 +63,7 @@ public unsafe partial class CWorld
 
     /// Spawns a prefab already loaded at a full transform, so an authored scale survives the spawn.
     public FEntity SpawnPrefab(CPrefab Prefab, FTransform Transform, FEntity? Parent = null)
-        => CPrefabLibrary.SpawnLoadedPrefabAt(this, Prefab, Transform, Parent ?? FEntity.Null);
+        => SpawnLoadedPrefabAt(Prefab, Transform, Parent ?? FEntity.Null);
 
     public List<T> Scripts<T>() where T : class
     {
@@ -109,6 +110,6 @@ public unsafe partial class CWorld
 
     /// A projectile that sweeps forward each frame, reports its first hit through its component's OnHit, and despawns after lifetime seconds.
     public FEntity SpawnProjectile(FVector3 position, FVector3 velocity, float damage = 0.0f, float lifetime = 5.0f)
-        => CProjectileLibrary.SpawnProjectile(this, position, velocity, damage, lifetime, FEntity.Null);
+        => SpawnProjectile(position, velocity, damage, lifetime, FEntity.Null);
 
 }

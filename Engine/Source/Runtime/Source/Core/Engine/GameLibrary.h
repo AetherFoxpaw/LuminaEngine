@@ -19,10 +19,6 @@ namespace Lumina
 
     public:
 
-        // The swap runs at the next frame start, so calling this mid tick is safe.
-        FUNCTION()
-        static void OpenLevel(CWorld* World, const FString& Url);
-
         /** Ends the play session in the editor and exits the process in a packaged game, both deferred. */
         FUNCTION()
         static void QuitGame();

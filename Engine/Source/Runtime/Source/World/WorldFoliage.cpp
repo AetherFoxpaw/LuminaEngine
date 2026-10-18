@@ -1,5 +1,4 @@
 #include "RuntimePCH.h"
-#include "FoliageLibrary.h"
 
 #include "Assets/AssetTypes/Mesh/StaticMesh/StaticMesh.h"
 #include "World/World.h"
@@ -32,20 +31,19 @@ namespace Lumina
         }
     }
 
-    ECS::FEntity CFoliageLibrary::GetOrCreateFoliage(CWorld* World)
+    ECS::FEntity CWorld::GetOrCreateFoliage()
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        if (World != nullptr)
         {
-            FindOrCreateFoliage(World, Entity);
+            FindOrCreateFoliage(this, Entity);
         }
         return Entity;
     }
 
-    int32 CFoliageLibrary::AddFoliageType(CWorld* World, CStaticMesh* Mesh, bool bCastShadow, float CullDistance)
+    int32 CWorld::AddFoliageType(CStaticMesh* Mesh, bool bCastShadow, float CullDistance)
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        SFoliageComponent* Foliage = World != nullptr ? FindOrCreateFoliage(World, Entity) : nullptr;
+        SFoliageComponent* Foliage = FindOrCreateFoliage(this, Entity);
         if (Foliage == nullptr || Mesh == nullptr)
         {
             return -1;
@@ -58,14 +56,14 @@ namespace Lumina
         Type.CullDistance   = CullDistance;
         Type.bFollowTerrain = false;
 
-        MarkFoliageChanged(*World, Entity, *Foliage);
+        MarkFoliageChanged(*this, Entity, *Foliage);
         return (int32)Foliage->Types.size() - 1;
     }
 
-    void CFoliageLibrary::AddFoliageInstances(CWorld* World, const SFoliageInstance* Instances, int32 Count)
+    void CWorld::AddFoliageInstances(const SFoliageInstance* Instances, int32 Count)
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        SFoliageComponent* Foliage = World != nullptr ? FindOrCreateFoliage(World, Entity) : nullptr;
+        SFoliageComponent* Foliage = FindOrCreateFoliage(this, Entity);
         if (Foliage == nullptr || Instances == nullptr || Count <= 0)
         {
             return;
@@ -80,13 +78,13 @@ namespace Lumina
             }
         }
 
-        MarkFoliageChanged(*World, Entity, *Foliage);
+        MarkFoliageChanged(*this, Entity, *Foliage);
     }
 
-    int32 CFoliageLibrary::RemoveFoliageInRadius(CWorld* World, FVector3 Center, float Radius, int32 TypeFilter)
+    int32 CWorld::RemoveFoliageInRadius(FVector3 Center, float Radius, int32 TypeFilter)
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        SFoliageComponent* Foliage = World != nullptr ? FindFoliage(World, Entity) : nullptr;
+        SFoliageComponent* Foliage = FindFoliage(this, Entity);
         if (Foliage == nullptr)
         {
             return 0;
@@ -95,25 +93,25 @@ namespace Lumina
         const int32 Removed = Foliage->RemoveInRadius(Center, Radius, TypeFilter);
         if (Removed > 0)
         {
-            MarkFoliageChanged(*World, Entity, *Foliage);
+            MarkFoliageChanged(*this, Entity, *Foliage);
         }
         return Removed;
     }
 
-    void CFoliageLibrary::SetFoliageInstanceHidden(CWorld* World, int32 Index, bool bHidden)
+    void CWorld::SetFoliageInstanceHidden(int32 Index, bool bHidden)
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        SFoliageComponent* Foliage = World != nullptr ? FindFoliage(World, Entity) : nullptr;
+        SFoliageComponent* Foliage = FindFoliage(this, Entity);
         if (Foliage != nullptr && Index >= 0)
         {
             Foliage->SetInstanceHidden((uint32)Index, bHidden);
         }
     }
 
-    int32 CFoliageLibrary::GetFoliageInstanceCount(CWorld* World)
+    int32 CWorld::GetFoliageInstanceCount()
     {
         ECS::FEntity Entity = ECS::NullEntity;
-        SFoliageComponent* Foliage = World != nullptr ? FindFoliage(World, Entity) : nullptr;
+        SFoliageComponent* Foliage = FindFoliage(this, Entity);
         return Foliage != nullptr ? (int32)Foliage->Instances.size() : 0;
     }
 }

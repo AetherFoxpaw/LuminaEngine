@@ -26,7 +26,6 @@
 #include "World/Entity/Components/CameraComponent.h"
 #include "World/Entity/Components/SequencePlayerComponent.h"
 #include "World/Entity/Components/TransformComponent.h"
-#include "World/Entity/Systems/SequenceLibrary.h"
 #include "World/World.h"
 #include "World/WorldManager.h"
 
@@ -47,7 +46,7 @@ namespace Lumina::MCP
         {
             { "Transform",    &CSequenceTrack_Transform::StaticClass,    true,  "Keys the binding's Location, Rotation (pitch, yaw, roll degrees) and Scale." },
             { "CameraCut",    &CSequenceTrack_CameraCut::StaticClass,    false, "Which camera binding is live over each time range, with optional blends." },
-            { "Event",        &CSequenceTrack_Event::StaticClass,        false, "Named moments gameplay reacts to through CSequenceLibrary.ConsumeEvents." },
+            { "Event",        &CSequenceTrack_Event::StaticClass,        false, "Named moments gameplay reacts to through World.ConsumeSequenceEvents." },
             { "Property",     &CSequenceTrack_Property::StaticClass,     true,  "A curve driving one reflected number on one component, such as SCameraComponent FOV." },
             { "Audio",        &CSequenceTrack_Audio::StaticClass,        false, "Sounds started as the playhead passes them, at the binding when there is one." },
             { "Fade",         &CSequenceTrack_Fade::StaticClass,         false, "Fades the whole picture toward Color, holding across cuts." },
@@ -1070,7 +1069,7 @@ namespace Lumina::MCP
         {
             Agent::FToolRegistry::Get().Register<SAddSequenceEventParams, SSequenceIndexResult>(
                 Owner, "sequence.add_event",
-                "Fire a named event at a time, for gameplay to react to through CSequenceLibrary.ConsumeEvents, such as an explosion on a beat.",
+                "Fire a named event at a time, for gameplay to react to through World.ConsumeSequenceEvents, such as an explosion on a beat.",
                 Agent::EToolEffect::Mutating, Agent::EToolThread::GameThread,
                 [](const SAddSequenceEventParams& In, SSequenceIndexResult& Out)
                 {
@@ -1391,9 +1390,9 @@ namespace Lumina::MCP
                         return Agent::FToolResult::Error(Error);
                     }
 
-                    ForEachPlayer(World, Sequence, [World](ECS::FEntity Player) { CSequenceLibrary::StopSequence(World, Player); });
+                    ForEachPlayer(World, Sequence, [World](ECS::FEntity Player) { World->StopSequence(Player); });
 
-                    const ECS::FEntity Player = CSequenceLibrary::PlaySequence(World, Sequence, In.bLoop, In.PlayRate);
+                    const ECS::FEntity Player = World->PlaySequence(Sequence, In.bLoop, In.PlayRate);
                     SSequencePlayerComponent& Component = World->GetComponent<SSequencePlayerComponent>(Player);
                     if (In.StartTime > 0.0f)
                     {
@@ -1476,7 +1475,7 @@ namespace Lumina::MCP
                         ++Touched;
                         if (Action == "Stop")
                         {
-                            CSequenceLibrary::StopSequence(World, Entity);
+                            World->StopSequence(Entity);
                             return;
                         }
 
@@ -1562,8 +1561,8 @@ namespace Lumina::MCP
                     if (Sequence != nullptr)
                     {
                         // Held on its first frame through the warmup, so streaming and exposure settle on the opening shot.
-                        ForEachPlayer(World, nullptr, [World](ECS::FEntity Player) { CSequenceLibrary::StopSequence(World, Player); });
-                        const ECS::FEntity Player = CSequenceLibrary::PlaySequence(World, Sequence, false, 1.0f);
+                        ForEachPlayer(World, nullptr, [World](ECS::FEntity Player) { World->StopSequence(Player); });
+                        const ECS::FEntity Player = World->PlaySequence(Sequence, false, 1.0f);
                         World->GetComponent<SSequencePlayerComponent>(Player).Pause();
 
                         Settings.OnRecordingStarted = [Sequence]()

@@ -11,7 +11,7 @@ namespace LuminaSharp;
 public static partial class Engine
 {
     // Switches level at the next frame start, keeping only SPersistentComponent entities, which arrive with their children and scripts and get OnTraveled.
-    public static void OpenLevel(string Url) => Lumina.CGameLibrary.OpenLevel(World, Url);
+    public static void OpenLevel(string Url) => World.OpenLevel(Url);
 
     /// <summary>
     /// Quits the game: exits the process in a packaged game; in the editor it ends the Play session

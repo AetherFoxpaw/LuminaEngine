@@ -9,14 +9,6 @@
 
 namespace Lumina
 {
-    void CGameLibrary::OpenLevel(CWorld* World, const FString& Url)
-    {
-        if (GEngine != nullptr && !Url.empty())
-        {
-            GEngine->OpenLevel(FURL::Parse(FStringView(Url.c_str(), Url.size())), World);
-        }
-    }
-
     void CGameLibrary::QuitGame()
     {
         if (GEngine != nullptr)

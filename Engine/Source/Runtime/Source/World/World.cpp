@@ -29,7 +29,6 @@
 #include "SaveGame/WorldSaveState.h"
 #include "Animation/Pose.h"
 #include "Animation/SkeletalMeshUtils.h"
-#include "Animation/SkeletalMeshLibrary.h"
 #include "Assets/AssetTypes/Mesh/SkeletalMesh/SkeletalMesh.h"
 #include "Assets/AssetTypes/Mesh/Skeleton/Skeleton.h"
 #include "Entity/EntityUtils.h"
@@ -84,7 +83,6 @@ namespace Lumina
 {
     // Generous for the handful of paint ops a frame issues, and drained every Extract.
     static constexpr uint32 kRenderTargetPaintQueueCapacity = 1024;
-
 
     namespace
     {

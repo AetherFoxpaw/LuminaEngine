@@ -373,7 +373,7 @@ namespace Lumina
         PROPERTY()
         float Time = 0.0f;
 
-        // What gameplay listens for through CSequenceLibrary.ConsumeEvents.
+        // What gameplay listens for through World.ConsumeSequenceEvents.
         PROPERTY()
         FString Name;
 
