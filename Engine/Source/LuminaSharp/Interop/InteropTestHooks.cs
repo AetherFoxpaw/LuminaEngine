@@ -124,6 +124,37 @@ internal sealed class OverloadedFunctionTarget
     }
 }
 
+// A minted parent whose stored property a subclass overrides, so the override has to reuse the parent's storage.
+internal class OverrideSchemaParent : NativeObject
+{
+    [Property]
+    public virtual string Label { get; set; } = "";
+
+    [Property]
+    public int Untouched { get; set; }
+}
+
+internal sealed class OverrideSchemaChild : OverrideSchemaParent
+{
+    [Property]
+    public override string Label { get; set; } = "Child";
+
+    [Property]
+    public int OwnField { get; set; }
+}
+
+// An abstract property has no storage, so the override that implements it is the one that stores it.
+internal abstract class AbstractSchemaParent : NativeObject
+{
+    public abstract int Count { get; set; }
+}
+
+internal sealed class AbstractSchemaChild : AbstractSchemaParent
+{
+    [Property]
+    public override int Count { get; set; }
+}
+
 // Drives FrameMarshal from a native test, which is the only way to exercise it without an editor.
 internal static unsafe class InteropTestHooks
 {
@@ -523,6 +554,25 @@ internal static unsafe class InteropTestHooks
 
         *OutAmbiguousDescribed = Ambiguous;
         return Description.Functions.Count;
+    }
+
+    // How many times Name lands in Child's schema below MintedParent, which is what its minted class adds to the parent's.
+    private static int SchemaCount(Type Child, Type MintedParent, string Name)
+    {
+        var Library = new TypeLibrary(new[] { MintedParent, Child });
+        TypeDescription Description = new(Child);
+        Description.Build(Library);
+        return Serializer.PropertiesBelow(Description, MintedParent).Count(Property => Property.Name == Name);
+    }
+
+    [ManagedExport]
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    public static void Test_OverriddenPropertySchemaCounts(int* OutOverride, int* OutOwn, int* OutInherited, int* OutAbstractOverride)
+    {
+        *OutOverride = SchemaCount(typeof(OverrideSchemaChild), typeof(OverrideSchemaParent), nameof(OverrideSchemaChild.Label));
+        *OutOwn = SchemaCount(typeof(OverrideSchemaChild), typeof(OverrideSchemaParent), nameof(OverrideSchemaChild.OwnField));
+        *OutInherited = SchemaCount(typeof(OverrideSchemaChild), typeof(OverrideSchemaParent), nameof(OverrideSchemaParent.Untouched));
+        *OutAbstractOverride = SchemaCount(typeof(AbstractSchemaChild), typeof(AbstractSchemaParent), nameof(AbstractSchemaChild.Count));
     }
 
     // Reads and rewrites a bare native FSoftObjectPath through the element marshaller, the container shape.
