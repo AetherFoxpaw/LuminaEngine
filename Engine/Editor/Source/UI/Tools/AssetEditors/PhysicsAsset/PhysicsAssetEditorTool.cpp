@@ -504,7 +504,7 @@ namespace Lumina
 
         if (World->GetRenderer() != nullptr)
         {
-            World->GetRenderer()->GetSceneRenderSettings().bDrawBillboards = false;
+            World->GetRenderSettings().bDrawBillboards = false;
         }
 
         // The overlays are drawn from the bind pose, which the live ragdoll has already left behind.

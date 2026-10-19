@@ -195,6 +195,13 @@ namespace Lumina
         return Self.RenderCallbacks;
     }
 
+    auto* CWorld::FindRenderSettings(this auto& Self)
+    {
+        return Self.EntityRegistry.IsValid(Self.SingletonEntity)
+            ? Self.EntityRegistry.template TryGet<SWorldRenderSettings>(Self.SingletonEntity)
+            : nullptr;
+    }
+
     auto* CWorld::FindSceneFolders(this auto& Self)
     {
         return Self.EntityRegistry.IsValid(Self.SingletonEntity)

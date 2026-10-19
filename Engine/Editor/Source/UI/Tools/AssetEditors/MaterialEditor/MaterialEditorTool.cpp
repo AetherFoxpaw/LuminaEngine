@@ -153,7 +153,7 @@ namespace Lumina
     void FMaterialEditorTool::SetupWorldForTool()
     {
         FAssetEditorTool::SetupWorldForTool();
-        World->GetRenderer()->GetSceneRenderSettings().bDrawBillboards = false;
+        World->GetRenderSettings().bDrawBillboards = false;
 
         DirectionalLightEntity = World->ConstructEntity("Directional Light");
         auto& Directional = World->EmplaceComponent<SDirectionalLightComponent>(DirectionalLightEntity);
@@ -342,12 +342,10 @@ namespace Lumina
         const ImVec2 CursorScreenPos = ImGui::GetCursorScreenPos();
         const ImVec2 WindowBottomRight = { CursorScreenPos.x + ViewportSize.x, CursorScreenPos.y + ViewportSize.y };
 
-        if (IRenderScene* Scene = World ? World->GetRenderer() : nullptr)
+        if (World != nullptr && World->GetRenderer() != nullptr)
         {
-            FSceneRenderSettings& Settings = Scene->GetSceneRenderSettings();
-            Settings.bDrawBillboards = false;
-            Settings.bDrawAABB       = false;
-            bWorldGridEnabled        = false;
+            World->GetRenderSettings().bDrawBillboards = false;
+            bWorldGridEnabled = false;
         }
 
         if (SCameraComponent* CameraComponent = World->GetCamera()->GetActiveCamera())

@@ -344,11 +344,6 @@ namespace Lumina
             CPrefab::CullOrphanedInstances(RegistryPending);
         }
         
-        // The swap takes the pending registry's singletons too, so anything set before init is carried over.
-        const FSceneRenderSettings* ExistingRenderSettings = EntityRegistry.Ctx().Find<FSceneRenderSettings>();
-        const FSceneRenderSettings  CarriedRenderSettings  = ExistingRenderSettings ? *ExistingRenderSettings
-                                                                                    : FSceneRenderSettings{};
-
         if (RegistryPending.NumEntities() != 0)
         {
             // Pending commands and events name entities of the registry being swapped out.
@@ -357,9 +352,6 @@ namespace Lumina
             EntityRegistry.Swap(RegistryPending);
         }
         RegistryPending = {};
-
-        // Lives here rather than on the renderer, which ReclaimIdleRenderer destroys and CreateRenderer rebuilds.
-        EntityRegistry.Ctx().Emplace<FSceneRenderSettings>(CarriedRenderSettings);
 
         {
             LUMINA_PROFILE_SECTION("RefreshPrefabInstances");
@@ -1257,6 +1249,12 @@ namespace Lumina
     {
         const SDefaultWorldSettings* Settings = EntityRegistry.IsValid(SingletonEntity) ? EntityRegistry.TryGet<SDefaultWorldSettings>(SingletonEntity) : nullptr;
         return Settings != nullptr ? Settings->DeltaTimeScale : 1.0f;
+    }
+
+    SWorldRenderSettings& CWorld::GetRenderSettings()
+    {
+        ASSERT(EntityRegistry.IsValid(SingletonEntity), "Render settings live on the singleton entity, which InitializeWorld creates.");
+        return EntityRegistry.GetOrEmplace<SWorldRenderSettings>(SingletonEntity);
     }
 
     SDefaultWorldSettings& CWorld::GetDefaultWorldSettings()

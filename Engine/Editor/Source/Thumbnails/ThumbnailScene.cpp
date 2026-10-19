@@ -43,7 +43,7 @@ namespace Lumina
         {
             Scene->Resize(FUIntVector2(RTSize, RTSize));
 
-            FSceneRenderSettings& Settings = Scene->GetSceneRenderSettings();
+            SWorldRenderSettings& Settings = World->GetRenderSettings();
             Settings.bDrawBillboards = false;
             
             Settings.bOcclusionCull       = false;

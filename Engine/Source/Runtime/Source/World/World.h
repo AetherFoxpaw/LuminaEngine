@@ -686,6 +686,12 @@ namespace Lumina
 
         SDefaultWorldSettings& GetDefaultWorldSettings();
 
+        // Saved with the world, and created on first use once the world is initialized.
+        SWorldRenderSettings& GetRenderSettings();
+
+        // Null before the world is initialized or before anything set them.
+        NODISCARD auto* FindRenderSettings(this auto& Self);
+
         // The outliner's folder table, created on first use.
         SSceneFolderComponent& GetSceneFolders();
 

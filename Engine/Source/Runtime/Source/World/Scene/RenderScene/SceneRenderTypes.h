@@ -1485,29 +1485,5 @@ namespace Lumina
         uint8 bGTAO:1            = false;
     };
 
-    // Owned by the world as a registry singleton, so it outlives a renderer that is destroyed and rebuilt.
-    struct FSceneRenderSettings
-    {
-        ERenderSceneDebugFlags Flags    = ERenderSceneDebugFlags::None;
-        uint8 bUseInstancing:1          = true;
-        uint8 bDrawAABB:1               = false;
-        uint8 bFrustumCull:1            = true;
-        uint8 bConeCull:1               = true;
-        uint8 bOcclusionCull:1          = true;
-        // Per-MESHLET Hi-Z, resolved across the two VisBuffer phases. Separate from bOcclusionCull so the
-        // instance-level cull (which is single-phase and costs nothing extra) can stay on while this one
-        // is A/B'd -- turning it off collapses the frame back to a single geometry phase.
-        uint8 bMeshletOcclusionCull:1   = true;
-        uint8 bShadowOcclusionCull:1    = true;
-        uint8 bWireframe:1              = false;
-        uint8 bDrawBillboards:1         = true;
-        uint8 bCPUInstanceCull:1        = true;
-        // Rejects a local light whose attenuation sphere reaches no shading volume, before it takes a slot.
-        uint8 bCullLights:1             = true;
-        uint8 bUseLODs:1                = true;
-        // Debug: keep culling against the inputs captured when this went on, so the selected set holds
-        // still while the camera flies free. See FDefaultSceneRenderer::ApplyCullFreeze.
-        uint8 bFreezeCulling:1          = false;
-    };
     
 }

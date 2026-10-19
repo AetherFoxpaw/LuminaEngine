@@ -1116,43 +1116,24 @@ namespace Lumina
 
     void FWorldEditorTool::ToggleGameViewMode()
     {
-        FSceneRenderSettings* Settings = nullptr;
-        if (IRenderScene* RenderScene = World ? World->GetRenderer() : nullptr)
-        {
-            Settings = &RenderScene->GetSceneRenderSettings();
-        }
-
         if (!bGameViewMode)
         {
             bSavedWorldGridEnabled = bWorldGridEnabled;
             bSavedShowComponentVisualizers = bShowComponentVisualizers;
-            if (Settings)
-            {
-                bSavedDrawBillboards = Settings->bDrawBillboards;
-                bSavedDrawAABB = Settings->bDrawAABB;
-            }
-
             bWorldGridEnabled = false;
             bShowComponentVisualizers = false;
-            if (Settings)
-            {
-                Settings->bDrawBillboards = false;
-                Settings->bDrawAABB = false;
-            }
-
             bGameViewMode = true;
         }
         else
         {
             bWorldGridEnabled = bSavedWorldGridEnabled;
             bShowComponentVisualizers = bSavedShowComponentVisualizers;
-            if (Settings)
-            {
-                Settings->bDrawBillboards = bSavedDrawBillboards;
-                Settings->bDrawAABB = bSavedDrawAABB;
-            }
-
             bGameViewMode = false;
+        }
+
+        if (World != nullptr && World->GetRenderer() != nullptr)
+        {
+            World->GetRenderSettings().bHideEditorOverlays = bGameViewMode;
         }
     }
 

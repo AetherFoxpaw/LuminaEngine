@@ -2254,7 +2254,7 @@ namespace Lumina
     // The mesh-local error the camera tolerates here, which is what picks a skinned LOD and how much of the skeleton may hold still.
     static float ResolveBoneLODTolerance(const FScenePrimitive& Prim, const FSurfaceBinding* Bindings,
                                          const FSurfaceDescGPU* SurfaceDescs, uint32 NumSurfaceDescs,
-                                         const FSceneRenderSettings& Settings, const FCullView* CameraView,
+                                         const SWorldRenderSettings& Settings, const FCullView* CameraView,
                                          const FVector4& Sphere, float MaxScale)
     {
         // A forced LOD previews the cut that LOD's own error allows.
@@ -2312,7 +2312,7 @@ namespace Lumina
                                       uint32 NumSurfaceDescs,
                                       uint32 BoneArenaBase,
                                       const FSkinnedFrameDataTarget& Target,
-                                      const FSceneRenderSettings& Settings,
+                                      const SWorldRenderSettings& Settings,
                                       const FCullView* CameraView,
                                       const FVector4& Sphere,
                                       float MaxScale)
