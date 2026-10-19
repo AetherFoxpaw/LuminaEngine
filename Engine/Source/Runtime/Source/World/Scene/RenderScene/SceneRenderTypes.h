@@ -1015,7 +1015,7 @@ namespace Lumina
         uint32          RetainedSlot;           //        112
         uint32          RenderLayers;           //        116
         uint32          SkinnedBoundsBase;      //        120
-        uint32          _Pad0;                  //        124
+        uint32          CustomDepthStencil;     //        124  PackCustomDepthStencil
     };
 
     static_assert(sizeof(FGPUInstance) == 128, "FGPUInstance layout must match shader");
@@ -1080,12 +1080,22 @@ namespace Lumina
     // Handed out per skinned binding, so the skinned frame data is as long as the live skinned instances.
     constexpr uint32 kNoSkinnedIndex = Constants::kIndexNoneU32;
 
-    // The forced LOD plus one in the low byte (0 is automatic), the custom layer bit, and the foliage thinning start distance as a half float in the high half.
-    inline uint32 PackLODAndThinning(int32 ForcedLODIndex, float ThinningStartDistance, uint32 RenderLayers = RENDER_LAYER_DEFAULT_MASK)
+    // The enable bit above the stencil byte, so zero means the instance draws no custom depth.
+    constexpr uint32 PackCustomDepthStencil(bool bRenderCustomDepth, uint8 StencilValue)
     {
-        const uint32 LOD    = (uint32)Math::Clamp(ForcedLODIndex + 1, 0, 255);
+        return bRenderCustomDepth ? (CUSTOM_DEPTH_ENABLED_BIT | StencilValue) : 0u;
+    }
+
+    static_assert(MESHLET_MAX_LODS < INSTANCE_FORCED_LOD_MASK, "A forced LOD plus one must fit INSTANCE_FORCED_LOD_MASK");
+
+    // The forced LOD plus one in the low bits (0 is automatic), the custom layer bit, the custom depth word, and the foliage thinning start distance as a half float in the high half.
+    inline uint32 PackLODAndThinning(int32 ForcedLODIndex, float ThinningStartDistance, uint32 RenderLayers = RENDER_LAYER_DEFAULT_MASK,
+                                     uint32 CustomDepthStencil = 0u)
+    {
+        const uint32 LOD    = (uint32)Math::Clamp(ForcedLODIndex + 1, 0, (int32)INSTANCE_FORCED_LOD_MASK);
         const uint32 Layers = RenderLayers != RENDER_LAYER_DEFAULT_MASK ? INSTANCE_CUSTOM_LAYERS_BIT : 0u;
-        return LOD | Layers | ((uint32)FHalf(Math::Clamp(ThinningStartDistance, 0.0f, 65000.0f)).Bits << 16);
+        return LOD | Layers | (CustomDepthStencil << INSTANCE_CUSTOM_DEPTH_SHIFT)
+             | ((uint32)FHalf(Math::Clamp(ThinningStartDistance, 0.0f, 65000.0f)).Bits << 16);
     }
 
     constexpr uint32 PackDrawIDAndFlags(uint32 DrawID, EInstanceFlags Flags)
@@ -1172,7 +1182,6 @@ namespace Lumina
     VERIFY_SSBO_ALIGNMENT(FCullData);
 
     // Bits inside FCullView::Flags. Must match CULL_VIEW_FLAG_* in Common.slang.
-    // Must match CULL_VIEW_FLAG_* in Common.slang.
     namespace ECullViewFlags
     {
         enum Type : uint32
@@ -1189,6 +1198,7 @@ namespace Lumina
             FarCascade      = BIT(8),
             OrthographicLOD = BIT(9),
             NoFoliage       = BIT(10),
+            CustomDepthOnly = BIT(11),
         };
     }
 
