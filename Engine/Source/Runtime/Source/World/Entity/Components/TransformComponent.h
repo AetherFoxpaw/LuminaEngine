@@ -250,7 +250,7 @@ namespace Lumina
         {
             return LocalTransform.GetUp();
         }
-        
+
         FUNCTION(NoSuppressGCTransition)
         FVector3 GetWorldForward() const
         {
